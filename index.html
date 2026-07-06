@@ -67,6 +67,18 @@
   .dot{ width:6px;height:6px;border-radius:50%; }
   .dot.on{ background:var(--sage); box-shadow:0 0 0 3px var(--sage-tint); }
   .dot.off{ background:var(--rose); box-shadow:0 0 0 3px var(--rose-tint); }
+  .account-btn{
+    font-family:var(--sans); font-size:13px; font-weight:600;
+    background:transparent; color:var(--ink-soft); padding:8px 14px; border-radius:6px;
+    border:1px solid var(--paper-line); cursor:pointer; transition:all .15s;
+  }
+  .account-btn:hover{ border-color:var(--sage); color:var(--sage-deep); }
+  .account-pill{
+    font-family:var(--mono); font-size:11.5px; color:var(--ink-soft);
+    display:flex; align-items:center; gap:8px;
+  }
+  .account-pill .logout{ color:var(--ink-faint); cursor:pointer; text-decoration:underline; }
+  .account-pill .logout:hover{ color:var(--rose); }
   .nav-cta{
     font-family:var(--sans); font-size:13px; font-weight:600;
     background:var(--ink); color:#fff; padding:8px 16px; border-radius:6px;
@@ -262,6 +274,20 @@
   .modal-box p{ font-size:14px; color:var(--ink-soft); margin-bottom:22px; line-height:1.6; }
   .modal-close{ background:none; border:none; color:var(--ink-faint); font-size:12px; margin-top:14px; cursor:pointer; text-decoration:underline; }
 
+  /* Formulaire d'authentification (réutilise modal-overlay / modal-box) */
+  .auth-tabs{ display:flex; gap:6px; margin-bottom:22px; background:var(--paper); border-radius:8px; padding:4px; }
+  .auth-tab{ flex:1; padding:8px; border:none; background:transparent; border-radius:6px; font-size:13px; font-weight:600; color:var(--ink-faint); cursor:pointer; font-family:var(--sans); }
+  .auth-tab.active{ background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(22,33,28,.08); }
+  .auth-field{ text-align:left; margin-bottom:14px; }
+  .auth-field label{ font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-faint); display:block; margin-bottom:6px; }
+  .auth-field input{ width:100%; padding:11px 13px; border:1px solid var(--paper-line); border-radius:7px; font-family:var(--sans); font-size:14px; background:var(--paper); color:var(--ink); }
+  .auth-field input:focus{ outline:none; border-color:var(--sage); }
+  .auth-error{ font-size:12.5px; color:var(--rose); margin-bottom:12px; display:none; text-align:left; }
+  .auth-error.visible{ display:block; }
+  .auth-submit{ width:100%; padding:12px; background:var(--sage); color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; font-family:var(--sans); }
+  .auth-submit:hover{ background:var(--sage-deep); }
+  .auth-submit:disabled{ background:var(--ink-faint); cursor:not-allowed; }
+
   footer{ text-align:center; padding:48px 2rem 32px; font-size:12px; color:var(--ink-faint); border-top:1px solid var(--paper-line); margin-top:100px; position:relative; z-index:1; }
 
   @media (max-width:600px){
@@ -285,6 +311,7 @@
     <a href="#fonctionnalites" class="nav-link">Fonctionnalités</a>
     <a href="#tarifs" class="nav-link">Tarifs</a>
     <div class="nav-status"><span class="dot off" id="statusDot"></span><span id="statusText">Vérification…</span></div>
+    <div id="accountZone"><button class="account-btn" onclick="openAuthModal('login')">Se connecter</button></div>
   </div>
 </nav>
 
@@ -440,6 +467,34 @@
   MédiIA — outil d'aide à la structuration de comptes-rendus médicaux. Les données patient sont anonymisées avant tout traitement externe.
 </footer>
 
+<!-- MODALE : connexion / inscription -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal-box">
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-mode="login" onclick="switchAuthTab(this)">Se connecter</button>
+      <button class="auth-tab" data-mode="signup" onclick="switchAuthTab(this)">Créer un compte</button>
+    </div>
+    <h3 id="authTitle">Bon retour</h3>
+    <p id="authSubtitle">Connectez-vous pour retrouver vos analyses.</p>
+
+    <div class="auth-error" id="authError"></div>
+
+    <form id="authForm" onsubmit="submitAuth(event)">
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="authEmail" placeholder="vous@cabinet.fr" required autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>Mot de passe</label>
+        <input type="password" id="authPassword" placeholder="8 caractères minimum" required minlength="8" autocomplete="current-password">
+      </div>
+      <button type="submit" class="auth-submit" id="authSubmitBtn">Se connecter</button>
+    </form>
+
+    <button class="modal-close" onclick="closeAuthModal()">Annuler</button>
+  </div>
+</div>
+
 <!-- MODALE : quota atteint -->
 <div class="modal-overlay" id="paywallModal">
   <div class="modal-box">
@@ -457,56 +512,141 @@
 const API_BASE = 'https://mediai-backend-156u.onrender.com';
 let currentSpec = 'generaliste';
 let recording = false;
-
-// ── Identifiant de navigateur simple (pour le suivi du quota gratuit) ──
-// NOTE : ceci est une solution de test pour valider le modèle de prix.
-// Un vrai système de comptes (email + mot de passe) remplacera ceci
-// avant un lancement en production.
-function getClientId() {
-  let id = localStorage.getItem('mediai_client_id');
-  if (!id) {
-    id = 'client_' + Math.random().toString(36).slice(2) + Date.now();
-    localStorage.setItem('mediai_client_id', id);
-  }
-  return id;
-}
-function getUsageCount() {
-  return parseInt(localStorage.getItem('mediai_usage_count') || '0', 10);
-}
-function incrementUsage() {
-  localStorage.setItem('mediai_usage_count', String(getUsageCount() + 1));
-}
-function isPro() {
-  return localStorage.getItem('mediai_is_pro') === 'true';
-}
+let currentUser = null; // { email, isPro, freeUsageCount }
 const FREE_LIMIT = 3;
+
+// ── Gestion du token JWT ──────────────────────────────────────────
+function getToken() { return localStorage.getItem('mediai_token'); }
+function setToken(t) { localStorage.setItem('mediai_token', t); }
+function clearToken() { localStorage.removeItem('mediai_token'); }
+
+function authHeaders() {
+  return { 'Authorization': 'Bearer ' + (getToken() || '') };
+}
+
+// ── Récupère l'état du compte au chargement de la page ────────────
+async function loadAccount() {
+  const token = getToken();
+  if (!token) { renderAccountZone(); return; }
+  try {
+    const res = await fetch(API_BASE + '/api/auth/me', { headers: authHeaders() });
+    if (!res.ok) { clearToken(); renderAccountZone(); return; }
+    const data = await res.json();
+    currentUser = data.user;
+  } catch { currentUser = null; }
+  renderAccountZone();
+  renderUsageBar();
+}
+
+function renderAccountZone() {
+  const zone = document.getElementById('accountZone');
+  if (currentUser) {
+    zone.innerHTML = `<div class="account-pill">${currentUser.email} <span class="logout" onclick="logout()">déconnexion</span></div>`;
+  } else {
+    zone.innerHTML = `<button class="account-btn" onclick="openAuthModal('login')">Se connecter</button>`;
+  }
+}
+
+function logout() {
+  clearToken();
+  currentUser = null;
+  renderAccountZone();
+  renderUsageBar();
+}
 
 function renderUsageBar() {
   const bar = document.getElementById('usageBar');
   const label = document.getElementById('usageLabel');
-  if (isPro()) {
+
+  if (!currentUser) {
+    label.textContent = 'Connectez-vous pour commencer';
+    bar.innerHTML = '';
+    return;
+  }
+  if (currentUser.isPro) {
     label.textContent = 'Plan Praticien — analyses illimitées';
     bar.innerHTML = '<span class="usage-dot pro"></span><span class="usage-dot pro"></span><span class="usage-dot pro"></span>';
     return;
   }
-  const used = getUsageCount();
+  const used = currentUser.freeUsageCount || 0;
   label.textContent = `${Math.max(FREE_LIMIT - used, 0)} analyse(s) gratuite(s) restante(s) ce mois`;
   bar.innerHTML = Array.from({length: FREE_LIMIT}, (_, i) =>
     `<span class="usage-dot ${i < used ? 'used' : ''}"></span>`
   ).join('');
 }
-renderUsageBar();
+
+// ── Modale d'authentification ──────────────────────────────────────
+let authMode = 'login';
+function openAuthModal(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  updateAuthCopy();
+  document.getElementById('authModal').classList.add('visible');
+}
+function closeAuthModal() {
+  document.getElementById('authModal').classList.remove('visible');
+  document.getElementById('authError').classList.remove('visible');
+}
+function switchAuthTab(btn) {
+  authMode = btn.dataset.mode;
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  updateAuthCopy();
+}
+function updateAuthCopy() {
+  const isLogin = authMode === 'login';
+  document.getElementById('authTitle').textContent = isLogin ? 'Bon retour' : 'Créer votre compte';
+  document.getElementById('authSubtitle').textContent = isLogin
+    ? 'Connectez-vous pour retrouver vos analyses.'
+    : '3 analyses gratuites pour commencer, sans carte bancaire.';
+  document.getElementById('authSubmitBtn').textContent = isLogin ? 'Se connecter' : 'Créer mon compte';
+  document.getElementById('authPassword').autocomplete = isLogin ? 'current-password' : 'new-password';
+}
+
+async function submitAuth(event) {
+  event.preventDefault();
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errorEl = document.getElementById('authError');
+  const btn = document.getElementById('authSubmitBtn');
+  errorEl.classList.remove('visible');
+  btn.disabled = true;
+
+  try {
+    const route = authMode === 'login' ? '/api/auth/login' : '/api/auth/signup';
+    const res = await fetch(API_BASE + route, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur inconnue');
+
+    setToken(data.token);
+    currentUser = data.user;
+    renderAccountZone();
+    renderUsageBar();
+    closeAuthModal();
+    document.getElementById('authForm').reset();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 // ── Vérifie le retour de Stripe (après paiement) ─────────────
 (async function checkStripeReturn() {
   const params = new URLSearchParams(window.location.search);
   if (params.get('checkout') === 'success' && params.get('session_id')) {
     try {
-      const res = await fetch(`${API_BASE}/api/verify-session?session_id=${params.get('session_id')}`);
+      const res = await fetch(`${API_BASE}/api/verify-session?session_id=${params.get('session_id')}`, {
+        headers: authHeaders()
+      });
       const data = await res.json();
       if (data.paid) {
-        localStorage.setItem('mediai_is_pro', 'true');
-        renderUsageBar();
+        await loadAccount();
         alert('Abonnement activé — merci ! Vous avez maintenant des analyses illimitées.');
       }
     } catch (e) { console.error(e); }
@@ -515,6 +655,8 @@ renderUsageBar();
     window.history.replaceState({}, '', window.location.pathname);
   }
 })();
+
+loadAccount();
 
 // ── Vérifie que le serveur répond ────────────────────────────
 async function checkServer() {
@@ -588,8 +730,13 @@ async function generate() {
   const transcription = box.value.trim();
   if (transcription.length < 50) return;
 
-  // ── Vérification du quota côté client (première ligne de défense) ──
-  if (!isPro() && getUsageCount() >= FREE_LIMIT) {
+  if (!currentUser) {
+    openAuthModal('signup');
+    return;
+  }
+
+  // ── Vérification du quota côté client (première ligne de défense — le serveur revérifie) ──
+  if (!currentUser.isPro && (currentUser.freeUsageCount || 0) >= FREE_LIMIT) {
     openModal();
     return;
   }
@@ -607,13 +754,8 @@ async function generate() {
   try {
     const res = await fetch(API_BASE + '/api/transcription/analyze', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer test' },
-      body: JSON.stringify({
-        transcription,
-        specialite: currentSpec,
-        clientId: getClientId(),
-        isPro: isPro(),
-      })
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ transcription, specialite: currentSpec })
     });
 
     const data = await res.json();
@@ -622,9 +764,17 @@ async function generate() {
       openModal();
       return;
     }
+    if (res.status === 401) {
+      logout();
+      openAuthModal('login');
+      return;
+    }
     if (!data.success) throw new Error(data.error || 'Erreur inconnue');
 
-    if (!isPro()) incrementUsage();
+    if (data.account) {
+      currentUser.isPro = data.account.isPro;
+      currentUser.freeUsageCount = data.account.freeUsageCount;
+    }
     renderUsageBar();
     renderChart(data.compteRendu, data.meta);
 
@@ -711,11 +861,15 @@ function closeModal(){ document.getElementById('paywallModal').classList.remove(
 
 // ── Stripe checkout ────────────────────────────────────────────
 async function startCheckout() {
+  if (!currentUser) {
+    openAuthModal('signup');
+    return;
+  }
   const btn = document.getElementById('upgradeBtn');
   try {
     const res = await fetch(API_BASE + '/api/create-checkout-session', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
     });
     const data = await res.json();
     if (data.url) {
