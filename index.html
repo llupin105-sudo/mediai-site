@@ -512,6 +512,8 @@
 const API_BASE = 'https://mediai-backend-156u.onrender.com';
 let currentSpec = 'generaliste';
 let recording = false;
+let mediaRecorder = null;
+let audioChunks = [];
 let currentUser = null; // { email, isPro, freeUsageCount }
 const FREE_LIMIT = 3;
 
@@ -685,45 +687,80 @@ box.addEventListener('input', () => {
 });
 
 async function toggleRecording() {
+  if (!currentUser) {
+    openAuthModal('signup');
+    return;
+  }
+
   const btn = document.getElementById('micBtn');
   const label = document.getElementById('micLabel');
   const wave = document.getElementById('waveform');
 
   if (!recording) {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      window.recognition = new SR();
-      window.recognition.lang = 'fr-FR';
-      window.recognition.continuous = true;
-      window.recognition.interimResults = true;
-      window.recognition.onresult = (event) => {
-        let final = '';
-        for (let i = 0; i < event.results.length; i++) final += event.results[i][0].transcript + ' ';
-        box.value = final;
-        document.getElementById('generateBtn').disabled = box.value.trim().length < 50;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        await sendAudioForTranscription(audioBlob);
       };
-      window.recognition.onerror = () => stopRecording();
-      window.recognition.start();
-    } else {
-      alert("La reconnaissance vocale n'est pas supportée par ce navigateur. Utilisez Chrome, ou collez le texte directement.");
-      return;
+
+      mediaRecorder.start();
+      recording = true;
+      btn.classList.add('recording');
+      label.textContent = 'Enregistrement en cours…';
+      label.classList.add('active');
+      wave.classList.add('active');
+    } catch (err) {
+      alert("Impossible d'accéder au microphone. Vérifiez les autorisations du navigateur, ou collez le texte directement.");
     }
-    recording = true;
-    btn.classList.add('recording');
-    label.textContent = 'Enregistrement en cours…';
-    label.classList.add('active');
-    wave.classList.add('active');
   } else {
     stopRecording();
   }
 }
+
 function stopRecording() {
-  if (window.recognition) window.recognition.stop();
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
   recording = false;
   document.getElementById('micBtn').classList.remove('recording');
-  document.getElementById('micLabel').textContent = 'Appuyer pour dicter';
-  document.getElementById('micLabel').classList.remove('active');
   document.getElementById('waveform').classList.remove('active');
+  document.getElementById('micLabel').classList.remove('active');
+  document.getElementById('micLabel').textContent = 'Transcription en cours…';
+}
+
+async function sendAudioForTranscription(audioBlob) {
+  const label = document.getElementById('micLabel');
+  const errorMsg = document.getElementById('errorMsg');
+  errorMsg.classList.remove('visible');
+
+  const formData = new FormData();
+  formData.append('audio', audioBlob, 'consultation.webm');
+
+  try {
+    const res = await fetch(API_BASE + '/api/audio/transcribe', {
+      method: 'POST',
+      headers: authHeaders(), // pas de Content-Type ici : le navigateur le fixe lui-même pour FormData
+      body: formData,
+    });
+    const data = await res.json();
+
+    if (res.status === 401) { logout(); openAuthModal('login'); return; }
+    if (!data.success) throw new Error(data.error || 'Transcription impossible');
+
+    box.value = (box.value.trim() + ' ' + data.text).trim();
+    document.getElementById('generateBtn').disabled = box.value.trim().length < 50;
+    label.textContent = 'Appuyer pour dicter';
+  } catch (err) {
+    errorMsg.textContent = '⚠️ ' + (err.message || 'Erreur de transcription audio.');
+    errorMsg.classList.add('visible');
+    label.textContent = 'Appuyer pour dicter';
+  }
 }
 
 async function generate() {
