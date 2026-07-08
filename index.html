@@ -6,6 +6,7 @@
 <title>MédiIA — Dictée médicale structurée</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --paper:      #f4f5f1;
@@ -411,7 +412,7 @@
     </div>
   </div>
   <div class="export-row">
-    <button class="btn-export" onclick="exportTxt()">📄 Exporter en texte</button>
+    <button class="btn-export" onclick="exportPdf()">📄 Exporter en PDF</button>
     <button class="btn-export" onclick="window.print()">🖨️ Imprimer</button>
     <button class="btn-export" onclick="resetChart()">← Nouvelle consultation</button>
   </div>
@@ -466,6 +467,35 @@
 <footer>
   MédiIA — outil d'aide à la structuration de comptes-rendus médicaux. Les données patient sont anonymisées avant tout traitement externe.
 </footer>
+
+<!-- MODALE : profil médecin (pour le pied de page des PDF) -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal-box">
+    <h3>Votre profil</h3>
+    <p>Ces informations apparaissent en pied de page de vos comptes-rendus exportés en PDF.</p>
+    <div class="auth-error" id="profileError"></div>
+    <form id="profileForm" onsubmit="submitProfile(event)">
+      <div class="auth-field">
+        <label>Nom complet</label>
+        <input type="text" id="profNom" placeholder="Dr. Prénom Nom">
+      </div>
+      <div class="auth-field">
+        <label>Numéro RPPS (optionnel)</label>
+        <input type="text" id="profRpps" placeholder="10006789123">
+      </div>
+      <div class="auth-field">
+        <label>Adresse du cabinet</label>
+        <input type="text" id="profCabinet" placeholder="14 rue de la Paix, 75002 Paris">
+      </div>
+      <div class="auth-field">
+        <label>Téléphone (optionnel)</label>
+        <input type="text" id="profTel" placeholder="01 23 45 67 89">
+      </div>
+      <button type="submit" class="auth-submit" id="profileSubmitBtn">Enregistrer</button>
+    </form>
+    <button class="modal-close" onclick="closeProfileModal()">Fermer</button>
+  </div>
+</div>
 
 <!-- MODALE : connexion / inscription -->
 <div class="modal-overlay" id="authModal">
@@ -543,7 +573,7 @@ async function loadAccount() {
 function renderAccountZone() {
   const zone = document.getElementById('accountZone');
   if (currentUser) {
-    zone.innerHTML = `<div class="account-pill">${currentUser.email} <span class="logout" onclick="logout()">déconnexion</span></div>`;
+    zone.innerHTML = `<div class="account-pill">${currentUser.email} · <span class="logout" onclick="openProfileModal()">profil</span> · <span class="logout" onclick="logout()">déconnexion</span></div>`;
   } else {
     zone.innerHTML = `<button class="account-btn" onclick="openAuthModal('login')">Se connecter</button>`;
   }
@@ -575,6 +605,49 @@ function renderUsageBar() {
   bar.innerHTML = Array.from({length: FREE_LIMIT}, (_, i) =>
     `<span class="usage-dot ${i < used ? 'used' : ''}"></span>`
   ).join('');
+}
+
+// ── Modale de profil (infos médecin pour le pied de page PDF) ──────
+function openProfileModal() {
+  const p = currentUser?.profile || {};
+  document.getElementById('profNom').value = p.nom || '';
+  document.getElementById('profRpps').value = p.rpps || '';
+  document.getElementById('profCabinet').value = p.cabinet || '';
+  document.getElementById('profTel').value = p.telephone || '';
+  document.getElementById('profileModal').classList.add('visible');
+}
+function closeProfileModal() {
+  document.getElementById('profileModal').classList.remove('visible');
+  document.getElementById('profileError').classList.remove('visible');
+}
+async function submitProfile(event) {
+  event.preventDefault();
+  const errorEl = document.getElementById('profileError');
+  const btn = document.getElementById('profileSubmitBtn');
+  errorEl.classList.remove('visible');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(API_BASE + '/api/auth/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        nom: document.getElementById('profNom').value,
+        rpps: document.getElementById('profRpps').value,
+        cabinet: document.getElementById('profCabinet').value,
+        telephone: document.getElementById('profTel').value,
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    currentUser.profile = data.profile;
+    closeProfileModal();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ── Modale d'authentification ──────────────────────────────────────
@@ -813,6 +886,8 @@ async function generate() {
       currentUser.freeUsageCount = data.account.freeUsageCount;
     }
     renderUsageBar();
+    lastCompteRendu = data.compteRendu;
+    lastMeta = data.meta;
     renderChart(data.compteRendu, data.meta);
 
   } catch (err) {
@@ -871,19 +946,165 @@ function switchTab(tabEl) {
   tabEl.classList.add('active');
   document.getElementById('panel-' + tabEl.dataset.panel).classList.add('active');
 }
-function exportTxt() {
-  const sections = document.querySelectorAll('.chart-panel');
-  let txt = `COMPTE-RENDU MÉDICAL — MédiIA\n${'─'.repeat(40)}\n\n`;
-  txt += document.getElementById('chartResume').textContent + '\n\n';
-  sections.forEach(sec => {
-    txt += sec.querySelector('.panel-title').textContent.toUpperCase() + '\n';
-    txt += sec.innerText.replace(sec.querySelector('.panel-title').textContent, '').trim() + '\n\n';
-  });
-  const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'compte-rendu-mediai.txt';
-  a.click();
+// ── Export PDF (mise en page proche du dossier affiché à l'écran) ──
+let lastCompteRendu = null;
+let lastMeta = null;
+
+function exportPdf() {
+  if (!lastCompteRendu) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  // Palette reprise du site
+  const sage = [47, 107, 79];
+  const sageDeep = [31, 74, 55];
+  const sageTint = [229, 239, 232];
+  const ink = [22, 33, 28];
+  const inkSoft = [74, 87, 80];
+  const inkFaint = [139, 150, 142];
+  const clinicalTint = [232, 238, 243];
+
+  const pageW = 210, marginX = 18;
+  let y = 20;
+
+  // ── En-tête ──
+  doc.setFont('times', 'italic'); doc.setFontSize(20); doc.setTextColor(...ink);
+  doc.text('MédiIA', marginX, y);
+  doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...inkFaint);
+  doc.text('COMPTE-RENDU MÉDICAL STRUCTURÉ', pageW - marginX, y, { align: 'right' });
+  y += 6;
+  doc.setDrawColor(220, 223, 214); doc.line(marginX, y, pageW - marginX, y);
+  y += 8;
+
+  // ── Résumé / titre ──
+  doc.setFont('times', 'italic'); doc.setFontSize(13); doc.setTextColor(...ink);
+  const resumeLines = doc.splitTextToSize(lastCompteRendu.resume_1_ligne || 'Compte-rendu généré', pageW - 2*marginX);
+  doc.text(resumeLines, marginX, y);
+  y += resumeLines.length * 5.5 + 6;
+
+  const s = lastCompteRendu.sections?.subjectif || {};
+  const o = lastCompteRendu.sections?.objectif || {};
+  const a = lastCompteRendu.sections?.assessment || {};
+  const p = lastCompteRendu.sections?.plan || {};
+
+  function ensureSpace(needed) {
+    if (y + needed > 275) { doc.addPage(); y = 20; }
+  }
+
+  function sectionTab(letter, label) {
+    ensureSpace(14);
+    doc.setFillColor(...sageTint);
+    doc.roundedRect(marginX, y, 10, 10, 2, 2, 'F');
+    doc.setFont('times', 'italic'); doc.setFontSize(13); doc.setTextColor(...sageDeep);
+    doc.text(letter, marginX + 5, y + 7, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...ink);
+    doc.text(label, marginX + 14, y + 7);
+    y += 14;
+  }
+
+  function fieldLabel(txt) {
+    ensureSpace(6);
+    doc.setFont('courier', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...inkFaint);
+    doc.text(txt.toUpperCase(), marginX, y);
+    y += 4.5;
+  }
+  function fieldValue(txt) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...ink);
+    const lines = doc.splitTextToSize(txt || '—', pageW - 2*marginX);
+    ensureSpace(lines.length * 5 + 3);
+    doc.text(lines, marginX, y);
+    y += lines.length * 5 + 4;
+  }
+  function fieldListVal(arr) {
+    if (!arr || arr.length === 0) { fieldValue('Non renseigné'); return; }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...ink);
+    arr.forEach(item => {
+      const lines = doc.splitTextToSize('— ' + item, pageW - 2*marginX - 2);
+      ensureSpace(lines.length * 5);
+      doc.text(lines, marginX + 2, y);
+      y += lines.length * 5;
+    });
+    y += 3;
+  }
+
+  // ── S — Subjectif ──
+  sectionTab('S', 'Subjectif');
+  fieldLabel('Motif principal'); fieldValue(s.motif_principal);
+  fieldLabel('Plaintes'); fieldListVal(s.plaintes);
+  fieldLabel('Évolution'); fieldValue([s.duree_evolution, s.contexte_declenchant].filter(Boolean).join(' — '));
+  fieldLabel('Antécédents pertinents'); fieldListVal(s.antecedents_pertinents);
+  fieldLabel('Traitements en cours'); fieldListVal(s.traitements_en_cours);
+  y += 3;
+
+  // ── O — Objectif ──
+  sectionTab('O', 'Objectif');
+  const constantes = o.constantes ? Object.entries(o.constantes).filter(([k,v]) => v).map(([k,v]) => `${k}: ${v}`).join('  ·  ') : '';
+  fieldLabel('Constantes'); fieldValue(constantes || 'Non renseignées');
+  fieldLabel('Examen clinique'); fieldListVal(o.examen_clinique);
+  y += 3;
+
+  // ── A — Assessment ──
+  sectionTab('A', 'Assessment');
+  ensureSpace(20);
+  doc.setFillColor(...sageTint);
+  doc.roundedRect(marginX, y, pageW - 2*marginX, 16, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...sageDeep);
+  doc.text(a.diagnostic_principal || '—', marginX + 4, y + 7);
+  doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...inkSoft);
+  doc.text(a.code_cim10 || '', marginX + 4, y + 12.5);
+  y += 20;
+  fieldLabel('Diagnostics secondaires'); fieldListVal(a.diagnostics_secondaires);
+  fieldLabel("Signes d'alarme absents"); fieldListVal(a.signes_alarme_absents);
+  y += 3;
+
+  // ── P — Plan ──
+  sectionTab('P', 'Plan');
+  fieldLabel('Prescriptions');
+  if (p.prescriptions && p.prescriptions.length) {
+    p.prescriptions.forEach(rx => {
+      ensureSpace(10);
+      doc.setFillColor(...clinicalTint);
+      doc.roundedRect(marginX, y, pageW - 2*marginX, 8, 1.5, 1.5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...ink);
+      doc.text(rx.medicament || '', marginX + 3, y + 5.3);
+      doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...inkSoft);
+      doc.text(`${rx.posologie || ''}  ·  ${rx.duree || ''}`, pageW - marginX - 3, y + 5.3, { align: 'right' });
+      y += 10;
+    });
+    y += 2;
+  } else { fieldValue('Aucune prescription'); }
+  fieldLabel('Orientations'); fieldListVal(p.orientations);
+  fieldLabel('Arrêt de travail');
+  fieldValue(p.arret_travail?.prescrit ? `${p.arret_travail.duree_jours} jour(s) — ${p.arret_travail.motif || ''}` : 'Non prescrit');
+  fieldLabel('Suivi'); fieldValue(p.suivi);
+
+  // ── Pied de page : infos médecin + confidentialité, sur chaque page ──
+  const totalPages = doc.internal.getNumberOfPages();
+  const prof = currentUser?.profile || {};
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    const footY = 285;
+    doc.setDrawColor(220, 223, 214);
+    doc.line(marginX, footY - 6, pageW - marginX, footY - 6);
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...inkSoft);
+    const doctorLine = prof.nom || currentUser?.email || '';
+    doc.text(doctorLine, marginX, footY - 1);
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...inkFaint);
+    const detailParts = [prof.cabinet, prof.telephone, prof.rpps ? `RPPS ${prof.rpps}` : null].filter(Boolean);
+    if (detailParts.length) doc.text(detailParts.join('  ·  '), marginX, footY + 3);
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...inkFaint);
+    const confidentialite = "Document confidentiel à caractère médical. Données anonymisées avant analyse par MédiIA — conservation et diffusion soumises au secret médical et au RGPD.";
+    const confLines = doc.splitTextToSize(confidentialite, pageW - 2*marginX);
+    doc.text(confLines, marginX, footY + 8);
+
+    doc.setFont('courier', 'normal'); doc.setFontSize(7); doc.setTextColor(...inkFaint);
+    doc.text(`${i} / ${totalPages}`, pageW - marginX, footY + 3, { align: 'right' });
+  }
+
+  doc.save('compte-rendu-mediai.pdf');
 }
 function resetChart() {
   box.value = '';
