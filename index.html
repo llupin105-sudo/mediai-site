@@ -132,6 +132,50 @@
   .usage-dot.used{ background:var(--sage); }
   .usage-dot.pro{ background:var(--amber); }
 
+  .patient-selector{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--sage-tint); border:1px solid #cfe3d7; border-radius:8px;
+    padding:11px 16px; margin-bottom:20px; cursor:pointer; transition:background .15s;
+    font-size:13.5px; color:var(--sage-deep); font-weight:500;
+  }
+  .patient-selector:hover{ background:#dcecdf; }
+  .patient-selector.empty{ background:var(--amber-tint); color:var(--amber); border-color:#ecd9b0; }
+  .patient-selector-change{ font-family:var(--mono); font-size:11px; opacity:.75; }
+
+  /* ── Section Mes patients ─────────────────────────────────────── */
+  .patients-section{ max-width:900px; margin:56px auto 0; padding:0 2rem 100px; display:none; }
+  .patients-section.visible{ display:block; }
+  .patients-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+  .patient-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); gap:14px; margin-bottom:24px; }
+  .patient-card{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:12px;
+    padding:18px 20px; cursor:pointer; transition:border-color .15s;
+  }
+  .patient-card:hover{ border-color:var(--sage); }
+  .patient-card-name{ font-family:var(--serif); font-style:italic; font-size:16px; color:var(--ink); margin-bottom:4px; }
+  .patient-card-meta{ font-family:var(--mono); font-size:11px; color:var(--ink-faint); }
+  .patient-empty{ text-align:center; padding:48px 20px; color:var(--ink-faint); font-size:14px; }
+
+  /* Dossier patient (timeline) */
+  .patient-detail{ display:none; }
+  .patient-detail.visible{ display:block; }
+  .patient-detail-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+  .patient-detail-title{ font-family:var(--serif); font-style:italic; font-size:24px; color:var(--ink); }
+  .patient-detail-sub{ font-family:var(--mono); font-size:12px; color:var(--ink-faint); margin-top:4px; }
+  .patient-notes{ background:var(--card); border:1px solid var(--paper-line); border-radius:10px; padding:16px 18px; margin-bottom:24px; }
+  .patient-notes textarea{ width:100%; border:none; background:transparent; font-family:var(--sans); font-size:13.5px; color:var(--ink); resize:vertical; min-height:60px; }
+  .patient-notes textarea:focus{ outline:none; }
+
+  .timeline{ position:relative; padding-left:24px; }
+  .timeline::before{ content:''; position:absolute; left:5px; top:6px; bottom:6px; width:2px; background:var(--paper-line); }
+  .timeline-item{ position:relative; margin-bottom:16px; }
+  .timeline-dot{ position:absolute; left:-24px; top:4px; width:11px; height:11px; border-radius:50%; background:var(--sage); border:2px solid var(--card); box-shadow:0 0 0 2px var(--sage); }
+  .timeline-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:10px; padding:14px 18px; cursor:pointer; transition:border-color .15s; }
+  .timeline-card:hover{ border-color:var(--sage); }
+  .timeline-date{ font-family:var(--mono); font-size:11px; color:var(--ink-faint); margin-bottom:4px; }
+  .timeline-title{ font-size:14px; font-weight:500; color:var(--ink); }
+  .timeline-type-badge{ font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--sage-deep); background:var(--sage-tint); padding:2px 8px; border-radius:10px; margin-left:8px; }
+
   .mic-zone{ display:flex; flex-direction:column; align-items:center; gap:18px; }
   .mic-btn{
     width:84px; height:84px; border-radius:50%; border:none; cursor:pointer;
@@ -312,6 +356,7 @@
   <div class="nav-right">
     <a href="#fonctionnalites" class="nav-link">Fonctionnalités</a>
     <a href="#tarifs" class="nav-link">Tarifs</a>
+    <a href="#" class="nav-link" onclick="openPatientsSection(event)">Mes patients</a>
     <div class="nav-status"><span class="dot off" id="statusDot"></span><span id="statusText">Vérification…</span></div>
     <div id="accountZone"><button class="account-btn" onclick="openAuthModal('login')">Se connecter</button></div>
   </div>
@@ -334,6 +379,11 @@
     <div class="usage-strip">
       <span id="usageLabel">3 analyses gratuites / mois</span>
       <div class="usage-bar" id="usageBar"></div>
+    </div>
+
+    <div class="patient-selector" id="patientSelectorBar" onclick="openPatientPicker()">
+      <span id="selectedPatientLabel">👤 Sélectionner un patient</span>
+      <span class="patient-selector-change">changer →</span>
     </div>
 
     <div class="mic-zone">
@@ -419,6 +469,33 @@
     <button class="btn-export" onclick="resetChart()">← Nouvelle consultation</button>
   </div>
   <div class="anon-strip"><span class="dot"></span><span id="anonStrip">Données anonymisées avant analyse</span></div>
+</section>
+
+<section class="patients-section" id="patientsSection">
+  <div id="patientsListView">
+    <div class="patients-header">
+      <h2 class="section-title" style="margin:0;">Mes patients</h2>
+      <button class="btn-primary" style="padding:10px 18px; font-size:14px;" onclick="openNewPatientModal()">+ Nouveau patient</button>
+    </div>
+    <div class="patient-grid" id="patientGrid"></div>
+  </div>
+
+  <div class="patient-detail" id="patientDetailView">
+    <button class="modal-close" style="margin-bottom:16px;" onclick="closePatientDetail()">← Retour à la liste</button>
+    <div class="patient-detail-header">
+      <div>
+        <div class="patient-detail-title" id="detailPatientName">—</div>
+        <div class="patient-detail-sub" id="detailPatientMeta">—</div>
+      </div>
+      <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation pour ce patient</button>
+    </div>
+    <div class="patient-notes">
+      <div class="field-label" style="margin-bottom:8px;">Notes générales</div>
+      <textarea id="patientNotesText" placeholder="Antécédents, allergies, contexte général..." onblur="savePatientNotes()"></textarea>
+    </div>
+    <p class="clauses-title">Chronologie</p>
+    <div class="timeline" id="patientTimeline"></div>
+  </div>
 </section>
 
 <section class="features" id="fonctionnalites">
@@ -509,6 +586,42 @@
       <button type="submit" class="auth-submit" id="preferencesSubmitBtn">Enregistrer</button>
     </form>
     <button class="modal-close" onclick="closePreferencesModal()">Fermer</button>
+  </div>
+</div>
+
+<!-- MODALE : nouveau patient -->
+<div class="modal-overlay" id="newPatientModal">
+  <div class="modal-box">
+    <h3>Nouveau patient</h3>
+    <p>Créez une fiche pour commencer à suivre ses consultations.</p>
+    <div class="auth-error" id="newPatientError"></div>
+    <form id="newPatientForm" onsubmit="submitNewPatient(event)">
+      <div class="auth-field">
+        <label>Prénom</label>
+        <input type="text" id="newPatientPrenom" required>
+      </div>
+      <div class="auth-field">
+        <label>Nom</label>
+        <input type="text" id="newPatientNom" required>
+      </div>
+      <div class="auth-field">
+        <label>Date de naissance (optionnel)</label>
+        <input type="text" id="newPatientDob" placeholder="JJ/MM/AAAA">
+      </div>
+      <button type="submit" class="auth-submit" id="newPatientSubmitBtn">Créer le patient</button>
+    </form>
+    <button class="modal-close" onclick="closeNewPatientModal()">Annuler</button>
+  </div>
+</div>
+
+<!-- MODALE : sélection rapide d'un patient avant génération -->
+<div class="modal-overlay" id="patientPickerModal">
+  <div class="modal-box" style="max-width:420px;">
+    <h3>Choisir un patient</h3>
+    <p>Sélectionnez le patient concerné par cette consultation.</p>
+    <div id="patientPickerList" style="max-height:280px; overflow-y:auto; margin:14px 0; text-align:left;"></div>
+    <button class="auth-submit" style="margin-bottom:10px;" onclick="closePatientPickerAndOpenNew()">+ Nouveau patient</button>
+    <button class="modal-close" onclick="closePatientPicker()">Annuler</button>
   </div>
 </div>
 
@@ -659,7 +772,7 @@ function renderUsageBar() {
 const GOOGLE_CLIENT_ID = '441087731705-7qoiskqn60727hkahdrln9cdr28pud94.apps.googleusercontent.com';
 
 function initGoogleButton() {
-  if (!window.google || GOOGLE_CLIENT_ID === '__GOOGLE_CLIENT_ID__') return;
+  if (!window.google || !GOOGLE_CLIENT_ID) return;
   google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
     callback: handleGoogleCredential,
@@ -740,6 +853,205 @@ function applyDefaultSpecialite() {
     c.classList.toggle('active', c.dataset.spec === pref);
   });
   currentSpec = pref;
+}
+
+// ── Gestion des patients ────────────────────────────────────────────
+let selectedPatient = null; // { id, nom, prenom }
+let patientsCache = [];
+
+function renderPatientSelectorBar() {
+  const bar = document.getElementById('patientSelectorBar');
+  const label = document.getElementById('selectedPatientLabel');
+  if (selectedPatient) {
+    label.textContent = `👤 ${selectedPatient.prenom} ${selectedPatient.nom}`;
+    bar.classList.remove('empty');
+  } else {
+    label.textContent = '👤 Sélectionner un patient';
+    bar.classList.add('empty');
+  }
+}
+
+async function fetchPatients() {
+  if (!currentUser) return [];
+  try {
+    const res = await fetch(API_BASE + '/api/patients', { headers: authHeaders() });
+    if (!res.ok) return [];
+    const data = await res.json();
+    patientsCache = data.items || [];
+    return patientsCache;
+  } catch { return []; }
+}
+
+// ── Sélecteur rapide (avant génération) ────────────────────────────
+async function openPatientPicker() {
+  if (!currentUser) { openAuthModal('signup'); return; }
+  const list = await fetchPatients();
+  const container = document.getElementById('patientPickerList');
+  if (list.length === 0) {
+    container.innerHTML = '<p style="font-size:13px; color:var(--ink-faint); text-align:center; padding:12px 0;">Aucun patient enregistré pour l\'instant.</p>';
+  } else {
+    container.innerHTML = list.map(p => `
+      <div class="patient-card" style="margin-bottom:8px;" onclick='pickPatient(${JSON.stringify({id:p.id, nom:p.nom, prenom:p.prenom}).replace(/'/g,"&#39;")})'>
+        <div class="patient-card-name">${p.prenom} ${p.nom}</div>
+        <div class="patient-card-meta">${p.events_count || 0} événement(s)</div>
+      </div>
+    `).join('');
+  }
+  document.getElementById('patientPickerModal').classList.add('visible');
+}
+function closePatientPicker() {
+  document.getElementById('patientPickerModal').classList.remove('visible');
+}
+function pickPatient(p) {
+  selectedPatient = p;
+  renderPatientSelectorBar();
+  closePatientPicker();
+}
+function closePatientPickerAndOpenNew() {
+  closePatientPicker();
+  openNewPatientModal();
+}
+
+// ── Création d'un nouveau patient ───────────────────────────────────
+function openNewPatientModal() {
+  if (!currentUser) { openAuthModal('signup'); return; }
+  document.getElementById('newPatientForm').reset();
+  document.getElementById('newPatientError').classList.remove('visible');
+  document.getElementById('newPatientModal').classList.add('visible');
+}
+function closeNewPatientModal() {
+  document.getElementById('newPatientModal').classList.remove('visible');
+}
+async function submitNewPatient(event) {
+  event.preventDefault();
+  const errorEl = document.getElementById('newPatientError');
+  const btn = document.getElementById('newPatientSubmitBtn');
+  errorEl.classList.remove('visible');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(API_BASE + '/api/patients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        prenom: document.getElementById('newPatientPrenom').value.trim(),
+        nom: document.getElementById('newPatientNom').value.trim(),
+        dateNaissance: document.getElementById('newPatientDob').value.trim(),
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+
+    closeNewPatientModal();
+    selectedPatient = { id: data.patient.id, nom: data.patient.nom, prenom: data.patient.prenom };
+    renderPatientSelectorBar();
+    if (document.getElementById('patientsSection').classList.contains('visible')) {
+      await renderPatientsList();
+    }
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Section "Mes patients" (liste + dossier détaillé) ──────────────
+function openPatientsSection(event) {
+  if (event) event.preventDefault();
+  if (!currentUser) { openAuthModal('login'); return; }
+  document.getElementById('patientsSection').classList.add('visible');
+  document.getElementById('patientsSection').scrollIntoView({ behavior: 'smooth' });
+  showPatientsListView();
+  renderPatientsList();
+}
+
+async function renderPatientsList() {
+  const list = await fetchPatients();
+  const grid = document.getElementById('patientGrid');
+  if (list.length === 0) {
+    grid.innerHTML = '<div class="patient-empty" style="grid-column:1/-1;">Aucun patient pour l\'instant. Créez votre premier patient pour commencer à suivre ses consultations.</div>';
+    return;
+  }
+  grid.innerHTML = list.map(p => `
+    <div class="patient-card" onclick="openPatientDetail('${p.id}')">
+      <div class="patient-card-name">${p.prenom} ${p.nom}</div>
+      <div class="patient-card-meta">${p.events_count || 0} événement(s)${p.last_event_date ? ' · dernier : ' + new Date(p.last_event_date).toLocaleDateString('fr-FR') : ''}</div>
+    </div>
+  `).join('');
+}
+
+function showPatientsListView() {
+  document.getElementById('patientsListView').style.display = 'block';
+  document.getElementById('patientDetailView').classList.remove('visible');
+}
+function closePatientDetail() {
+  showPatientsListView();
+}
+
+let currentDetailPatientId = null;
+
+async function openPatientDetail(patientId) {
+  currentDetailPatientId = patientId;
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + patientId, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    document.getElementById('detailPatientName').textContent = `${data.patient.prenom} ${data.patient.nom}`;
+    document.getElementById('detailPatientMeta').textContent = data.patient.date_naissance ? `Né(e) le ${data.patient.date_naissance}` : '';
+    document.getElementById('patientNotesText').value = data.patient.notes || '';
+
+    const timeline = document.getElementById('patientTimeline');
+    if (!data.events || data.events.length === 0) {
+      timeline.innerHTML = '<p style="font-size:13px; color:var(--ink-faint); padding:12px 0;">Aucun événement enregistré pour ce patient.</p>';
+    } else {
+      timeline.innerHTML = data.events.map(e => `
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-card" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g,"&#39;")})'>
+            <div class="timeline-date">${new Date(e.event_date).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' })}</div>
+            <div class="timeline-title">${e.title}<span class="timeline-type-badge">${e.type}</span></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('patientsListView').style.display = 'none';
+    document.getElementById('patientDetailView').classList.add('visible');
+  } catch (err) {
+    alert(err.message || 'Impossible de charger ce dossier patient');
+  }
+}
+
+function viewTimelineEvent(event) {
+  if (event.type === 'consultation') {
+    lastCompteRendu = event.data;
+    renderChart(event.data, null);
+    document.getElementById('patientsSection').classList.remove('visible');
+    document.getElementById('outil').scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+async function savePatientNotes() {
+  if (!currentDetailPatientId) return;
+  try {
+    await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/notes', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ notes: document.getElementById('patientNotesText').value })
+    });
+  } catch (err) { console.error(err); }
+}
+
+function selectPatientForGeneration() {
+  const p = patientsCache.find(x => x.id === currentDetailPatientId);
+  if (p) {
+    selectedPatient = { id: p.id, nom: p.nom, prenom: p.prenom };
+    renderPatientSelectorBar();
+  }
+  document.getElementById('patientsSection').classList.remove('visible');
+  document.getElementById('outil').scrollIntoView({ behavior: 'smooth' });
 }
 
 // ── Modale de profil (infos médecin pour le pied de page PDF) ──────
@@ -869,6 +1181,7 @@ async function submitAuth(event) {
 })();
 
 loadAccount();
+renderPatientSelectorBar();
 
 // ── Vérifie que le serveur répond ────────────────────────────
 async function checkServer() {
@@ -982,6 +1295,11 @@ async function generate() {
     return;
   }
 
+  if (!selectedPatient) {
+    openPatientPicker();
+    return;
+  }
+
   // ── Vérification du quota côté client (première ligne de défense — le serveur revérifie) ──
   if (!currentUser.isPro && (currentUser.freeUsageCount || 0) >= FREE_LIMIT) {
     openModal();
@@ -1002,7 +1320,7 @@ async function generate() {
     const res = await fetch(API_BASE + '/api/transcription/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ transcription, specialite: currentSpec })
+      body: JSON.stringify({ transcription, specialite: currentSpec, patientId: selectedPatient.id })
     });
 
     const data = await res.json();
