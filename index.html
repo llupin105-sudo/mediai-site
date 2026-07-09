@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --paper:      #f4f5f1;
@@ -552,6 +553,9 @@
 
     <div class="auth-error" id="authError"></div>
 
+    <div id="googleBtnContainer" style="display:flex; justify-content:center; margin-bottom:16px;"></div>
+    <div class="divider-or" style="margin:0 0 18px;">ou avec un email</div>
+
     <form id="authForm" onsubmit="submitAuth(event)">
       <div class="auth-field">
         <label>Email</label>
@@ -651,6 +655,46 @@ function renderUsageBar() {
   ).join('');
 }
 
+// ── Connexion avec Google ──────────────────────────────────────────
+const GOOGLE_CLIENT_ID = '441087731705-7qoiskqn60727hkahdrln9cdr28pud94.apps.googleusercontent.com';
+
+function initGoogleButton() {
+  if (!window.google || GOOGLE_CLIENT_ID === '__GOOGLE_CLIENT_ID__') return;
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential,
+  });
+  const container = document.getElementById('googleBtnContainer');
+  if (container) {
+    container.innerHTML = '';
+    google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', width: 280, text: 'continue_with' });
+  }
+}
+
+async function handleGoogleCredential(response) {
+  const errorEl = document.getElementById('authError');
+  errorEl.classList.remove('visible');
+  try {
+    const res = await fetch(API_BASE + '/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: response.credential })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Connexion Google impossible');
+
+    setToken(data.token);
+    currentUser = data.user;
+    applyDefaultSpecialite();
+    renderAccountZone();
+    renderUsageBar();
+    closeAuthModal();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  }
+}
+
 // ── Modale de préférences (modèles personnalisés par médecin) ─────
 function openPreferencesModal() {
   const prefs = currentUser?.preferences || {};
@@ -748,6 +792,7 @@ function openAuthModal(mode) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
   updateAuthCopy();
   document.getElementById('authModal').classList.add('visible');
+  initGoogleButton();
 }
 function closeAuthModal() {
   document.getElementById('authModal').classList.remove('visible');
