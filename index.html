@@ -486,6 +486,31 @@
   </div>
 </div>
 
+<!-- MODALE : modèles et préférences personnalisées -->
+<div class="modal-overlay" id="preferencesModal">
+  <div class="modal-box" style="max-width:480px;">
+    <h3>Mes modèles</h3>
+    <p>Ces préférences s'appliquent à chaque génération de compte-rendu.</p>
+    <div class="auth-error" id="preferencesError"></div>
+    <form id="preferencesForm" onsubmit="submitPreferences(event)">
+      <div class="auth-field">
+        <label>Spécialité par défaut</label>
+        <select id="prefSpecialite" style="width:100%; padding:11px 13px; border:1px solid var(--paper-line); border-radius:7px; font-family:var(--sans); font-size:14px; background:var(--paper); color:var(--ink);">
+          <option value="generaliste">Généraliste</option>
+          <option value="kinesitherapeute">Kinésithérapeute</option>
+          <option value="resume_rapide">Résumé rapide</option>
+        </select>
+      </div>
+      <div class="auth-field">
+        <label>Instructions personnalisées (optionnel)</label>
+        <textarea id="prefInstructions" rows="4" maxlength="1000" placeholder="Ex : Toujours préciser la durée de l'arrêt en jours ouvrés. Terminer le plan par une phrase de suivi standard. Rester concis sur les antécédents non pertinents." style="width:100%; padding:11px 13px; border:1px solid var(--paper-line); border-radius:7px; font-family:var(--sans); font-size:13.5px; background:var(--paper); color:var(--ink); resize:vertical;"></textarea>
+      </div>
+      <button type="submit" class="auth-submit" id="preferencesSubmitBtn">Enregistrer</button>
+    </form>
+    <button class="modal-close" onclick="closePreferencesModal()">Fermer</button>
+  </div>
+</div>
+
 <!-- MODALE : profil médecin (pour le pied de page des PDF) -->
 <div class="modal-overlay" id="profileModal">
   <div class="modal-box">
@@ -583,6 +608,7 @@ async function loadAccount() {
     if (!res.ok) { clearToken(); renderAccountZone(); return; }
     const data = await res.json();
     currentUser = data.user;
+    applyDefaultSpecialite();
   } catch { currentUser = null; }
   renderAccountZone();
   renderUsageBar();
@@ -591,7 +617,7 @@ async function loadAccount() {
 function renderAccountZone() {
   const zone = document.getElementById('accountZone');
   if (currentUser) {
-    zone.innerHTML = `<div class="account-pill">${currentUser.email} · <span class="logout" onclick="openProfileModal()">profil</span> · <span class="logout" onclick="logout()">déconnexion</span></div>`;
+    zone.innerHTML = `<div class="account-pill">${currentUser.email} · <span class="logout" onclick="openProfileModal()">profil</span> · <span class="logout" onclick="openPreferencesModal()">modèles</span> · <span class="logout" onclick="logout()">déconnexion</span></div>`;
   } else {
     zone.innerHTML = `<button class="account-btn" onclick="openAuthModal('login')">Se connecter</button>`;
   }
@@ -623,6 +649,53 @@ function renderUsageBar() {
   bar.innerHTML = Array.from({length: FREE_LIMIT}, (_, i) =>
     `<span class="usage-dot ${i < used ? 'used' : ''}"></span>`
   ).join('');
+}
+
+// ── Modale de préférences (modèles personnalisés par médecin) ─────
+function openPreferencesModal() {
+  const prefs = currentUser?.preferences || {};
+  document.getElementById('prefSpecialite').value = prefs.defaultSpecialite || 'generaliste';
+  document.getElementById('prefInstructions').value = prefs.instructions || '';
+  document.getElementById('preferencesModal').classList.add('visible');
+}
+function closePreferencesModal() {
+  document.getElementById('preferencesModal').classList.remove('visible');
+  document.getElementById('preferencesError').classList.remove('visible');
+}
+async function submitPreferences(event) {
+  event.preventDefault();
+  const errorEl = document.getElementById('preferencesError');
+  const btn = document.getElementById('preferencesSubmitBtn');
+  errorEl.classList.remove('visible');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(API_BASE + '/api/auth/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        defaultSpecialite: document.getElementById('prefSpecialite').value,
+        instructions: document.getElementById('prefInstructions').value,
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    currentUser.preferences = data.preferences;
+    applyDefaultSpecialite();
+    closePreferencesModal();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+  }
+}
+function applyDefaultSpecialite() {
+  const pref = currentUser?.preferences?.defaultSpecialite || 'generaliste';
+  document.querySelectorAll('.spec-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.spec === pref);
+  });
+  currentSpec = pref;
 }
 
 // ── Modale de profil (infos médecin pour le pied de page PDF) ──────
@@ -717,6 +790,7 @@ async function submitAuth(event) {
 
     setToken(data.token);
     currentUser = data.user;
+    applyDefaultSpecialite();
     renderAccountZone();
     renderUsageBar();
     closeAuthModal();
