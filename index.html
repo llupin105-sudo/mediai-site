@@ -413,6 +413,7 @@
   </div>
   <div class="export-row">
     <button class="btn-export" onclick="exportPdf()">📄 Exporter en PDF</button>
+    <button class="btn-export" onclick="openEmailModal()">✉️ Envoyer par email</button>
     <button class="btn-export" onclick="window.print()">🖨️ Imprimer</button>
     <button class="btn-export" onclick="resetChart()">← Nouvelle consultation</button>
   </div>
@@ -467,6 +468,23 @@
 <footer>
   MédiIA — outil d'aide à la structuration de comptes-rendus médicaux. Les données patient sont anonymisées avant tout traitement externe.
 </footer>
+
+<!-- MODALE : envoi du compte-rendu par email -->
+<div class="modal-overlay" id="emailModal">
+  <div class="modal-box">
+    <h3>Envoyer par email</h3>
+    <p>Le compte-rendu sera envoyé au format PDF, avec la même mise en page que l'export.</p>
+    <div class="auth-error" id="emailError"></div>
+    <form id="emailForm" onsubmit="submitSendEmail(event)">
+      <div class="auth-field">
+        <label>Email du destinataire</label>
+        <input type="email" id="emailRecipient" placeholder="confrere@cabinet.fr" required>
+      </div>
+      <button type="submit" class="auth-submit" id="emailSubmitBtn">Envoyer</button>
+    </form>
+    <button class="modal-close" onclick="closeEmailModal()">Annuler</button>
+  </div>
+</div>
 
 <!-- MODALE : profil médecin (pour le pied de page des PDF) -->
 <div class="modal-overlay" id="profileModal">
@@ -950,8 +968,10 @@ function switchTab(tabEl) {
 let lastCompteRendu = null;
 let lastMeta = null;
 
-function exportPdf() {
-  if (!lastCompteRendu) return;
+// Construit le document PDF (jsPDF) et le retourne, sans le télécharger.
+// Réutilisé pour le téléchargement classique ET pour l'envoi par email.
+function buildPdfDoc() {
+  if (!lastCompteRendu) return null;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
@@ -1104,7 +1124,60 @@ function exportPdf() {
     doc.text(`${i} / ${totalPages}`, pageW - marginX, footY + 3, { align: 'right' });
   }
 
+  return doc;
+}
+
+function exportPdf() {
+  const doc = buildPdfDoc();
+  if (!doc) return;
   doc.save('compte-rendu-mediai.pdf');
+}
+
+// ── Envoi du compte-rendu par email ────────────────────────────────
+function openEmailModal() {
+  if (!lastCompteRendu) return;
+  document.getElementById('emailRecipient').value = '';
+  document.getElementById('emailError').classList.remove('visible');
+  document.getElementById('emailModal').classList.add('visible');
+}
+function closeEmailModal() {
+  document.getElementById('emailModal').classList.remove('visible');
+}
+
+async function submitSendEmail(event) {
+  event.preventDefault();
+  const recipient = document.getElementById('emailRecipient').value.trim();
+  const errorEl = document.getElementById('emailError');
+  const btn = document.getElementById('emailSubmitBtn');
+  errorEl.classList.remove('visible');
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours…';
+
+  try {
+    const doc = buildPdfDoc();
+    const pdfBase64 = doc.output('datauristring').split(',')[1]; // retire le préfixe data:...;base64,
+
+    const res = await fetch(API_BASE + '/api/send-report-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        recipientEmail: recipient,
+        pdfBase64,
+        resume: lastCompteRendu.resume_1_ligne || 'Compte-rendu médical',
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Erreur lors de l'envoi");
+
+    closeEmailModal();
+    alert(`Compte-rendu envoyé à ${recipient}.`);
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Envoyer';
+  }
 }
 function resetChart() {
   box.value = '';
