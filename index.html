@@ -176,6 +176,11 @@
   .timeline-title{ font-size:14px; font-weight:500; color:var(--ink); }
   .timeline-type-badge{ font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--sage-deep); background:var(--sage-tint); padding:2px 8px; border-radius:10px; margin-left:8px; }
 
+  .rx-line{ display:grid; grid-template-columns:1.3fr 1fr 0.8fr auto; gap:8px; align-items:center; }
+  .rx-line input{ padding:9px 10px; border:1px solid var(--paper-line); border-radius:6px; font-family:var(--sans); font-size:13px; background:var(--paper); color:var(--ink); width:100%; }
+  .rx-line input:focus{ outline:none; border-color:var(--sage); }
+  .rx-line-remove{ background:none; border:none; color:var(--rose); cursor:pointer; font-size:16px; padding:0 6px; }
+
   .mic-zone{ display:flex; flex-direction:column; align-items:center; gap:18px; }
   .mic-btn{
     width:84px; height:84px; border-radius:50%; border:none; cursor:pointer;
@@ -463,6 +468,7 @@
     </div>
   </div>
   <div class="export-row">
+    <button class="btn-export" onclick="openOrdonnanceModal()">💊 Générer l'ordonnance</button>
     <button class="btn-export" onclick="exportPdf()">📄 Exporter en PDF</button>
     <button class="btn-export" onclick="openEmailModal()">✉️ Envoyer par email</button>
     <button class="btn-export" onclick="window.print()">🖨️ Imprimer</button>
@@ -546,6 +552,22 @@
 <footer>
   MédiIA — outil d'aide à la structuration de comptes-rendus médicaux. Les données patient sont anonymisées avant tout traitement externe.
 </footer>
+
+<!-- MODALE : génération et édition de l'ordonnance -->
+<div class="modal-overlay" id="ordonnanceModal">
+  <div class="modal-box" style="max-width:560px; text-align:left;">
+    <h3 style="text-align:center;">Ordonnance</h3>
+    <p style="text-align:center;">Ajustez les lignes avant de générer le document final.</p>
+    <div class="auth-error" id="ordonnanceError"></div>
+
+    <div id="ordonnanceLines" style="margin:16px 0; display:flex; flex-direction:column; gap:10px;"></div>
+
+    <button type="button" class="btn-export" style="width:100%; margin-bottom:14px;" onclick="addOrdonnanceLine()">+ Ajouter une ligne</button>
+
+    <button class="auth-submit" id="ordonnanceSubmitBtn" onclick="submitOrdonnance()">Générer le document</button>
+    <button class="modal-close" onclick="closeOrdonnanceModal()" style="width:100%; text-align:center;">Annuler</button>
+  </div>
+</div>
 
 <!-- MODALE : envoi du compte-rendu par email -->
 <div class="modal-overlay" id="emailModal">
@@ -1052,6 +1074,141 @@ function selectPatientForGeneration() {
   }
   document.getElementById('patientsSection').classList.remove('visible');
   document.getElementById('outil').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── Ordonnance : édition des lignes et génération ──────────────────
+let ordonnanceLines = [];
+
+function openOrdonnanceModal() {
+  if (!lastCompteRendu) return;
+  if (!selectedPatient) { openPatientPicker(); return; }
+
+  const prescriptions = lastCompteRendu.sections?.plan?.prescriptions || [];
+  ordonnanceLines = prescriptions.length > 0
+    ? prescriptions.map(rx => ({ ...rx }))
+    : [{ medicament: '', posologie: '', duree: '', voie: '' }];
+
+  renderOrdonnanceLines();
+  document.getElementById('ordonnanceError').classList.remove('visible');
+  document.getElementById('ordonnanceModal').classList.add('visible');
+}
+function closeOrdonnanceModal() {
+  document.getElementById('ordonnanceModal').classList.remove('visible');
+}
+
+function renderOrdonnanceLines() {
+  const container = document.getElementById('ordonnanceLines');
+  container.innerHTML = ordonnanceLines.map((rx, i) => `
+    <div class="rx-line">
+      <input type="text" placeholder="Médicament" value="${rx.medicament || ''}" oninput="ordonnanceLines[${i}].medicament=this.value">
+      <input type="text" placeholder="Posologie" value="${rx.posologie || ''}" oninput="ordonnanceLines[${i}].posologie=this.value">
+      <input type="text" placeholder="Durée" value="${rx.duree || ''}" oninput="ordonnanceLines[${i}].duree=this.value">
+      <button type="button" class="rx-line-remove" onclick="removeOrdonnanceLine(${i})">✕</button>
+    </div>
+  `).join('');
+}
+function addOrdonnanceLine() {
+  ordonnanceLines.push({ medicament: '', posologie: '', duree: '', voie: '' });
+  renderOrdonnanceLines();
+}
+function removeOrdonnanceLine(i) {
+  ordonnanceLines.splice(i, 1);
+  renderOrdonnanceLines();
+}
+
+let lastOrdonnance = null;
+
+async function submitOrdonnance() {
+  const errorEl = document.getElementById('ordonnanceError');
+  const btn = document.getElementById('ordonnanceSubmitBtn');
+  errorEl.classList.remove('visible');
+
+  const valid = ordonnanceLines.filter(l => l.medicament && l.medicament.trim());
+  if (valid.length === 0) {
+    errorEl.textContent = 'Ajoutez au moins un médicament';
+    errorEl.classList.add('visible');
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch(API_BASE + '/api/ordonnance/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ patientId: selectedPatient.id, prescriptions: valid })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+
+    lastOrdonnance = data.ordonnance;
+    closeOrdonnanceModal();
+    exportOrdonnancePdf();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function exportOrdonnancePdf() {
+  if (!lastOrdonnance) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  const sage = [47, 107, 79], sageDeep = [31, 74, 55], ink = [22, 33, 28], inkSoft = [74, 87, 80], inkFaint = [139, 150, 142];
+  const pageW = 210, marginX = 22;
+  let y = 26;
+
+  doc.setFont('times', 'italic'); doc.setFontSize(20); doc.setTextColor(...ink);
+  doc.text('MédiIA', marginX, y);
+  doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...inkFaint);
+  doc.text('ORDONNANCE', pageW - marginX, y, { align: 'right' });
+  y += 4;
+  doc.setDrawColor(220, 223, 214); doc.line(marginX, y, pageW - marginX, y);
+  y += 12;
+
+  const m = lastOrdonnance.medecin;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...ink);
+  doc.text(m.nom || '', marginX, y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...inkSoft);
+  y += 5;
+  if (m.cabinet) { doc.text(m.cabinet, marginX, y); y += 4.5; }
+  if (m.rpps) { doc.text('RPPS ' + m.rpps, marginX, y); y += 4.5; }
+
+  y += 6;
+  const p = lastOrdonnance.patient;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...ink);
+  doc.text(`Patient : ${p.prenom} ${p.nom}`, marginX, y);
+  if (p.dateNaissance) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...inkSoft);
+    doc.text(`Né(e) le ${p.dateNaissance}`, marginX, y + 5);
+    y += 5;
+  }
+  doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...inkFaint);
+  doc.text(new Date(lastOrdonnance.dateOrdonnance).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }), pageW - marginX, y, { align: 'right' });
+  y += 14;
+
+  doc.setDrawColor(220, 223, 214); doc.line(marginX, y, pageW - marginX, y);
+  y += 12;
+
+  lastOrdonnance.prescriptions.forEach((rx, i) => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...ink);
+    doc.text(`${i + 1}. ${rx.medicament}`, marginX, y);
+    y += 6;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(...inkSoft);
+    const detail = [rx.posologie, rx.duree].filter(Boolean).join('  —  ');
+    if (detail) { doc.text(detail, marginX + 6, y); y += 6; }
+    y += 6;
+  });
+
+  y = 275;
+  doc.setDrawColor(220, 223, 214); doc.line(marginX, y - 6, pageW - marginX, y - 6);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...inkFaint);
+  const conf = "Document confidentiel généré via MédiIA. Ordonnance soumise au secret médical et à la réglementation en vigueur.";
+  doc.text(doc.splitTextToSize(conf, pageW - 2*marginX), marginX, y);
+
+  doc.save(`ordonnance-${p.nom.toLowerCase()}.pdf`);
 }
 
 // ── Modale de profil (infos médecin pour le pied de page PDF) ──────
