@@ -682,14 +682,33 @@
 
 <!-- MODALE : profil médecin (pour le pied de page des PDF) -->
 <div class="modal-overlay" id="profileModal">
-  <div class="modal-box">
-    <h3>Votre profil</h3>
-    <p>Ces informations apparaissent en pied de page de vos comptes-rendus exportés en PDF.</p>
+  <div class="modal-box" style="max-width:480px;">
+    <h3>Votre profil professionnel</h3>
+    <p>Ces informations apparaissent sur vos documents exportés, et serviront plus tard à ce que vos patients puissent vous retrouver sur MédiIA.</p>
     <div class="auth-error" id="profileError"></div>
     <form id="profileForm" onsubmit="submitProfile(event)">
       <div class="auth-field">
         <label>Nom complet</label>
         <input type="text" id="profNom" placeholder="Dr. Prénom Nom">
+      </div>
+      <div class="auth-field">
+        <label>Spécialité</label>
+        <select id="profSpecialite" style="width:100%; padding:11px 13px; border:1px solid var(--paper-line); border-radius:7px; font-family:var(--sans); font-size:14px; background:var(--paper); color:var(--ink);">
+          <option value="">Non renseignée</option>
+          <option value="Médecine générale">Médecine générale</option>
+          <option value="Kinésithérapie">Kinésithérapie</option>
+          <option value="Cardiologie">Cardiologie</option>
+          <option value="Rhumatologie">Rhumatologie</option>
+          <option value="Dermatologie">Dermatologie</option>
+          <option value="Pédiatrie">Pédiatrie</option>
+          <option value="Gynécologie">Gynécologie</option>
+          <option value="Psychiatrie">Psychiatrie</option>
+          <option value="Autre">Autre</option>
+        </select>
+      </div>
+      <div class="auth-field">
+        <label>Présentation courte (optionnel)</label>
+        <textarea id="profPresentation" rows="3" maxlength="500" placeholder="Ex : Médecin généraliste depuis 12 ans, particulièrement attentif au suivi des patients chroniques." style="width:100%; padding:11px 13px; border:1px solid var(--paper-line); border-radius:7px; font-family:var(--sans); font-size:13.5px; background:var(--paper); color:var(--ink); resize:vertical;"></textarea>
       </div>
       <div class="auth-field">
         <label>Numéro RPPS (optionnel)</label>
@@ -1363,6 +1382,8 @@ function exportOrdonnancePdf() {
 function openProfileModal() {
   const p = currentUser?.profile || {};
   document.getElementById('profNom').value = p.nom || '';
+  document.getElementById('profSpecialite').value = p.specialite || '';
+  document.getElementById('profPresentation').value = p.presentation || '';
   document.getElementById('profRpps').value = p.rpps || '';
   document.getElementById('profCabinet').value = p.cabinet || '';
   document.getElementById('profTel').value = p.telephone || '';
@@ -1385,6 +1406,8 @@ async function submitProfile(event) {
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({
         nom: document.getElementById('profNom').value,
+        specialite: document.getElementById('profSpecialite').value,
+        presentation: document.getElementById('profPresentation').value,
         rpps: document.getElementById('profRpps').value,
         cabinet: document.getElementById('profCabinet').value,
         telephone: document.getElementById('profTel').value,
