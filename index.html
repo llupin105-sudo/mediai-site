@@ -469,6 +469,7 @@
   </div>
   <div class="export-row">
     <button class="btn-export" onclick="openOrdonnanceModal()">💊 Générer l'ordonnance</button>
+    <button class="btn-export" onclick="openCourrierModal()">✍️ Générer un courrier</button>
     <button class="btn-export" onclick="exportPdf()">📄 Exporter en PDF</button>
     <button class="btn-export" onclick="openEmailModal()">✉️ Envoyer par email</button>
     <button class="btn-export" onclick="window.print()">🖨️ Imprimer</button>
@@ -552,6 +553,38 @@
 <footer>
   MédiIA — outil d'aide à la structuration de comptes-rendus médicaux. Les données patient sont anonymisées avant tout traitement externe.
 </footer>
+
+<!-- MODALE : génération et édition du courrier de correspondance -->
+<div class="modal-overlay" id="courrierModal">
+  <div class="modal-box" style="max-width:600px; text-align:left;">
+    <h3 style="text-align:center;">Courrier de correspondance</h3>
+
+    <div id="courrierStep1">
+      <p style="text-align:center;">Précisez le motif d'adressage (optionnel — sinon déduit automatiquement).</p>
+      <div class="auth-error" id="courrierError"></div>
+      <div class="auth-field">
+        <label>Motif d'adressage</label>
+        <input type="text" id="courrierMotif" placeholder="Ex : avis cardiologique pour bilan de fibrillation auriculaire">
+      </div>
+      <button class="auth-submit" id="courrierGenerateBtn" onclick="submitCourrier()">Générer le courrier</button>
+    </div>
+
+    <div id="courrierStep2" style="display:none;">
+      <div class="auth-field">
+        <label id="courrierDestLabel">Destinataire suggéré</label>
+        <input type="text" id="courrierObjet" style="font-weight:600;">
+      </div>
+      <div class="auth-field">
+        <label>Corps du courrier</label>
+        <textarea id="courrierCorps" rows="12" style="width:100%; padding:11px 13px; border:1px solid var(--paper-line); border-radius:7px; font-family:var(--sans); font-size:13.5px; background:var(--paper); color:var(--ink); resize:vertical; line-height:1.6;"></textarea>
+      </div>
+      <button class="btn-export" style="width:100%; margin-bottom:8px;" onclick="exportCourrierPdf()">📄 Exporter en PDF</button>
+      <button class="btn-export" style="width:100%; margin-bottom:14px;" onclick="openEmailModal('courrier')">✉️ Envoyer par email</button>
+    </div>
+
+    <button class="modal-close" onclick="closeCourrierModal()" style="width:100%; text-align:center;">Fermer</button>
+  </div>
+</div>
 
 <!-- MODALE : génération et édition de l'ordonnance -->
 <div class="modal-overlay" id="ordonnanceModal">
@@ -1049,6 +1082,12 @@ async function openPatientDetail(patientId) {
 function viewTimelineEvent(event) {
   if (event.type === 'consultation') {
     lastCompteRendu = event.data;
+    lastEventId = event.id;
+    if (!selectedPatient && currentDetailPatientId) {
+      const p = patientsCache.find(x => x.id === currentDetailPatientId);
+      if (p) selectedPatient = { id: p.id, nom: p.nom, prenom: p.prenom };
+      renderPatientSelectorBar();
+    }
     renderChart(event.data, null);
     document.getElementById('patientsSection').classList.remove('visible');
     document.getElementById('outil').scrollIntoView({ behavior: 'smooth' });
@@ -1074,6 +1113,115 @@ function selectPatientForGeneration() {
   }
   document.getElementById('patientsSection').classList.remove('visible');
   document.getElementById('outil').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── Courrier de correspondance ──────────────────────────────────────
+let lastCourrier = null;
+
+function openCourrierModal() {
+  if (!lastCompteRendu || !lastEventId) return;
+  if (!selectedPatient) { openPatientPicker(); return; }
+
+  document.getElementById('courrierMotif').value = '';
+  document.getElementById('courrierError').classList.remove('visible');
+  document.getElementById('courrierStep1').style.display = 'block';
+  document.getElementById('courrierStep2').style.display = 'none';
+  document.getElementById('courrierModal').classList.add('visible');
+}
+function closeCourrierModal() {
+  document.getElementById('courrierModal').classList.remove('visible');
+}
+
+async function submitCourrier() {
+  const errorEl = document.getElementById('courrierError');
+  const btn = document.getElementById('courrierGenerateBtn');
+  errorEl.classList.remove('visible');
+  btn.disabled = true;
+  btn.textContent = 'Génération en cours…';
+
+  try {
+    const res = await fetch(API_BASE + '/api/courrier/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        patientId: selectedPatient.id,
+        eventId: lastEventId,
+        motifAdressage: document.getElementById('courrierMotif').value.trim(),
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+
+    lastCourrier = data.courrier;
+    document.getElementById('courrierDestLabel').textContent = `Destinataire suggéré : ${lastCourrier.destinataire_suggere || '—'}`;
+    document.getElementById('courrierObjet').value = lastCourrier.objet || '';
+    document.getElementById('courrierCorps').value = lastCourrier.corps_lettre || '';
+
+    document.getElementById('courrierStep1').style.display = 'none';
+    document.getElementById('courrierStep2').style.display = 'block';
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Générer le courrier';
+  }
+}
+
+function buildCourrierPdfDoc() {
+  if (!lastCourrier) return null;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  const ink = [22, 33, 28], inkSoft = [74, 87, 80], inkFaint = [139, 150, 142];
+  const pageW = 210, marginX = 22;
+  let y = 26;
+
+  doc.setFont('times', 'italic'); doc.setFontSize(20); doc.setTextColor(...ink);
+  doc.text('MédiIA', marginX, y);
+  doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...inkFaint);
+  doc.text('COURRIER MÉDICAL', pageW - marginX, y, { align: 'right' });
+  y += 4;
+  doc.setDrawColor(220, 223, 214); doc.line(marginX, y, pageW - marginX, y);
+  y += 12;
+
+  const exp = lastCourrier.expediteur || {};
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...ink);
+  doc.text(exp.nom || '', marginX, y); y += 5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...inkSoft);
+  if (exp.cabinet) { doc.text(exp.cabinet, marginX, y); y += 4.5; }
+  if (exp.rpps) { doc.text('RPPS ' + exp.rpps, marginX, y); y += 4.5; }
+
+  doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...inkFaint);
+  doc.text(new Date(lastCourrier.date || Date.now()).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }), pageW - marginX, 26 + 12, { align: 'right' });
+
+  y += 12;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...ink);
+  doc.text(document.getElementById('courrierObjet').value || lastCourrier.objet || '', marginX, y);
+  y += 12;
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(...ink);
+  const corps = document.getElementById('courrierCorps').value || lastCourrier.corps_lettre || '';
+  const paragraphs = corps.split(/\n\s*\n/);
+  paragraphs.forEach(para => {
+    const lines = doc.splitTextToSize(para.trim(), pageW - 2*marginX);
+    if (y + lines.length * 5.5 > 270) { doc.addPage(); y = 26; }
+    doc.text(lines, marginX, y);
+    y += lines.length * 5.5 + 6;
+  });
+
+  const footY = 285;
+  doc.setDrawColor(220, 223, 214); doc.line(marginX, footY - 6, pageW - marginX, footY - 6);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...inkFaint);
+  const conf = "Document confidentiel généré via MédiIA, soumis au secret médical et au RGPD.";
+  doc.text(doc.splitTextToSize(conf, pageW - 2*marginX), marginX, footY);
+
+  return doc;
+}
+function exportCourrierPdf() {
+  const doc = buildCourrierPdfDoc();
+  if (!doc) return;
+  doc.save('courrier-mediai.pdf');
 }
 
 // ── Ordonnance : édition des lignes et génération ──────────────────
@@ -1500,6 +1648,7 @@ async function generate() {
     renderUsageBar();
     lastCompteRendu = data.compteRendu;
     lastMeta = data.meta;
+    lastEventId = data.id;
     renderChart(data.compteRendu, data.meta);
 
   } catch (err) {
@@ -1561,6 +1710,7 @@ function switchTab(tabEl) {
 // ── Export PDF (mise en page proche du dossier affiché à l'écran) ──
 let lastCompteRendu = null;
 let lastMeta = null;
+let lastEventId = null;
 
 // Construit le document PDF (jsPDF) et le retourne, sans le télécharger.
 // Réutilisé pour le téléchargement classique ET pour l'envoi par email.
@@ -1728,8 +1878,12 @@ function exportPdf() {
 }
 
 // ── Envoi du compte-rendu par email ────────────────────────────────
-function openEmailModal() {
-  if (!lastCompteRendu) return;
+let currentEmailDocType = 'compte-rendu';
+
+function openEmailModal(docType) {
+  currentEmailDocType = docType || 'compte-rendu';
+  if (currentEmailDocType === 'courrier' && !lastCourrier) return;
+  if (currentEmailDocType === 'compte-rendu' && !lastCompteRendu) return;
   document.getElementById('emailRecipient').value = '';
   document.getElementById('emailError').classList.remove('visible');
   document.getElementById('emailModal').classList.add('visible');
@@ -1748,23 +1902,22 @@ async function submitSendEmail(event) {
   btn.textContent = 'Envoi en cours…';
 
   try {
-    const doc = buildPdfDoc();
+    const doc = currentEmailDocType === 'courrier' ? buildCourrierPdfDoc() : buildPdfDoc();
     const pdfBase64 = doc.output('datauristring').split(',')[1]; // retire le préfixe data:...;base64,
+    const resume = currentEmailDocType === 'courrier'
+      ? (lastCourrier.objet || 'Courrier médical')
+      : (lastCompteRendu.resume_1_ligne || 'Compte-rendu médical');
 
     const res = await fetch(API_BASE + '/api/send-report-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({
-        recipientEmail: recipient,
-        pdfBase64,
-        resume: lastCompteRendu.resume_1_ligne || 'Compte-rendu médical',
-      })
+      body: JSON.stringify({ recipientEmail: recipient, pdfBase64, resume })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erreur lors de l'envoi");
 
     closeEmailModal();
-    alert(`Compte-rendu envoyé à ${recipient}.`);
+    alert(`Document envoyé à ${recipient}.`);
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.classList.add('visible');
