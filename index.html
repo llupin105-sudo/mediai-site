@@ -75,12 +75,38 @@
     border:1px solid var(--paper-line); cursor:pointer; transition:all .15s;
   }
   .account-btn:hover{ border-color:var(--sage); color:var(--sage-deep); }
-  .account-pill{
-    font-family:var(--mono); font-size:11.5px; color:var(--ink-soft);
+
+  .account-menu{ position:relative; }
+  .account-trigger{
     display:flex; align-items:center; gap:8px;
+    background:transparent; border:1px solid var(--paper-line); border-radius:20px;
+    padding:6px 14px 6px 6px; cursor:pointer; font-family:var(--sans); font-size:13px; color:var(--ink);
+    transition:border-color .15s;
   }
-  .account-pill .logout{ color:var(--ink-faint); cursor:pointer; text-decoration:underline; }
-  .account-pill .logout:hover{ color:var(--rose); }
+  .account-trigger:hover{ border-color:var(--sage); }
+  .account-avatar{
+    width:24px; height:24px; border-radius:50%; background:var(--sage);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:600; font-family:var(--sans); flex-shrink:0;
+  }
+  .account-dropdown{
+    display:none; position:absolute; top:calc(100% + 8px); right:0;
+    background:var(--card); border:1px solid var(--paper-line); border-radius:10px;
+    box-shadow:0 8px 24px rgba(22,33,28,.08); min-width:220px; z-index:60; overflow:hidden;
+  }
+  .account-dropdown.open{ display:block; }
+  .account-dropdown-email{ font-family:var(--mono); font-size:11.5px; color:var(--ink-faint); padding:12px 16px 8px; border-bottom:1px solid var(--paper-line); word-break:break-all; }
+  .account-dropdown-item{
+    display:block; width:100%; text-align:left; padding:10px 16px; font-size:13.5px;
+    background:none; border:none; cursor:pointer; color:var(--ink); font-family:var(--sans);
+    transition:background .12s;
+  }
+  .account-dropdown-item:hover{ background:var(--sage-tint); }
+  .account-dropdown-item.danger{ color:var(--rose); }
+  .account-dropdown-status{
+    display:flex; align-items:center; gap:6px; padding:8px 16px; font-family:var(--mono); font-size:10.5px; color:var(--ink-faint);
+    border-top:1px solid var(--paper-line);
+  }
   .nav-cta{
     font-family:var(--sans); font-size:13px; font-weight:600;
     background:var(--ink); color:#fff; padding:8px 16px; border-radius:6px;
@@ -358,11 +384,10 @@
 
 <nav>
   <div class="brand"><span class="brand-mark"></span>Méd<em>i</em>IA</div>
-  <div class="nav-right">
-    <a href="#fonctionnalites" class="nav-link">Fonctionnalités</a>
-    <a href="#tarifs" class="nav-link">Tarifs</a>
-    <a href="#" class="nav-link" onclick="openPatientsSection(event)">Mes patients</a>
-    <div class="nav-status"><span class="dot off" id="statusDot"></span><span id="statusText">Vérification…</span></div>
+  <div class="nav-right" id="navRight">
+    <a href="#fonctionnalites" class="nav-link" id="navFeaturesLink">Fonctionnalités</a>
+    <a href="#tarifs" class="nav-link" id="navTarifsLink">Tarifs</a>
+    <a href="#" class="nav-link" id="navPatientsLink" onclick="openPatientsSection(event)" style="display:none;">Mes patients</a>
     <div id="accountZone"><button class="account-btn" onclick="openAuthModal('login')">Se connecter</button></div>
   </div>
 </nav>
@@ -807,12 +832,56 @@ async function loadAccount() {
 
 function renderAccountZone() {
   const zone = document.getElementById('accountZone');
+  const featuresLink = document.getElementById('navFeaturesLink');
+  const tarifsLink = document.getElementById('navTarifsLink');
+  const patientsLink = document.getElementById('navPatientsLink');
+
   if (currentUser) {
-    zone.innerHTML = `<div class="account-pill">${currentUser.email} · <span class="logout" onclick="openProfileModal()">profil</span> · <span class="logout" onclick="openPreferencesModal()">modèles</span> · <span class="logout" onclick="logout()">déconnexion</span></div>`;
+    // Connecté : on masque le menu marketing, on affiche "Mes patients"
+    if (featuresLink) featuresLink.style.display = 'none';
+    if (tarifsLink) tarifsLink.style.display = 'none';
+    if (patientsLink) patientsLink.style.display = 'inline';
+
+    const initial = currentUser.email.charAt(0).toUpperCase();
+    zone.innerHTML = `
+      <div class="account-menu">
+        <button class="account-trigger" onclick="toggleAccountDropdown(event)">
+          <span class="account-avatar">${initial}</span>
+          <span>${currentUser.email.split('@')[0]}</span>
+        </button>
+        <div class="account-dropdown" id="accountDropdown">
+          <div class="account-dropdown-email">${currentUser.email}</div>
+          <button class="account-dropdown-item" onclick="openProfileModal(); closeAccountDropdown();">Profil professionnel</button>
+          <button class="account-dropdown-item" onclick="openPreferencesModal(); closeAccountDropdown();">Mes modèles</button>
+          <button class="account-dropdown-item danger" onclick="logout()">Déconnexion</button>
+          <div class="account-dropdown-status"><span class="dot off" id="statusDot"></span><span id="statusText">Vérification…</span></div>
+        </div>
+      </div>
+    `;
+    checkServer();
   } else {
+    // Déconnecté : on montre le menu marketing classique
+    if (featuresLink) featuresLink.style.display = 'inline';
+    if (tarifsLink) tarifsLink.style.display = 'inline';
+    if (patientsLink) patientsLink.style.display = 'none';
     zone.innerHTML = `<button class="account-btn" onclick="openAuthModal('login')">Se connecter</button>`;
   }
 }
+
+function toggleAccountDropdown(event) {
+  event.stopPropagation();
+  document.getElementById('accountDropdown')?.classList.toggle('open');
+}
+function closeAccountDropdown() {
+  document.getElementById('accountDropdown')?.classList.remove('open');
+}
+// Ferme le menu si on clique ailleurs sur la page
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('accountDropdown');
+  if (dropdown && dropdown.classList.contains('open') && !e.target.closest('.account-menu')) {
+    dropdown.classList.remove('open');
+  }
+});
 
 function logout() {
   clearToken();
@@ -1513,15 +1582,18 @@ renderPatientSelectorBar();
 
 // ── Vérifie que le serveur répond ────────────────────────────
 async function checkServer() {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  if (!dot || !text) return; // le menu compte n'est affiché que si connecté
   try {
     const res = await fetch(API_BASE + '/health');
     if (res.ok) {
-      document.getElementById('statusDot').className = 'dot on';
-      document.getElementById('statusText').textContent = 'Serveur connecté';
+      dot.className = 'dot on';
+      text.textContent = 'Serveur connecté';
     } else throw new Error();
   } catch {
-    document.getElementById('statusDot').className = 'dot off';
-    document.getElementById('statusText').textContent = 'Serveur hors ligne';
+    dot.className = 'dot off';
+    text.textContent = 'Serveur hors ligne';
   }
 }
 checkServer();
