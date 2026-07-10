@@ -525,7 +525,23 @@
       <div class="field-label" style="margin-bottom:8px;">Notes générales</div>
       <textarea id="patientNotesText" placeholder="Antécédents, allergies, contexte général..." onblur="savePatientNotes()"></textarea>
     </div>
-    <p class="clauses-title">Chronologie</p>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <p class="clauses-title" style="margin:0;">Chronologie</p>
+      <button class="btn-export" style="width:auto; padding:8px 16px; font-size:12.5px;" onclick="generateDossierSummary()" id="summaryBtn">✨ Résumé intelligent</button>
+    </div>
+
+    <div id="dossierSummaryCard" style="display:none; background:var(--sage-tint); border:1px solid #cfe3d7; border-radius:12px; padding:20px 22px; margin-bottom:20px;">
+      <div style="font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--sage-deep); margin-bottom:10px;">Synthèse — aide à la lecture, pas un avis médical</div>
+      <p id="summaryNarrative" style="font-size:14px; color:var(--ink); line-height:1.65; margin-bottom:14px;"></p>
+      <div class="field-label">Points clés</div>
+      <ul class="field-list" id="summaryKeyPoints" style="margin-bottom:14px;"></ul>
+      <div class="field-label">Évolution notable</div>
+      <p id="summaryEvolution" style="font-size:13.5px; color:var(--ink-soft); margin-bottom:14px;"></p>
+      <div class="field-label">À vérifier par le médecin</div>
+      <ul class="field-list" id="summaryToCheck"></ul>
+    </div>
+
     <div class="timeline" id="patientTimeline"></div>
   </div>
 </section>
@@ -1136,6 +1152,7 @@ let currentDetailPatientId = null;
 
 async function openPatientDetail(patientId) {
   currentDetailPatientId = patientId;
+  document.getElementById('dossierSummaryCard').style.display = 'none';
   try {
     const res = await fetch(API_BASE + '/api/patients/' + patientId, { headers: authHeaders() });
     const data = await res.json();
@@ -1179,6 +1196,36 @@ function viewTimelineEvent(event) {
     renderChart(event.data, null);
     document.getElementById('patientsSection').classList.remove('visible');
     document.getElementById('outil').scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+async function generateDossierSummary() {
+  if (!currentDetailPatientId) return;
+  const btn = document.getElementById('summaryBtn');
+  const card = document.getElementById('dossierSummaryCard');
+  btn.disabled = true;
+  btn.textContent = 'Génération…';
+
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/resume-intelligent', {
+      headers: authHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+
+    const r = data.resume;
+    document.getElementById('summaryNarrative').textContent = r.synthese_generale || '';
+    document.getElementById('summaryKeyPoints').innerHTML = (r.points_cles || []).map(p => `<li>${p}</li>`).join('') || '<li>—</li>';
+    document.getElementById('summaryEvolution').textContent = r.evolution_notable || '—';
+    document.getElementById('summaryToCheck').innerHTML = (r.a_verifier_par_le_medecin || []).map(p => `<li>${p}</li>`).join('') || '<li>Aucun point particulier</li>';
+
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (err) {
+    alert(err.message || 'Impossible de générer le résumé pour le moment');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Résumé intelligent';
   }
 }
 
