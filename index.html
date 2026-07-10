@@ -1199,6 +1199,27 @@ function viewTimelineEvent(event) {
   }
 }
 
+// Associe les notes contextuelles générées par l'IA aux cartes de la
+// chronologie déjà affichées, en faisant correspondre par titre + date.
+// C'est la brique visible de la "timeline médicale intelligente".
+function applyTimelineAnnotations(annotations) {
+  document.querySelectorAll('.timeline-annotation').forEach(el => el.remove());
+
+  annotations.forEach(a => {
+    if (!a.note || !a.note.trim()) return;
+    const cards = document.querySelectorAll('.timeline-title');
+    cards.forEach(titleEl => {
+      if (titleEl.textContent.includes(a.titre)) {
+        const note = document.createElement('div');
+        note.className = 'timeline-annotation';
+        note.style.cssText = 'font-size:12px; color:var(--sage-deep); background:var(--sage-tint); border-radius:6px; padding:6px 10px; margin-top:6px; font-style:italic;';
+        note.textContent = '✨ ' + a.note;
+        titleEl.closest('.timeline-card').appendChild(note);
+      }
+    });
+  });
+}
+
 async function generateDossierSummary() {
   if (!currentDetailPatientId) return;
   const btn = document.getElementById('summaryBtn');
@@ -1218,6 +1239,8 @@ async function generateDossierSummary() {
     document.getElementById('summaryKeyPoints').innerHTML = (r.points_cles || []).map(p => `<li>${p}</li>`).join('') || '<li>—</li>';
     document.getElementById('summaryEvolution').textContent = r.evolution_notable || '—';
     document.getElementById('summaryToCheck').innerHTML = (r.a_verifier_par_le_medecin || []).map(p => `<li>${p}</li>`).join('') || '<li>Aucun point particulier</li>';
+
+    applyTimelineAnnotations(r.timeline_annotee || []);
 
     card.style.display = 'block';
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
