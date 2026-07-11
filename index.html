@@ -526,6 +526,15 @@
       <textarea id="patientNotesText" placeholder="Antécédents, allergies, contexte général..." onblur="savePatientNotes()"></textarea>
     </div>
 
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+      <input type="text" id="patientSearchInput" placeholder="🔍 Rechercher dans ce dossier (ex : genou, tension, dernier traitement...)" style="flex:1; padding:11px 14px; border:1px solid var(--paper-line); border-radius:8px; font-family:var(--sans); font-size:13.5px; background:var(--card); color:var(--ink);" onkeydown="if(event.key==='Enter'){event.preventDefault(); runPatientSearch();}">
+      <button class="btn-export" style="width:auto; padding:0 18px;" onclick="runPatientSearch()">Rechercher</button>
+    </div>
+    <div id="searchResultsBanner" style="display:none; background:var(--clinical-tint); border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:13px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:center;">
+      <span id="searchResultsText"></span>
+      <button class="modal-close" style="margin:0;" onclick="clearPatientSearch()">Effacer la recherche</button>
+    </div>
+
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <p class="clauses-title" style="margin:0;">Chronologie</p>
       <button class="btn-export" style="width:auto; padding:8px 16px; font-size:12.5px;" onclick="generateDossierSummary()" id="summaryBtn">✨ Résumé intelligent</button>
@@ -1149,10 +1158,13 @@ function closePatientDetail() {
 }
 
 let currentDetailPatientId = null;
+let currentPatientEvents = []; // liste complète des événements du patient actuellement ouvert
 
 async function openPatientDetail(patientId) {
   currentDetailPatientId = patientId;
   document.getElementById('dossierSummaryCard').style.display = 'none';
+  document.getElementById('searchResultsBanner').style.display = 'none';
+  document.getElementById('patientSearchInput').value = '';
   try {
     const res = await fetch(API_BASE + '/api/patients/' + patientId, { headers: authHeaders() });
     const data = await res.json();
@@ -1162,26 +1174,76 @@ async function openPatientDetail(patientId) {
     document.getElementById('detailPatientMeta').textContent = data.patient.date_naissance ? `Né(e) le ${data.patient.date_naissance}` : '';
     document.getElementById('patientNotesText').value = data.patient.notes || '';
 
-    const timeline = document.getElementById('patientTimeline');
-    if (!data.events || data.events.length === 0) {
-      timeline.innerHTML = '<p style="font-size:13px; color:var(--ink-faint); padding:12px 0;">Aucun événement enregistré pour ce patient.</p>';
-    } else {
-      timeline.innerHTML = data.events.map(e => `
-        <div class="timeline-item">
-          <div class="timeline-dot"></div>
-          <div class="timeline-card" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g,"&#39;")})'>
-            <div class="timeline-date">${new Date(e.event_date).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' })}</div>
-            <div class="timeline-title">${e.title}<span class="timeline-type-badge">${e.type}</span></div>
-          </div>
-        </div>
-      `).join('');
-    }
+    currentPatientEvents = data.events || [];
+    renderTimeline(currentPatientEvents);
 
     document.getElementById('patientsListView').style.display = 'none';
     document.getElementById('patientDetailView').classList.add('visible');
   } catch (err) {
     alert(err.message || 'Impossible de charger ce dossier patient');
   }
+}
+
+// Affiche une liste d'événements dans la chronologie. `raisons` est une
+// Map optionnelle id -> texte, utilisée pour afficher le motif de
+// pertinence lors d'une recherche.
+function renderTimeline(events, raisons) {
+  const timeline = document.getElementById('patientTimeline');
+  if (!events || events.length === 0) {
+    timeline.innerHTML = '<p style="font-size:13px; color:var(--ink-faint); padding:12px 0;">Aucun événement à afficher.</p>';
+    return;
+  }
+  timeline.innerHTML = events.map(e => {
+    const raison = raisons?.get(e.id);
+    return `
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-card" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g,"&#39;")})'>
+          <div class="timeline-date">${new Date(e.event_date).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' })}</div>
+          <div class="timeline-title">${e.title}<span class="timeline-type-badge">${e.type}</span></div>
+          ${raison ? `<div class="timeline-annotation" style="font-size:12px; color:var(--sage-deep); background:var(--sage-tint); border-radius:6px; padding:6px 10px; margin-top:6px; font-style:italic;">🔍 ${raison}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function runPatientSearch() {
+  const query = document.getElementById('patientSearchInput').value.trim();
+  if (!query || !currentDetailPatientId) return;
+
+  const banner = document.getElementById('searchResultsBanner');
+  const bannerText = document.getElementById('searchResultsText');
+  bannerText.textContent = 'Recherche en cours…';
+  banner.style.display = 'flex';
+
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/search?q=' + encodeURIComponent(query), {
+      headers: authHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+
+    const resultats = data.resultats || [];
+    if (resultats.length === 0) {
+      bannerText.textContent = `Aucun résultat pour "${query}"`;
+      renderTimeline([]);
+      return;
+    }
+
+    const raisons = new Map(resultats.map(r => [r.event.id, r.raison]));
+    const events = resultats.map(r => r.event);
+    bannerText.textContent = `${resultats.length} résultat(s) pour "${query}"`;
+    renderTimeline(events, raisons);
+  } catch (err) {
+    bannerText.textContent = err.message || 'Erreur lors de la recherche';
+  }
+}
+
+function clearPatientSearch() {
+  document.getElementById('patientSearchInput').value = '';
+  document.getElementById('searchResultsBanner').style.display = 'none';
+  renderTimeline(currentPatientEvents);
 }
 
 function viewTimelineEvent(event) {
