@@ -449,6 +449,9 @@
 
     <textarea class="transcript-box" id="transcriptBox" placeholder="Consultation du... Le patient se plaint de... À l'examen... Je prescris..."></textarea>
 
+    <button type="button" class="btn-export" style="width:100%; margin-top:10px; margin-bottom:4px;" onclick="suggestSymptomQuestions()" id="symptomQuestionsBtn">💡 Suggestions de questions à poser</button>
+    <div id="symptomQuestionsResult" style="display:none; margin-top:8px; margin-bottom:8px; background:var(--clinical-tint); border-radius:8px; padding:14px 16px; font-size:13px; line-height:1.6;"></div>
+
     <div class="specialty-row">
       <button class="spec-chip active" data-spec="generaliste" onclick="setSpec(this)">Généraliste</button>
       <button class="spec-chip" data-spec="kinesitherapeute" onclick="setSpec(this)">Kinésithérapeute</button>
@@ -1933,6 +1936,56 @@ async function sendAudioForTranscription(audioBlob) {
     errorMsg.textContent = '⚠️ ' + (err.message || 'Erreur de transcription audio.');
     errorMsg.classList.add('visible');
     label.textContent = 'Appuyer pour dicter';
+  }
+}
+
+async function suggestSymptomQuestions() {
+  const transcription = box.value.trim();
+  const resultBox = document.getElementById('symptomQuestionsResult');
+  const btn = document.getElementById('symptomQuestionsBtn');
+
+  if (transcription.length < 20) {
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = '<span style="color:var(--ink-faint);">Décrivez d\'abord un peu la consultation pour identifier des symptômes.</span>';
+    return;
+  }
+  if (!currentUser) { openAuthModal('signup'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Analyse en cours…';
+
+  try {
+    const res = await fetch(API_BASE + '/api/symptomes/questions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ transcription })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+
+    const r = data.resultat;
+    resultBox.style.display = 'block';
+
+    if (!r.questions_suggerees || r.questions_suggerees.length === 0) {
+      resultBox.innerHTML = '<span style="color:var(--ink-soft);">Aucune question complémentaire à suggérer — les éléments semblent déjà complets, ou aucun symptôme clair n\'a été identifié.</span>';
+    } else {
+      resultBox.innerHTML = `
+        <div style="font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--clinical); margin-bottom:10px;">Questions complémentaires à envisager</div>
+        ${r.questions_suggerees.map(q => `
+          <div style="margin-bottom:8px; padding-left:14px; border-left:2px solid var(--clinical);">
+            <div style="font-size:11px; color:var(--ink-faint); font-family:var(--mono);">${q.symptome}</div>
+            <div style="color:var(--ink);">${q.question}</div>
+          </div>
+        `).join('')}
+        <div style="font-size:11px; color:var(--ink-faint); font-style:italic; margin-top:10px;">Rappel des axes d'interrogatoire standards — n'indique aucune piste diagnostique.</div>
+      `;
+    }
+  } catch (err) {
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = `<span style="color:var(--rose);">${err.message || 'Impossible de générer des suggestions pour le moment.'}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💡 Suggestions de questions à poser';
   }
 }
 
