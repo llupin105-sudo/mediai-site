@@ -536,7 +536,11 @@
         <div class="patient-detail-title" id="detailPatientName">—</div>
         <div class="patient-detail-sub" id="detailPatientMeta">—</div>
       </div>
-      <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation pour ce patient</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation</button>
+        <button class="btn-export" onclick="openLabModal()">🧪 Ajouter un résultat de labo</button>
+        <button class="btn-export" onclick="openImagingModal()">🩻 Ajouter un compte-rendu d'imagerie</button>
+      </div>
     </div>
     <div class="patient-notes">
       <div class="field-label" style="margin-bottom:8px;">Notes générales</div>
@@ -712,6 +716,30 @@
       <button type="submit" class="auth-submit" id="preferencesSubmitBtn">Enregistrer</button>
     </form>
     <button class="modal-close" onclick="closePreferencesModal()">Fermer</button>
+  </div>
+</div>
+
+<!-- MODALE : ajouter un résultat de laboratoire -->
+<div class="modal-overlay" id="labModal">
+  <div class="modal-box" style="max-width:560px; text-align:left;">
+    <h3 style="text-align:center;">Résultat de laboratoire</h3>
+    <p style="text-align:center;">Collez ou dictez le texte du compte-rendu déjà rédigé par le laboratoire. MédiIA le structure sans y ajouter d'interprétation.</p>
+    <div class="auth-error" id="labError"></div>
+    <textarea id="labTexteRapport" rows="8" placeholder="Ex : NFS du 12/06/2026 — Hémoglobine 13.2 g/dL (13-17), Leucocytes 7200/mm3 (4000-10000)..." style="width:100%; padding:11px 13px; border:1px solid var(--paper-line); border-radius:7px; font-family:var(--mono); font-size:12.5px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px;"></textarea>
+    <button class="auth-submit" id="labSubmitBtn" onclick="submitLabResult()">Structurer et ajouter au dossier</button>
+    <button class="modal-close" onclick="closeLabModal()" style="width:100%; text-align:center;">Annuler</button>
+  </div>
+</div>
+
+<!-- MODALE : ajouter un compte-rendu d'imagerie -->
+<div class="modal-overlay" id="imagingModal">
+  <div class="modal-box" style="max-width:560px; text-align:left;">
+    <h3 style="text-align:center;">Compte-rendu d'imagerie</h3>
+    <p style="text-align:center;">Collez ou dictez le texte du compte-rendu déjà rédigé par le radiologue. MédiIA le structure sans analyser d'image ni le réinterpréter.</p>
+    <div class="auth-error" id="imagingError"></div>
+    <textarea id="imagingTexteRapport" rows="8" placeholder="Ex : IRM du genou droit du 05/06/2026 — Indication : gonalgie chronique. Conclusion : discrète chondropathie fémoro-patellaire..." style="width:100%; padding:11px 13px; border:1px solid var(--paper-line); border-radius:7px; font-family:var(--mono); font-size:12.5px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px;"></textarea>
+    <button class="auth-submit" id="imagingSubmitBtn" onclick="submitImagingResult()">Structurer et ajouter au dossier</button>
+    <button class="modal-close" onclick="closeImagingModal()" style="width:100%; text-align:center;">Annuler</button>
   </div>
 </div>
 
@@ -1146,6 +1174,92 @@ function closePatientPickerAndOpenNew() {
 }
 
 // ── Création d'un nouveau patient ───────────────────────────────────
+// ── Résultat de laboratoire (structuration administrative) ─────────
+function openLabModal() {
+  document.getElementById('labTexteRapport').value = '';
+  document.getElementById('labError').classList.remove('visible');
+  document.getElementById('labModal').classList.add('visible');
+}
+function closeLabModal() {
+  document.getElementById('labModal').classList.remove('visible');
+}
+async function submitLabResult() {
+  const texte = document.getElementById('labTexteRapport').value.trim();
+  const errorEl = document.getElementById('labError');
+  const btn = document.getElementById('labSubmitBtn');
+  errorEl.classList.remove('visible');
+
+  if (texte.length < 20) {
+    errorEl.textContent = 'Collez le texte complet du compte-rendu de laboratoire';
+    errorEl.classList.add('visible');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Structuration en cours…';
+  try {
+    const res = await fetch(API_BASE + '/api/analyse-labo/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ patientId: currentDetailPatientId, texteRapport: texte })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+
+    closeLabModal();
+    await openPatientDetail(currentDetailPatientId);
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Structurer et ajouter au dossier';
+  }
+}
+
+// ── Compte-rendu d'imagerie (structuration administrative) ─────────
+function openImagingModal() {
+  document.getElementById('imagingTexteRapport').value = '';
+  document.getElementById('imagingError').classList.remove('visible');
+  document.getElementById('imagingModal').classList.add('visible');
+}
+function closeImagingModal() {
+  document.getElementById('imagingModal').classList.remove('visible');
+}
+async function submitImagingResult() {
+  const texte = document.getElementById('imagingTexteRapport').value.trim();
+  const errorEl = document.getElementById('imagingError');
+  const btn = document.getElementById('imagingSubmitBtn');
+  errorEl.classList.remove('visible');
+
+  if (texte.length < 20) {
+    errorEl.textContent = 'Collez le texte complet du compte-rendu d\'imagerie';
+    errorEl.classList.add('visible');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Structuration en cours…';
+  try {
+    const res = await fetch(API_BASE + '/api/imagerie/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ patientId: currentDetailPatientId, texteRapport: texte })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+
+    closeImagingModal();
+    await openPatientDetail(currentDetailPatientId);
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Structurer et ajouter au dossier';
+  }
+}
+
 function openNewPatientModal() {
   if (!currentUser) { openAuthModal('signup'); return; }
   document.getElementById('newPatientForm').reset();
@@ -1323,6 +1437,15 @@ function viewTimelineEvent(event) {
     renderChart(event.data, null);
     document.getElementById('patientsSection').classList.remove('visible');
     document.getElementById('outil').scrollIntoView({ behavior: 'smooth' });
+  } else if (event.type === 'analyse_labo') {
+    const d = event.data;
+    const lignes = (d.resultats || []).map(r =>
+      `${r.parametre} : ${r.valeur} ${r.unite || ''}  (réf. labo : ${r.valeurs_reference || '—'})${r.signale_par_labo ? '  [' + r.signale_par_labo + ']' : ''}`
+    ).join('\n');
+    alert(`RÉSULTATS DE LABORATOIRE${d.date_prelevement ? ' — ' + d.date_prelevement : ''}\n${d.laboratoire ? d.laboratoire + '\n' : ''}\n${lignes}${d.commentaire_biologiste ? '\n\nCommentaire du biologiste : ' + d.commentaire_biologiste : ''}`);
+  } else if (event.type === 'imagerie') {
+    const d = event.data;
+    alert(`${d.type_examen || 'Imagerie'} — ${d.zone_examinee || ''}${d.date_examen ? ' — ' + d.date_examen : ''}\n${d.indication ? 'Indication : ' + d.indication + '\n' : ''}\nConclusion du radiologue :\n${d.conclusion_radiologue || '—'}`);
   }
 }
 
