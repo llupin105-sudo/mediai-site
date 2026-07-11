@@ -416,6 +416,20 @@
       <span class="patient-selector-change">changer →</span>
     </div>
 
+    <div id="prepBriefingCard" style="display:none; background:var(--clinical-tint); border-radius:10px; padding:16px 18px; margin-bottom:20px;">
+      <div style="font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--clinical); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span>Avant de commencer</span>
+        <span id="prepLoadingLabel" style="display:none;">Préparation…</span>
+      </div>
+      <p id="prepDernierRdv" style="font-size:13.5px; color:var(--ink); margin-bottom:8px;"></p>
+      <div id="prepTraitementsWrap" style="margin-bottom:8px;">
+        <div class="field-label" style="margin-bottom:4px;">Traitements en cours</div>
+        <ul class="field-list" id="prepTraitements" style="margin:0;"></ul>
+      </div>
+      <ul class="field-list" id="prepPoints" style="margin-bottom:8px;"></ul>
+      <p id="prepRappel" style="font-size:13px; color:var(--amber); font-weight:500; display:none;"></p>
+    </div>
+
     <div class="mic-zone">
       <button class="mic-btn" id="micBtn" onclick="toggleRecording()">
         <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1074,7 +1088,51 @@ function pickPatient(p) {
   selectedPatient = p;
   renderPatientSelectorBar();
   closePatientPicker();
+  fetchPrepBriefing();
 }
+async function fetchPrepBriefing() {
+  if (!selectedPatient) return;
+  const card = document.getElementById('prepBriefingCard');
+  const loading = document.getElementById('prepLoadingLabel');
+  card.style.display = 'block';
+  loading.style.display = 'inline';
+  document.getElementById('prepDernierRdv').textContent = '';
+  document.getElementById('prepTraitements').innerHTML = '';
+  document.getElementById('prepPoints').innerHTML = '';
+  document.getElementById('prepRappel').style.display = 'none';
+
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + selectedPatient.id + '/preparation', {
+      headers: authHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+
+    const p = data.preparation;
+    document.getElementById('prepDernierRdv').textContent = p.dernier_rdv || '';
+
+    const traitementsWrap = document.getElementById('prepTraitementsWrap');
+    if (p.traitements_en_cours && p.traitements_en_cours.length > 0) {
+      traitementsWrap.style.display = 'block';
+      document.getElementById('prepTraitements').innerHTML = p.traitements_en_cours.map(t => `<li>${t}</li>`).join('');
+    } else {
+      traitementsWrap.style.display = 'none';
+    }
+
+    document.getElementById('prepPoints').innerHTML = (p.points_a_retenir || []).map(pt => `<li>${pt}</li>`).join('');
+
+    if (p.rappel_suivi) {
+      const rappelEl = document.getElementById('prepRappel');
+      rappelEl.textContent = '⏰ ' + p.rappel_suivi;
+      rappelEl.style.display = 'block';
+    }
+  } catch (err) {
+    document.getElementById('prepDernierRdv').textContent = "Impossible de préparer le briefing pour ce patient.";
+  } finally {
+    loading.style.display = 'none';
+  }
+}
+
 function closePatientPickerAndOpenNew() {
   closePatientPicker();
   openNewPatientModal();
@@ -1330,6 +1388,7 @@ function selectPatientForGeneration() {
   if (p) {
     selectedPatient = { id: p.id, nom: p.nom, prenom: p.prenom };
     renderPatientSelectorBar();
+    fetchPrepBriefing();
   }
   document.getElementById('patientsSection').classList.remove('visible');
   document.getElementById('outil').scrollIntoView({ behavior: 'smooth' });
