@@ -4,30 +4,52 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MédiIA — Dictée médicale structurée</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%230A1128'/%3E%3Cstop offset='100%25' stop-color='%2300C6FF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M9 1.5h6a2 2 0 0 1 2 2v5h5a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-5v5a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-5h-5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h5v-5a2 2 0 0 1 2-2Z'/%3E%3Cpath fill='%23fff' d='M12 8.3l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9Z'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
-    --paper:      #f4f5f1;
-    --paper-line: #dcdfd6;
-    --card:       #ffffff;
-    --ink:        #16211c;
-    --ink-soft:   #4a5750;
-    --ink-faint:  #8b968e;
-    --sage:       #2f6b4f;
-    --sage-deep:  #1f4a37;
-    --sage-tint:  #e5efe8;
-    --clinical:   #3a5a78;
-    --clinical-tint: #e8eef3;
-    --amber:      #a86a1f;
-    --amber-tint: #f6ecdb;
-    --rose:       #a83a3a;
-    --rose-tint:  #f6e6e6;
-    --serif: 'Source Serif 4', Georgia, serif;
-    --sans:  'Inter', system-ui, sans-serif;
-    --mono:  'IBM Plex Mono', monospace;
+    /* ── Nouvelle identité MédiIA — palette officielle ────────────── */
+    --navy:        #0A1128;  /* Bleu Nuit */
+    --blue:        #1460FF;  /* Bleu Principal */
+    --blue-light:  #00C6FF;  /* Bleu Clair */
+    --blue-tint:   #E6F2FF;  /* Bleu Très Clair */
+    --green:       #22C55E;  /* Vert Succès */
+    --violet:      #8B5CF6;  /* Violet */
+    --pink:        #EC4899;  /* Rose */
+    --gray:        #64748B;  /* Gris */
+
+    /* Tokens fonctionnels (noms conservés pour propager le rebrand
+       à travers tout le produit sans réécrire chaque composant) */
+    --paper:      #F8FAFC;              /* Fond Principal */
+    --paper-line: #E2E8F0;
+    --card:       #FFFFFF;              /* Surface */
+    --ink:        var(--navy);
+    --ink-soft:   #475569;
+    --ink-faint:  var(--gray);
+    --sage:       var(--blue);          /* accent principal */
+    --sage-deep:  #0D3EBF;              /* hover accent principal */
+    --sage-tint:  var(--blue-tint);
+    --clinical:   var(--violet);        /* accent secondaire */
+    --clinical-tint: #F1EDFF;
+    --amber:      #F59E0B;              /* Orange Alerte */
+    --amber-tint: #FEF3E2;
+    --rose:       #EF4444;              /* Erreur */
+    --rose-tint:  #FEE2E2;
+    --grad-primary:   linear-gradient(135deg, var(--navy), var(--blue-light));
+    --grad-secondary: linear-gradient(135deg, var(--blue), var(--violet));
+
+    --serif: var(--sans);  /* identité 100% sans-serif — plus d'italique éditorial */
+    --sans:  'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+    --mono:  var(--sans);  /* labels en Inter (majuscules/tracking), plus de monospace */
+
+    --r-xs: 4px; --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-full: 9999px;
+    --shadow-xs: 0 1px 2px rgba(10,17,40,.05);
+    --shadow-sm: 0 2px 8px rgba(10,17,40,.06);
+    --shadow-md: 0 8px 20px rgba(10,17,40,.08);
+    --shadow-lg: 0 16px 40px rgba(10,17,40,.14);
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
@@ -37,6 +59,7 @@
     color:var(--ink);
     line-height:1.6;
     -webkit-font-smoothing:antialiased;
+    font-feature-settings:"cv11","ss01";
   }
   body::before{
     content:'';
@@ -59,9 +82,9 @@
     padding:0 2rem; height:60px;
     display:flex; align-items:center; justify-content:space-between;
   }
-  .brand{ font-family:var(--serif); font-size:21px; font-style:italic; color:var(--ink); display:flex; align-items:center; gap:8px; }
-  .brand-mark{ width:9px;height:9px;border-radius:50%;background:var(--sage); display:inline-block; }
-  .brand em{ color:var(--sage); font-style:italic; }
+  .brand{ font-family:var(--sans); font-size:20px; font-weight:800; letter-spacing:-.02em; color:var(--ink); display:flex; align-items:center; gap:8px; }
+  .brand-mark{ width:24px; height:24px; flex-shrink:0; }
+  .brand em{ color:var(--blue); font-style:normal; background:var(--grad-secondary); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
   .nav-right{ display:flex; align-items:center; gap:22px; }
   .nav-link{ font-size:14px; color:var(--ink-soft); text-decoration:none; }
   .nav-link:hover{ color:var(--ink); }
@@ -131,7 +154,7 @@
     font-size:clamp(32px,5.5vw,54px); line-height:1.12; letter-spacing:-.5px;
     color:var(--ink); margin-bottom:18px;
   }
-  .hero h1 em{ font-style:italic; color:var(--sage); }
+  .hero h1 em{ font-style:normal; color:var(--blue); }
   .hero p{ font-size:16px; color:var(--ink-soft); max-width:480px; margin:0 auto 28px; }
 
   .trust-row{
@@ -178,7 +201,7 @@
     padding:18px 20px; cursor:pointer; transition:border-color .15s;
   }
   .patient-card:hover{ border-color:var(--sage); }
-  .patient-card-name{ font-family:var(--serif); font-style:italic; font-size:16px; color:var(--ink); margin-bottom:4px; }
+  .patient-card-name{ font-family:var(--sans); font-weight:700; font-size:15.5px; color:var(--ink); margin-bottom:4px; }
   .patient-card-meta{ font-family:var(--mono); font-size:11px; color:var(--ink-faint); }
   .patient-empty{ text-align:center; padding:48px 20px; color:var(--ink-faint); font-size:14px; }
 
@@ -186,7 +209,7 @@
   .patient-detail{ display:none; }
   .patient-detail.visible{ display:block; }
   .patient-detail-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
-  .patient-detail-title{ font-family:var(--serif); font-style:italic; font-size:24px; color:var(--ink); }
+  .patient-detail-title{ font-family:var(--sans); font-weight:700; font-size:23px; letter-spacing:-.01em; color:var(--ink); }
   .patient-detail-sub{ font-family:var(--mono); font-size:12px; color:var(--ink-faint); margin-top:4px; }
   .patient-notes{ background:var(--card); border:1px solid var(--paper-line); border-radius:10px; padding:16px 18px; margin-bottom:24px; }
   .patient-notes textarea{ width:100%; border:none; background:transparent; font-family:var(--sans); font-size:13.5px; color:var(--ink); resize:vertical; min-height:60px; }
@@ -276,14 +299,14 @@
   .chart-section.visible{ display:block; animation:fadeUp .5s ease; }
   @keyframes fadeUp{ from{ opacity:0; transform:translateY(14px);} to{ opacity:1; transform:none; } }
   .chart-meta{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
-  .chart-meta h2{ font-family:var(--serif); font-style:italic; font-weight:500; font-size:22px; color:var(--ink); }
+  .chart-meta h2{ font-family:var(--sans); font-weight:700; font-size:21px; letter-spacing:-.01em; color:var(--ink); }
   .chart-meta .cost{ font-family:var(--mono); font-size:11px; color:var(--ink-faint); }
   .folder{ display:flex; background:var(--card); border-radius:12px; box-shadow:0 1px 2px rgba(22,33,28,.04), 0 12px 32px rgba(22,33,28,.05); overflow:hidden; min-height:480px; }
   .tabs{ display:flex; flex-direction:column; width:64px; flex-shrink:0; background:var(--paper); border-right:1px solid var(--paper-line); }
   .tab{ flex:1; display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; border-bottom:1px solid var(--paper-line); transition:background .15s; }
   .tab:last-child{ border-bottom:none; }
   .tab:hover{ background:var(--sage-tint); }
-  .tab .letter{ font-family:var(--serif); font-style:italic; font-weight:600; font-size:26px; color:var(--ink-faint); writing-mode:vertical-rl; text-orientation:mixed; letter-spacing:2px; }
+  .tab .letter{ font-family:var(--sans); font-weight:800; font-size:22px; color:var(--ink-faint); writing-mode:vertical-rl; text-orientation:mixed; letter-spacing:1px; }
   .tab.active{ background:var(--card); }
   .tab.active .letter{ color:var(--sage); }
   .tab.active::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--sage); }
@@ -291,7 +314,7 @@
   .chart-panel{ flex:1; padding:32px 36px; display:none; }
   .chart-panel.active{ display:block; animation:fadeIn .25s ease; }
   @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
-  .panel-title{ font-family:var(--serif); font-style:italic; font-size:19px; color:var(--sage-deep); margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--paper-line); }
+  .panel-title{ font-family:var(--sans); font-weight:700; font-size:17px; letter-spacing:-.01em; color:var(--ink); margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--paper-line); }
   .field{ margin-bottom:18px; }
   .field-label{ font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:6px; }
   .field-value{ font-size:14.5px; color:var(--ink); line-height:1.6; }
@@ -314,10 +337,10 @@
   .features{ max-width:980px; margin:100px auto 0; padding:0 2rem; position:relative; z-index:1; }
   .section-eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--sage-deep); margin-bottom:10px; }
   .section-title{ font-family:var(--serif); font-weight:500; font-size:clamp(24px,3.6vw,34px); letter-spacing:-.3px; margin-bottom:44px; max-width:560px; }
-  .section-title em{ font-style:italic; color:var(--sage); }
+  .section-title em{ font-style:normal; color:var(--blue); }
   .feat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1px; background:var(--paper-line); border:1px solid var(--paper-line); border-radius:12px; overflow:hidden; }
   .feat-card{ background:var(--card); padding:28px 26px; }
-  .feat-tab{ font-family:var(--serif); font-style:italic; font-size:28px; color:var(--sage); margin-bottom:14px; }
+  .feat-tab{ font-family:var(--sans); font-weight:800; font-size:24px; color:var(--blue); margin-bottom:14px; }
   .feat-card h3{ font-size:15.5px; font-weight:600; margin-bottom:8px; }
   .feat-card p{ font-size:13.5px; color:var(--ink-soft); line-height:1.65; }
 
@@ -328,7 +351,7 @@
   .price-card.featured{ border:2px solid var(--sage); }
   .price-tag{ position:absolute; top:-11px; left:28px; background:var(--sage); color:#fff; font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; padding:3px 10px; border-radius:20px; }
   .price-plan{ font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:14px; }
-  .price-num{ font-family:var(--serif); font-style:italic; font-size:40px; color:var(--ink); margin-bottom:2px; }
+  .price-num{ font-family:var(--sans); font-weight:800; font-size:38px; letter-spacing:-.02em; color:var(--ink); margin-bottom:2px; }
   .price-num sup{ font-size:16px; font-style:normal; color:var(--ink-faint); }
   .price-sub{ font-size:12.5px; color:var(--ink-faint); margin-bottom:22px; }
   .price-feats{ list-style:none; margin-bottom:24px; }
@@ -345,9 +368,9 @@
   /* ── PAYWALL MODAL ────────────────────────────────── */
   .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(22,33,28,.5); z-index:100; align-items:center; justify-content:center; padding:20px; }
   .modal-overlay.visible{ display:flex; }
-  .modal-box{ background:var(--card); border-radius:14px; max-width:420px; width:100%; padding:32px; text-align:center; }
+  .modal-box{ background:var(--card); border-radius:var(--r-lg); max-width:420px; width:100%; padding:36px; text-align:center; box-shadow:var(--shadow-lg); }
   .modal-icon{ width:48px; height:48px; border-radius:50%; background:var(--amber-tint); color:var(--amber); display:flex; align-items:center; justify-content:center; margin:0 auto 18px; }
-  .modal-box h3{ font-family:var(--serif); font-style:italic; font-size:20px; margin-bottom:10px; }
+  .modal-box h3{ font-family:var(--sans); font-weight:700; font-size:19px; letter-spacing:-.01em; margin-bottom:10px; }
   .modal-box p{ font-size:14px; color:var(--ink-soft); margin-bottom:22px; line-height:1.6; }
   .modal-close{ background:none; border:none; color:var(--ink-faint); font-size:12px; margin-top:14px; cursor:pointer; text-decoration:underline; }
 
@@ -381,30 +404,30 @@
   /* Sidebar */
   #appSidebar{
     position:fixed; left:0; top:0; height:100vh; width:232px; z-index:80;
-    background:var(--card); border-right:1px solid var(--paper-line);
+    background:var(--navy); border-right:1px solid rgba(255,255,255,.06);
     flex-direction:column; transition:width .18s ease; overflow:hidden;
   }
   #appSidebar.collapsed{ width:64px; }
-  .sidebar-brand{ display:flex; align-items:center; gap:9px; padding:16px 18px; height:56px; border-bottom:1px solid var(--paper-line); flex-shrink:0; }
+  .sidebar-brand{ display:flex; align-items:center; gap:9px; padding:16px 18px; height:56px; border-bottom:1px solid rgba(255,255,255,.08); flex-shrink:0; }
   .sidebar-brand .brand-mark{ flex-shrink:0; }
-  .sidebar-brand-label{ font-family:var(--serif); font-size:17px; font-style:italic; color:var(--ink); white-space:nowrap; }
+  .sidebar-brand-label{ font-family:var(--sans); font-weight:800; font-size:16px; letter-spacing:-.01em; color:#fff; white-space:nowrap; }
   #appSidebar.collapsed .sidebar-brand-label{ display:none; }
   .sidebar-nav{ padding:10px; display:flex; flex-direction:column; gap:2px; flex:1; overflow-y:auto; }
-  .sidebar-section-label{ font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); padding:14px 10px 6px; white-space:nowrap; }
+  .sidebar-section-label{ font-family:var(--sans); font-weight:600; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.35); padding:14px 10px 6px; white-space:nowrap; }
   #appSidebar.collapsed .sidebar-section-label{ display:none; }
   .sidebar-link{
-    display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px;
-    font-size:13.5px; color:var(--ink-soft); cursor:pointer; white-space:nowrap; overflow:hidden;
+    display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:var(--r-sm);
+    font-size:13.5px; color:rgba(255,255,255,.62); cursor:pointer; white-space:nowrap; overflow:hidden;
     border:none; background:transparent; width:100%; text-align:left; font-family:var(--sans);
-    transition:background .12s;
+    transition:background .15s, color .15s;
   }
-  .sidebar-link:hover{ background:var(--paper); color:var(--ink); }
-  .sidebar-link.active{ background:var(--sage-tint); color:var(--sage-deep); font-weight:600; }
+  .sidebar-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .sidebar-link.active{ background:var(--blue); color:#fff; font-weight:600; box-shadow:0 4px 12px rgba(20,96,255,.35); }
   .sidebar-link .icon{ width:18px; height:18px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
   .sidebar-link .icon svg{ width:17px; height:17px; }
   #appSidebar.collapsed .sidebar-link span.label{ display:none; }
   #appSidebar.collapsed .sidebar-link{ justify-content:center; }
-  .sidebar-footer{ padding:10px; border-top:1px solid var(--paper-line); flex-shrink:0; }
+  .sidebar-footer{ padding:10px; border-top:1px solid rgba(255,255,255,.08); flex-shrink:0; }
 
   /* Topbar */
   #appTopbar{
@@ -416,32 +439,36 @@
   body.sidebar-collapsed #appTopbar{ left:64px; }
   body.sidebar-collapsed #appContentArea{ margin-left:64px; }
   .topbar-toggle{
-    width:32px; height:32px; border-radius:7px; border:none; background:transparent;
-    color:var(--ink-soft); cursor:pointer; display:flex; align-items:center; justify-content:center;
-    flex-shrink:0; transition:background .12s;
+    width:38px; height:38px; border-radius:var(--r-sm); border:1px solid var(--paper-line); background:var(--card);
+    color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; box-shadow:var(--shadow-xs); transition:background .15s, border-color .15s, transform .1s;
   }
-  .topbar-toggle:hover{ background:var(--paper-line); color:var(--ink); }
-  .topbar-search{ flex:1; max-width:440px; position:relative; }
+  .topbar-toggle:hover{ background:var(--sage-tint); border-color:var(--sage); color:var(--sage); }
+  .topbar-toggle:active{ transform:scale(.94); }
+  .topbar-toggle svg{ width:18px; height:18px; }
+  .topbar-search{ flex:1; max-width:480px; position:relative; }
   .topbar-search input{
-    width:100%; padding:8px 14px 8px 34px; border:1px solid var(--paper-line); border-radius:8px;
+    width:100%; padding:10px 46px 10px 38px; border:1px solid var(--paper-line); border-radius:var(--r-md);
     font-family:var(--sans); font-size:13.5px; background:var(--card); color:var(--ink);
+    box-shadow:var(--shadow-xs); transition:border-color .15s, box-shadow .15s;
   }
-  .topbar-search input:focus{ outline:none; border-color:var(--sage); }
+  .topbar-search input:focus{ outline:none; border-color:var(--sage); box-shadow:0 0 0 3.5px var(--sage-tint), var(--shadow-sm); }
   .topbar-search input::placeholder{ color:var(--ink-faint); }
-  .topbar-search svg{ position:absolute; left:11px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:var(--ink-faint); pointer-events:none; }
+  .topbar-search svg{ position:absolute; left:13px; top:50%; transform:translateY(-50%); width:15px; height:15px; color:var(--ink-faint); pointer-events:none; transition:color .15s; }
+  .topbar-search input:focus ~ svg{ color:var(--sage); }
   .topbar-search-badge{
-    position:absolute; right:9px; top:50%; transform:translateY(-50%);
-    font-family:var(--mono); font-size:9.5px; color:var(--ink-faint); background:var(--paper);
-    padding:2px 6px; border-radius:4px; pointer-events:none;
+    position:absolute; right:10px; top:50%; transform:translateY(-50%);
+    font-family:var(--sans); font-weight:600; font-size:10.5px; color:var(--ink-faint); background:var(--paper);
+    border:1px solid var(--paper-line); padding:2px 7px; border-radius:var(--r-xs); pointer-events:none;
   }
-  .topbar-right{ display:flex; align-items:center; gap:6px; margin-left:auto; flex-shrink:0; }
+  .topbar-right{ display:flex; align-items:center; gap:8px; margin-left:auto; flex-shrink:0; }
   .topbar-icon-btn{
-    width:32px; height:32px; border-radius:7px; border:none; background:transparent;
+    width:38px; height:38px; border-radius:var(--r-sm); border:1px solid transparent; background:transparent;
     color:var(--ink-faint); cursor:pointer; display:flex; align-items:center; justify-content:center;
-    transition:background .12s, color .12s; position:relative;
+    transition:background .15s, color .15s, border-color .15s; position:relative;
   }
-  .topbar-icon-btn:hover{ background:var(--paper-line); color:var(--ink-soft); }
-  .topbar-icon-btn svg{ width:17px; height:17px; }
+  .topbar-icon-btn:hover{ background:var(--bg-secondary,var(--paper)); border-color:var(--paper-line); color:var(--ink-soft); }
+  .topbar-icon-btn svg{ width:18px; height:18px; }
 
   /* Content area (pushed right of sidebar, below topbar) */
   #appContentArea{ display:none; margin-left:232px; padding-top:56px; transition:margin-left .18s ease; min-height:100vh; }
@@ -456,7 +483,7 @@
 
   /* Dashboard */
   .dash-header{ margin-bottom:28px; }
-  .dash-greeting{ font-family:var(--serif); font-style:italic; font-size:26px; color:var(--ink); margin-bottom:4px; }
+  .dash-greeting{ font-family:var(--sans); font-weight:700; font-size:25px; letter-spacing:-.01em; color:var(--ink); margin-bottom:4px; }
   .dash-date{ font-family:var(--mono); font-size:12px; color:var(--ink-faint); text-transform:capitalize; }
   .dash-stats{ display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:14px; margin-bottom:28px; }
   .dash-stat-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:12px; padding:18px 20px; }
@@ -500,8 +527,23 @@
 </head>
 <body>
 
+<!-- Logo MédiIA — défini une seule fois, réutilisé partout via <use> -->
+<svg width="0" height="0" style="position:absolute;overflow:hidden;">
+  <defs>
+    <linearGradient id="mediaiLogoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--navy)"/>
+      <stop offset="100%" stop-color="var(--blue-light)"/>
+    </linearGradient>
+    <symbol id="mediai-logo-mark" viewBox="0 0 24 24">
+      <path fill="url(#mediaiLogoGradient)" d="
+        M9 1.5 h6 a2 2 0 0 1 2 2 v5 h5 a2 2 0 0 1 2 2 v6 a2 2 0 0 1 -2 2 h-5 v5 a2 2 0 0 1 -2 2 h-6 a2 2 0 0 1 -2 -2 v-5 h-5 a2 2 0 0 1 -2 -2 v-6 a2 2 0 0 1 2 -2 h5 v-5 a2 2 0 0 1 2 -2 Z"/>
+      <path fill="#fff" d="M12 8.3 L12.9 10.6 L15.2 11.5 L12.9 12.4 L12 14.7 L11.1 12.4 L8.8 11.5 L11.1 10.6 Z"/>
+    </symbol>
+  </defs>
+</svg>
+
 <nav>
-  <div class="brand"><span class="brand-mark"></span>Méd<em>i</em>IA</div>
+  <div class="brand"><svg class="brand-mark" viewBox="0 0 24 24"><use href="#mediai-logo-mark"/></svg>Méd<em>i</em>IA</div>
   <div class="nav-right" id="navRight">
     <a href="#fonctionnalites" class="nav-link">Fonctionnalités</a>
     <a href="#tarifs" class="nav-link">Tarifs</a>
@@ -522,7 +564,7 @@
 
 <aside id="appSidebar">
   <div class="sidebar-brand">
-    <span class="brand-mark"></span>
+    <svg class="brand-mark" viewBox="0 0 24 24"><use href="#mediai-logo-mark"/></svg>
     <span class="sidebar-brand-label">Méd<em>i</em>IA</span>
   </div>
   <nav class="sidebar-nav">
@@ -554,7 +596,7 @@
   </button>
   <div class="topbar-search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="topbarSearchInput" placeholder="Rechercher un patient…" onkeydown="if(event.key==='Enter'){event.preventDefault(); runGlobalSearch();}">
+    <input type="text" id="topbarSearchInput" placeholder="Rechercher un patient, un document ou une consultation…" onkeydown="if(event.key==='Enter'){event.preventDefault(); runGlobalSearch();}">
     <span class="topbar-search-badge">⏎</span>
   </div>
   <div class="topbar-right">
@@ -1023,6 +1065,7 @@
 <!-- MODALE : connexion / inscription -->
 <div class="modal-overlay" id="authModal">
   <div class="modal-box">
+    <svg viewBox="0 0 24 24" style="width:36px; height:36px; display:block; margin:0 auto 16px;"><use href="#mediai-logo-mark"/></svg>
     <div class="auth-tabs">
       <button class="auth-tab active" data-mode="login" onclick="switchAuthTab(this)">Se connecter</button>
       <button class="auth-tab" data-mode="signup" onclick="switchAuthTab(this)">Créer un compte</button>
@@ -1670,7 +1713,7 @@ function renderTimeline(events, raisons) {
         <div class="timeline-card" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g,"&#39;")})'>
           <div class="timeline-date">${new Date(e.event_date).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' })}</div>
           <div class="timeline-title">${e.title}<span class="timeline-type-badge">${e.type}</span></div>
-          ${raison ? `<div class="timeline-annotation" style="font-size:12px; color:var(--sage-deep); background:var(--sage-tint); border-radius:6px; padding:6px 10px; margin-top:6px; font-style:italic;">🔍 ${raison}</div>` : ''}
+          ${raison ? `<div class="timeline-annotation" style="font-size:12px; color:var(--sage-deep); background:var(--sage-tint); border-radius:6px; padding:6px 10px; margin-top:6px; font-weight:500;">🔍 ${raison}</div>` : ''}
         </div>
       </div>
     `;
@@ -1751,7 +1794,7 @@ function applyTimelineAnnotations(annotations) {
       if (titleEl.textContent.includes(a.titre)) {
         const note = document.createElement('div');
         note.className = 'timeline-annotation';
-        note.style.cssText = 'font-size:12px; color:var(--sage-deep); background:var(--sage-tint); border-radius:6px; padding:6px 10px; margin-top:6px; font-style:italic;';
+        note.style.cssText = 'font-size:12px; color:var(--sage-deep); background:var(--sage-tint); border-radius:6px; padding:6px 10px; margin-top:6px; font-weight:500;';
         note.textContent = '✨ ' + a.note;
         titleEl.closest('.timeline-card').appendChild(note);
       }
@@ -1875,7 +1918,7 @@ function buildCourrierPdfDoc() {
   const pageW = 210, marginX = 22;
   let y = 26;
 
-  doc.setFont('times', 'italic'); doc.setFontSize(20); doc.setTextColor(...ink);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...ink);
   doc.text('MédiIA', marginX, y);
   doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...inkFaint);
   doc.text('COURRIER MÉDICAL', pageW - marginX, y, { align: 'right' });
@@ -2008,7 +2051,7 @@ async function checkInteractions() {
       `).join('');
     }
 
-    resultBox.innerHTML += `<div style="font-size:11.5px; color:var(--ink-faint); font-style:italic; margin-top:8px;">${r.rappel || "Cette vérification est une aide à la vigilance et ne remplace pas les références officielles (Vidal, RCP)."}</div>`;
+    resultBox.innerHTML += `<div style="font-size:11.5px; color:var(--ink-faint); font-weight:500; margin-top:8px;">${r.rappel || "Cette vérification est une aide à la vigilance et ne remplace pas les références officielles (Vidal, RCP)."}</div>`;
   } catch (err) {
     resultBox.style.display = 'block';
     resultBox.style.background = 'var(--rose-tint)';
@@ -2061,7 +2104,7 @@ function exportOrdonnancePdf() {
   const pageW = 210, marginX = 22;
   let y = 26;
 
-  doc.setFont('times', 'italic'); doc.setFontSize(20); doc.setTextColor(...ink);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...ink);
   doc.text('MédiIA', marginX, y);
   doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...inkFaint);
   doc.text('ORDONNANCE', pageW - marginX, y, { align: 'right' });
@@ -2167,6 +2210,10 @@ function openAuthModal(mode) {
   updateAuthCopy();
   document.getElementById('authModal').classList.add('visible');
   initGoogleButton();
+  // Réveille le serveur dès l'ouverture de la modale (Render s'endort après
+  // inactivité et peut mettre jusqu'à 40-50s à répondre) — le temps que le
+  // médecin saisisse ses identifiants, le serveur est déjà réveillé.
+  fetch(API_BASE + '/health').catch(() => {});
 }
 function closeAuthModal() {
   document.getElementById('authModal').classList.remove('visible');
@@ -2194,8 +2241,16 @@ async function submitAuth(event) {
   const password = document.getElementById('authPassword').value;
   const errorEl = document.getElementById('authError');
   const btn = document.getElementById('authSubmitBtn');
+  const originalLabel = authMode === 'login' ? 'Se connecter' : 'Créer mon compte';
   errorEl.classList.remove('visible');
   btn.disabled = true;
+  btn.textContent = authMode === 'login' ? 'Connexion…' : 'Création du compte…';
+
+  // Si le serveur met plus de 6 secondes à répondre (réveil à froid),
+  // on informe le médecin plutôt que de le laisser face à un bouton figé.
+  const slowNotice = setTimeout(() => {
+    btn.textContent = 'Réveil du serveur… encore quelques secondes';
+  }, 6000);
 
   try {
     const route = authMode === 'login' ? '/api/auth/login' : '/api/auth/signup';
@@ -2215,10 +2270,12 @@ async function submitAuth(event) {
     closeAuthModal();
     document.getElementById('authForm').reset();
   } catch (err) {
-    errorEl.textContent = err.message;
+    errorEl.textContent = err.message || "Impossible de contacter le serveur. Réessayez dans quelques secondes.";
     errorEl.classList.add('visible');
   } finally {
+    clearTimeout(slowNotice);
     btn.disabled = false;
+    btn.textContent = originalLabel;
   }
 }
 
@@ -2389,7 +2446,7 @@ async function suggestSymptomQuestions() {
             <div style="color:var(--ink);">${q.question}</div>
           </div>
         `).join('')}
-        <div style="font-size:11px; color:var(--ink-faint); font-style:italic; margin-top:10px;">Rappel des axes d'interrogatoire standards — n'indique aucune piste diagnostique.</div>
+        <div style="font-size:11px; color:var(--ink-faint); font-weight:500; margin-top:10px;">Rappel des axes d'interrogatoire standards — n'indique aucune piste diagnostique.</div>
       `;
     }
   } catch (err) {
@@ -2542,7 +2599,7 @@ function buildPdfDoc() {
   let y = 20;
 
   // ── En-tête ──
-  doc.setFont('times', 'italic'); doc.setFontSize(20); doc.setTextColor(...ink);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...ink);
   doc.text('MédiIA', marginX, y);
   doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...inkFaint);
   doc.text('COMPTE-RENDU MÉDICAL STRUCTURÉ', pageW - marginX, y, { align: 'right' });
@@ -2551,7 +2608,7 @@ function buildPdfDoc() {
   y += 8;
 
   // ── Résumé / titre ──
-  doc.setFont('times', 'italic'); doc.setFontSize(13); doc.setTextColor(...ink);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...ink);
   const resumeLines = doc.splitTextToSize(lastCompteRendu.resume_1_ligne || 'Compte-rendu généré', pageW - 2*marginX);
   doc.text(resumeLines, marginX, y);
   y += resumeLines.length * 5.5 + 6;
@@ -2569,7 +2626,7 @@ function buildPdfDoc() {
     ensureSpace(14);
     doc.setFillColor(...sageTint);
     doc.roundedRect(marginX, y, 10, 10, 2, 2, 'F');
-    doc.setFont('times', 'italic'); doc.setFontSize(13); doc.setTextColor(...sageDeep);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...sageDeep);
     doc.text(letter, marginX + 5, y + 7, { align: 'center' });
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...ink);
     doc.text(label, marginX + 14, y + 7);
