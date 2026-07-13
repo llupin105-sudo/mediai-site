@@ -526,6 +526,119 @@
   .dash-recent-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px; }
   .dash-empty{ background:var(--card); border:1px dashed var(--paper-line); border-radius:var(--r-lg); padding:44px 24px; text-align:center; color:var(--ink-faint); font-size:13.5px; }
 
+  .dash-summary-banner{
+    background:var(--grad-secondary); border-radius:var(--r-lg); padding:18px 24px; margin-bottom:32px;
+    color:#fff; font-size:14px; font-weight:500; display:flex; align-items:center; gap:12px;
+    box-shadow:var(--shadow-md);
+  }
+  .dash-summary-banner .icon{ font-size:20px; flex-shrink:0; }
+  .dash-summary-banner strong{ font-weight:700; }
+
+  .dash-shortcuts-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px; margin-bottom:36px; }
+  .dash-shortcut-card{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-md); padding:16px;
+    cursor:pointer; transition:border-color .16s ease, box-shadow .16s ease, transform .16s ease; text-align:left;
+  }
+  .dash-shortcut-card:hover{ border-color:var(--sage); box-shadow:var(--shadow-sm); transform:translateY(-1px); }
+  .dash-shortcut-card .icon{ width:34px; height:34px; border-radius:var(--r-sm); background:var(--sage-tint); color:var(--sage); display:flex; align-items:center; justify-content:center; margin-bottom:10px; font-size:16px; }
+  .dash-shortcut-card .title{ font-size:13px; font-weight:600; color:var(--ink); margin-bottom:2px; }
+  .dash-shortcut-card .sub{ font-size:11.5px; color:var(--ink-faint); }
+
+  .dash-two-col{ display:grid; grid-template-columns:1.4fr 1fr; gap:32px; align-items:start; }
+  @media (max-width:900px){ .dash-two-col{ grid-template-columns:1fr; } }
+
+  .dash-activity-feed{ display:flex; flex-direction:column; gap:2px; }
+  .activity-item{
+    display:flex; align-items:flex-start; gap:12px; padding:11px 12px; border-radius:var(--r-sm);
+    cursor:pointer; transition:background .14s ease;
+  }
+  .activity-item:hover{ background:var(--paper); }
+  .activity-icon{ width:32px; height:32px; border-radius:var(--r-sm); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; background:var(--sage-tint); color:var(--sage); }
+  .activity-icon.type-ordonnance{ background:#F1EDFF; color:var(--violet); }
+  .activity-icon.type-courrier{ background:var(--amber-tint); color:var(--amber); }
+  .activity-icon.type-analyse_labo{ background:#E0F2FE; color:#0284C7; }
+  .activity-icon.type-imagerie{ background:#FCE7F3; color:var(--pink); }
+  .activity-body{ flex:1; min-width:0; }
+  .activity-title{ font-size:13px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .activity-meta{ font-size:11.5px; color:var(--ink-faint); margin-top:1px; }
+  .activity-date{ font-size:11px; color:var(--ink-faint); flex-shrink:0; white-space:nowrap; padding-top:1px; }
+
+  /* Palette de commandes — recherche universelle */
+  .cmdk-overlay{
+    display:none; position:fixed; inset:0; z-index:200; background:rgba(10,17,40,.45);
+    align-items:flex-start; justify-content:center; padding-top:14vh; backdrop-filter:blur(2px);
+  }
+  .cmdk-overlay.visible{ display:flex; animation:cmdkFadeIn .15s ease; }
+  @keyframes cmdkFadeIn{ from{ opacity:0; } to{ opacity:1; } }
+  .cmdk-box{
+    width:100%; max-width:600px; background:var(--card); border-radius:var(--r-lg);
+    box-shadow:0 24px 64px rgba(10,17,40,.35); overflow:hidden; animation:cmdkSlideIn .18s cubic-bezier(.16,1,.3,1);
+  }
+  @keyframes cmdkSlideIn{ from{ opacity:0; transform:translateY(-12px) scale(.98); } to{ opacity:1; transform:none; } }
+  .cmdk-input-row{ display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--paper-line); }
+  .cmdk-input-row svg{ width:19px; height:19px; color:var(--ink-faint); flex-shrink:0; }
+  .cmdk-input-row input{ flex:1; border:none; outline:none; font-family:var(--sans); font-size:16px; color:var(--ink); background:transparent; }
+  .cmdk-input-row input::placeholder{ color:var(--ink-faint); }
+  .cmdk-esc{ font-family:var(--sans); font-size:11px; font-weight:600; color:var(--ink-faint); background:var(--paper); border:1px solid var(--paper-line); padding:3px 8px; border-radius:var(--r-xs); flex-shrink:0; }
+  .cmdk-results{ max-height:56vh; overflow-y:auto; padding:8px; }
+  .cmdk-group-label{ font-family:var(--sans); font-weight:700; font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); padding:12px 12px 6px; }
+  .cmdk-item{
+    display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:var(--r-sm);
+    cursor:pointer; transition:background .1s ease;
+  }
+  .cmdk-item:hover, .cmdk-item.selected{ background:var(--sage-tint); }
+  .cmdk-item-icon{ width:32px; height:32px; border-radius:var(--r-sm); background:var(--paper); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+  .cmdk-item-body{ flex:1; min-width:0; }
+  .cmdk-item-title{ font-size:13.5px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cmdk-item-sub{ font-size:11.5px; color:var(--ink-faint); }
+  .cmdk-item-kbd{ font-family:var(--sans); font-size:11px; color:var(--ink-faint); background:var(--paper); border:1px solid var(--paper-line); padding:2px 6px; border-radius:var(--r-xs); flex-shrink:0; }
+  .cmdk-empty{ padding:32px 20px; text-align:center; color:var(--ink-faint); font-size:13px; }
+
+  /* Recent activity (Dashboard) */
+  .dash-activity-list{ display:flex; flex-direction:column; gap:2px; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--shadow-xs); }
+  .dash-activity-row{ display:flex; align-items:center; gap:14px; padding:13px 18px; cursor:pointer; transition:background .14s ease; border-bottom:1px solid var(--paper-line); }
+  .dash-activity-row:last-child{ border-bottom:none; }
+  .dash-activity-row:hover{ background:var(--sage-tint); }
+  .dash-activity-icon{ width:34px; height:34px; border-radius:var(--r-sm); background:var(--sage-tint); color:var(--sage-deep); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:15px; }
+  .dash-activity-body{ flex:1; min-width:0; }
+  .dash-activity-title{ font-size:13.5px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dash-activity-sub{ font-size:12px; color:var(--ink-faint); margin-top:2px; }
+  .dash-activity-date{ font-size:11.5px; color:var(--ink-faint); flex-shrink:0; white-space:nowrap; }
+
+  /* Vues Documents (gabarit générique) */
+  .doc-list-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+  .doc-list{ display:flex; flex-direction:column; gap:10px; }
+  .doc-list-row{ display:flex; align-items:center; gap:14px; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-md); padding:14px 18px; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease, transform .1s ease; }
+  .doc-list-row:hover{ border-color:var(--sage); box-shadow:var(--shadow-sm); transform:translateY(-1px); }
+  .doc-list-icon{ width:38px; height:38px; border-radius:var(--r-sm); background:var(--sage-tint); color:var(--sage-deep); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:16px; }
+  .doc-list-body{ flex:1; min-width:0; }
+  .doc-list-title{ font-size:14px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .doc-list-sub{ font-size:12.5px; color:var(--ink-faint); margin-top:2px; }
+  .doc-list-date{ font-size:12px; color:var(--ink-faint); flex-shrink:0; }
+
+  /* Hub Assistant IA */
+  .ia-hub-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:16px; }
+  .ia-hub-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-lg); padding:24px; box-shadow:var(--shadow-xs); transition:box-shadow .18s ease, transform .18s ease; }
+  .ia-hub-card:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  .ia-hub-card.muted{ opacity:.68; }
+  .ia-hub-icon{ font-size:26px; margin-bottom:14px; }
+  .ia-hub-card h3{ font-size:15px; font-weight:700; color:var(--ink); margin-bottom:8px; letter-spacing:-.005em; }
+  .ia-hub-card p{ font-size:13px; color:var(--ink-soft); line-height:1.6; margin-bottom:14px; }
+  .ia-hub-location{ font-family:var(--sans); font-size:11px; font-weight:600; color:var(--sage-deep); background:var(--sage-tint); padding:4px 10px; border-radius:var(--r-full); display:inline-block; }
+  .ia-hub-card.muted .ia-hub-location{ color:var(--ink-faint); background:var(--paper); }
+
+  /* Paramètres */
+  .settings-list{ display:flex; flex-direction:column; gap:2px; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--shadow-xs); max-width:640px; }
+  .settings-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:18px 22px; border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-bottom:1px solid var(--paper-line); transition:background .14s ease; font-family:var(--sans); }
+  .settings-row:last-child{ border-bottom:none; }
+  .settings-row:hover:not(.static){ background:var(--sage-tint); }
+  .settings-row.danger:hover{ background:var(--rose-tint); }
+  .settings-row.static{ cursor:default; }
+  .settings-row-title{ font-size:14px; font-weight:600; color:var(--ink); }
+  .settings-row.danger .settings-row-title{ color:var(--rose); }
+  .settings-row-sub{ font-size:12.5px; color:var(--ink-faint); margin-top:3px; }
+  .settings-row-arrow{ color:var(--ink-faint); font-size:15px; flex-shrink:0; }
+
   @media (max-width:880px){
     #appSidebar{ transform:translateX(-100%); transition:transform .22s cubic-bezier(.4,0,.2,1); }
     #appSidebar.mobile-open{ transform:translateX(0); box-shadow:0 0 0 2000px rgba(10,17,40,.45); }
@@ -589,6 +702,40 @@
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
       <span class="label">Nouvelle consultation</span>
     </button>
+
+    <div class="sidebar-section-label">Documents</div>
+    <button class="sidebar-link" data-view="doc-consultation" onclick="switchAppView('doc-consultation')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg></span>
+      <span class="label">Comptes-rendus</span>
+    </button>
+    <button class="sidebar-link" data-view="doc-ordonnance" onclick="switchAppView('doc-ordonnance')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/></svg></span>
+      <span class="label">Ordonnances</span>
+    </button>
+    <button class="sidebar-link" data-view="doc-courrier" onclick="switchAppView('doc-courrier')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg></span>
+      <span class="label">Courriers</span>
+    </button>
+    <button class="sidebar-link" data-view="doc-labo" onclick="switchAppView('doc-labo')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L4.5 19a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L14 9.5V3"/></svg></span>
+      <span class="label">Analyses</span>
+    </button>
+    <button class="sidebar-link" data-view="doc-imagerie" onclick="switchAppView('doc-imagerie')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></span>
+      <span class="label">Imagerie</span>
+    </button>
+
+    <div class="sidebar-section-label">Intelligence</div>
+    <button class="sidebar-link" data-view="ia-hub" onclick="switchAppView('ia-hub')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36-1.42 1.42M6.05 17.95l-1.42 1.42m12.73 0-1.42-1.42M6.05 6.05 4.63 4.63"/><circle cx="12" cy="12" r="4"/></svg></span>
+      <span class="label">Assistant IA</span>
+    </button>
+
+    <div class="sidebar-section-label">Système</div>
+    <button class="sidebar-link" data-view="parametres" onclick="switchAppView('parametres')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></span>
+      <span class="label">Paramètres</span>
+    </button>
   </nav>
   <div class="sidebar-footer">
     <button class="sidebar-link" onclick="openProfileModal()">
@@ -604,8 +751,8 @@
   </button>
   <div class="topbar-search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="topbarSearchInput" placeholder="Rechercher un patient, un document ou une consultation…" onkeydown="if(event.key==='Enter'){event.preventDefault(); runGlobalSearch();}">
-    <span class="topbar-search-badge">⏎</span>
+    <input type="text" id="topbarSearchInput" placeholder="Rechercher un patient, un document ou une consultation…" readonly onclick="openCommandPalette()" style="cursor:pointer;">
+    <span class="topbar-search-badge">⌘K</span>
   </div>
   <div class="topbar-right">
     <button class="topbar-icon-btn" title="Notifications (bientôt disponible)" onclick="alert('Les notifications arrivent dans une prochaine mise à jour.')">
@@ -634,11 +781,28 @@
         <button class="dash-action-btn ghost" onclick="openNewPatientModal()">+ Nouveau patient</button>
       </div>
 
+      <div class="dash-summary-banner" id="dashSummaryBanner"></div>
+
       <div class="dash-section-title">
-        <span>Patients récents</span>
-        <button class="see-all" onclick="switchAppView('patients')">Voir tous mes patients →</button>
+        <span>Raccourcis</span>
       </div>
-      <div class="dash-recent-grid" id="dashRecentPatients"></div>
+      <div class="dash-shortcuts-grid" id="dashShortcuts"></div>
+
+      <div class="dash-two-col">
+        <div>
+          <div class="dash-section-title">
+            <span>Activité récente</span>
+          </div>
+          <div class="dash-activity-feed" id="dashActivityFeed"></div>
+        </div>
+        <div>
+          <div class="dash-section-title">
+            <span>Patients récents</span>
+            <button class="see-all" onclick="switchAppView('patients')">Voir tous →</button>
+          </div>
+          <div class="dash-recent-grid" id="dashRecentPatients"></div>
+        </div>
+      </div>
     </div>
 
     <section class="patients-section app-view" id="patientsSection">
@@ -813,6 +977,84 @@
   </div>
   <div class="anon-strip"><span class="dot"></span><span id="anonStrip">Données anonymisées avant analyse</span></div>
 </section>
+    </div>
+
+    <!-- Vues Documents — un seul gabarit generique reutilise pour les 5 types -->
+    <div id="view-doc-consultation" class="app-view doc-view" data-doc-type="consultation" data-doc-title="Comptes-rendus"></div>
+    <div id="view-doc-ordonnance" class="app-view doc-view" data-doc-type="ordonnance" data-doc-title="Ordonnances"></div>
+    <div id="view-doc-courrier" class="app-view doc-view" data-doc-type="courrier" data-doc-title="Courriers"></div>
+    <div id="view-doc-labo" class="app-view doc-view" data-doc-type="analyse_labo" data-doc-title="Analyses de laboratoire"></div>
+    <div id="view-doc-imagerie" class="app-view doc-view" data-doc-type="imagerie" data-doc-title="Imagerie médicale"></div>
+
+    <!-- Hub Assistant IA — regroupe les outils IA deja disponibles par patient -->
+    <div id="view-ia-hub" class="app-view">
+      <div class="dash-header">
+        <div class="dash-greeting">Assistant IA</div>
+        <div class="dash-date">Les outils intelligents de MédiAI, tous réunis ici</div>
+      </div>
+      <div class="ia-hub-grid">
+        <div class="ia-hub-card">
+          <div class="ia-hub-icon">✨</div>
+          <h3>Résumé intelligent du dossier</h3>
+          <p>Synthèse narrative de tout l'historique d'un patient — points clés, évolution, éléments à vérifier.</p>
+          <span class="ia-hub-location">Disponible dans chaque dossier patient</span>
+        </div>
+        <div class="ia-hub-card">
+          <div class="ia-hub-icon">🔍</div>
+          <h3>Recherche sémantique</h3>
+          <p>Retrouvez un événement même sans le mot exact — la recherche comprend le sens de votre requête.</p>
+          <span class="ia-hub-location">Disponible dans chaque dossier patient</span>
+        </div>
+        <div class="ia-hub-card">
+          <div class="ia-hub-icon">📋</div>
+          <h3>Préparation de consultation</h3>
+          <p>Un briefing express dès qu'un patient est sélectionné : dernier rendez-vous, traitements en cours, points à retenir.</p>
+          <span class="ia-hub-location">Affiché automatiquement avant chaque consultation</span>
+        </div>
+        <div class="ia-hub-card">
+          <div class="ia-hub-icon">💊</div>
+          <h3>Vérification des interactions</h3>
+          <p>Filet de sécurité pharmacologique sur les ordonnances — ne remplace jamais votre vérification.</p>
+          <span class="ia-hub-location">Disponible lors de la génération d'une ordonnance</span>
+        </div>
+        <div class="ia-hub-card">
+          <div class="ia-hub-icon">💡</div>
+          <h3>Suggestions de questions</h3>
+          <p>Rappel des axes d'interrogatoire standards face à un symptôme mentionné dans la dictée.</p>
+          <span class="ia-hub-location">Disponible pendant la dictée</span>
+        </div>
+        <div class="ia-hub-card muted">
+          <div class="ia-hub-icon">🩻</div>
+          <h3>Analyse d'imagerie et de biologie</h3>
+          <p>Une interprétation clinique automatisée est à l'étude, encadrée par une validation réglementaire préalable.</p>
+          <span class="ia-hub-location">En préparation</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paramètres — page dediee qui ouvre les modales existantes -->
+    <div id="view-parametres" class="app-view">
+      <div class="dash-header">
+        <div class="dash-greeting">Paramètres</div>
+        <div class="dash-date">Votre compte et vos préférences</div>
+      </div>
+      <div class="settings-list">
+        <button class="settings-row" onclick="openProfileModal()">
+          <div><div class="settings-row-title">Profil professionnel</div><div class="settings-row-sub">Nom, spécialité, cabinet, RPPS — utilisés dans vos documents exportés</div></div>
+          <span class="settings-row-arrow">→</span>
+        </button>
+        <button class="settings-row" onclick="openPreferencesModal()">
+          <div><div class="settings-row-title">Mes modèles</div><div class="settings-row-sub">Spécialité par défaut et instructions personnalisées pour l'IA</div></div>
+          <span class="settings-row-arrow">→</span>
+        </button>
+        <div class="settings-row static">
+          <div><div class="settings-row-title">Compte</div><div class="settings-row-sub" id="settingsEmailSub">—</div></div>
+        </div>
+        <button class="settings-row danger" onclick="logout()">
+          <div><div class="settings-row-title">Déconnexion</div></div>
+          <span class="settings-row-arrow">→</span>
+        </button>
+      </div>
     </div>
 
   </div>
@@ -1012,6 +1254,18 @@
 </div>
 
 <!-- MODALE : sélection rapide d'un patient avant génération -->
+<!-- Recherche universelle — palette de commandes (Spotlight/Raycast) -->
+<div class="cmdk-overlay" id="cmdkOverlay" onclick="if(event.target===this) closeCommandPalette();">
+  <div class="cmdk-box">
+    <div class="cmdk-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="cmdkInput" placeholder="Rechercher un patient, un document, une action…" autocomplete="off" oninput="runCommandPaletteSearch()" onkeydown="handleCommandPaletteKey(event)">
+      <span class="cmdk-esc">Échap</span>
+    </div>
+    <div class="cmdk-results" id="cmdkResults"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="patientPickerModal">
   <div class="modal-box" style="max-width:420px;">
     <h3>Choisir un patient</h3>
@@ -1189,7 +1443,12 @@ function exitAppMode() {
 }
 
 // ── Navigation entre les vues de la coquille applicative ───────────
-const APP_VIEW_IDS = { dashboard: 'view-dashboard', patients: 'patientsSection', consultation: 'view-consultation' };
+const APP_VIEW_IDS = {
+  dashboard: 'view-dashboard', patients: 'patientsSection', consultation: 'view-consultation',
+  'doc-consultation': 'view-doc-consultation', 'doc-ordonnance': 'view-doc-ordonnance',
+  'doc-courrier': 'view-doc-courrier', 'doc-labo': 'view-doc-labo', 'doc-imagerie': 'view-doc-imagerie',
+  'ia-hub': 'view-ia-hub', 'parametres': 'view-parametres',
+};
 
 function switchAppView(viewName) {
   document.querySelectorAll('.app-view').forEach(v => v.classList.remove('visible'));
@@ -1206,8 +1465,53 @@ function switchAppView(viewName) {
   if (viewName === 'dashboard') {
     renderDashboard();
   }
+  if (viewName.startsWith('doc-') && el) {
+    renderDocView(el);
+  }
+  if (viewName === 'parametres') {
+    const emailEl = document.getElementById('settingsEmailSub');
+    if (emailEl && currentUser) {
+      emailEl.textContent = `${currentUser.email} · Formule ${currentUser.isPro ? 'Praticien' : 'Découverte'}`;
+    }
+  }
   // Ferme la sidebar mobile après un choix, si elle était ouverte en overlay
   document.getElementById('appSidebar')?.classList.remove('mobile-open');
+}
+
+// ── Gabarit générique pour les 5 vues "Documents" ──────────────────
+const DOC_TYPE_ICONS = { consultation: '📄', ordonnance: '💊', courrier: '✍️', analyse_labo: '🧪', imagerie: '🩻' };
+
+async function renderDocView(container) {
+  const type = container.dataset.docType;
+  const title = container.dataset.docTitle;
+  container.innerHTML = `
+    <div class="dash-header"><div class="dash-greeting">${title}</div><div class="dash-date">Tous patients confondus</div></div>
+    <div class="doc-list" id="docList-${type}"><div class="dash-empty">Chargement…</div></div>
+  `;
+  const listEl = container.querySelector('.doc-list');
+
+  try {
+    const events = await fetchAllEvents();
+    const filtered = events.filter(e => e.type === type);
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = `<div class="dash-empty">Aucun document de ce type pour l'instant. Il apparaîtra ici dès qu'il sera généré depuis un dossier patient.</div>`;
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(e => `
+      <div class="doc-list-row" onclick="switchAppView('patients'); openPatientDetail('${e.patientId}');">
+        <div class="doc-list-icon">${DOC_TYPE_ICONS[type] || '📄'}</div>
+        <div class="doc-list-body">
+          <div class="doc-list-title">${e.title}</div>
+          <div class="doc-list-sub">${e.patientPrenom} ${e.patientNom}</div>
+        </div>
+        <div class="doc-list-date">${new Date(e.event_date).toLocaleDateString('fr-FR')}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    listEl.innerHTML = `<div class="dash-empty">Impossible de charger cette liste pour le moment.</div>`;
+  }
 }
 
 function toggleSidebar() {
@@ -1226,20 +1530,129 @@ function dashboardNewConsultation() {
   openPatientPicker();
 }
 
-function runGlobalSearch() {
-  const query = document.getElementById('topbarSearchInput').value.trim().toLowerCase();
-  if (!query) return;
-  const match = patientsCache.find(p =>
-    `${p.prenom} ${p.nom}`.toLowerCase().includes(query)
-  );
-  if (match) {
-    switchAppView('patients');
-    openPatientDetail(match.id);
-    document.getElementById('topbarSearchInput').value = '';
+// ── Palette de commandes — recherche universelle (Spotlight/Raycast) ──
+let cmdkSelectedIndex = -1;
+let cmdkCurrentItems = [];
+
+function openCommandPalette() {
+  document.getElementById('cmdkOverlay').classList.add('visible');
+  const input = document.getElementById('cmdkInput');
+  input.value = '';
+  setTimeout(() => input.focus(), 30);
+  runCommandPaletteSearch();
+}
+function closeCommandPalette() {
+  document.getElementById('cmdkOverlay').classList.remove('visible');
+}
+
+const CMDK_TYPE_ICONS = { consultation:'📄', ordonnance:'💊', courrier:'✍️', analyse_labo:'🧪', imagerie:'🩻' };
+const CMDK_TYPE_LABELS = { consultation:'Compte-rendu', ordonnance:'Ordonnance', courrier:'Courrier', analyse_labo:'Analyse', imagerie:'Imagerie' };
+
+async function runCommandPaletteSearch() {
+  const query = document.getElementById('cmdkInput').value.trim().toLowerCase();
+  const resultsEl = document.getElementById('cmdkResults');
+  cmdkSelectedIndex = -1;
+
+  const quickActions = [
+    { type:'action', icon:'✨', title:'Nouvelle consultation', sub:'Sélectionner un patient et commencer', action:() => { closeCommandPalette(); dashboardNewConsultation(); } },
+    { type:'action', icon:'👤', title:'Nouveau patient', sub:'Créer une fiche patient', action:() => { closeCommandPalette(); openNewPatientModal(); } },
+    { type:'action', icon:'🏠', title:'Dashboard', sub:'Retour au centre de contrôle', action:() => { closeCommandPalette(); switchAppView('dashboard'); } },
+  ];
+
+  if (!query) {
+    cmdkCurrentItems = quickActions;
+    renderCmdkResults([{ label:'Actions rapides', items:quickActions }]);
+    return;
+  }
+
+  // Patients — instantané depuis le cache déjà chargé
+  const patientMatches = patientsCache
+    .filter(p => `${p.prenom} ${p.nom}`.toLowerCase().includes(query))
+    .slice(0, 5)
+    .map(p => ({
+      type:'patient', icon:'👤', title:`${p.prenom} ${p.nom}`,
+      sub:`${p.events_count || 0} événement(s)`,
+      action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(p.id); }
+    }));
+
+  // Documents — depuis le cache d'evenements (deja charge ou charge a la volee)
+  let docMatches = [];
+  try {
+    const events = await fetchAllEvents();
+    docMatches = events
+      .filter(e => e.title.toLowerCase().includes(query) || `${e.patientPrenom} ${e.patientNom}`.toLowerCase().includes(query))
+      .slice(0, 6)
+      .map(e => ({
+        type:'document', icon: CMDK_TYPE_ICONS[e.type] || '📄',
+        title: e.title,
+        sub:`${CMDK_TYPE_LABELS[e.type] || ''} · ${e.patientPrenom} ${e.patientNom}`,
+        action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(e.patientId); }
+      }));
+  } catch {}
+
+  // Ne re-affiche que si la requete n'a pas change entre-temps (recherche asynchrone)
+  if (document.getElementById('cmdkInput').value.trim().toLowerCase() !== query) return;
+
+  const groups = [];
+  if (patientMatches.length) groups.push({ label:'Patients', items:patientMatches });
+  if (docMatches.length) groups.push({ label:'Documents', items:docMatches });
+
+  cmdkCurrentItems = [...patientMatches, ...docMatches];
+
+  if (groups.length === 0) {
+    resultsEl.innerHTML = `<div class="cmdk-empty">Aucun résultat pour "${query}"</div>`;
   } else {
-    alert(`Aucun patient trouvé pour "${query}". La recherche de consultations, documents et comptes-rendus arrive bientôt.`);
+    renderCmdkResults(groups);
   }
 }
+
+function renderCmdkResults(groups) {
+  const resultsEl = document.getElementById('cmdkResults');
+  let flatIndex = 0;
+  resultsEl.innerHTML = groups.map(g => `
+    <div class="cmdk-group-label">${g.label}</div>
+    ${g.items.map(item => {
+      const idx = flatIndex++;
+      return `<div class="cmdk-item" data-idx="${idx}" onclick="cmdkCurrentItems[${idx}].action()">
+        <div class="cmdk-item-icon">${item.icon}</div>
+        <div class="cmdk-item-body"><div class="cmdk-item-title">${item.title}</div><div class="cmdk-item-sub">${item.sub}</div></div>
+      </div>`;
+    }).join('')}
+  `).join('');
+}
+
+function handleCommandPaletteKey(event) {
+  const items = document.querySelectorAll('.cmdk-item');
+  if (event.key === 'Escape') { closeCommandPalette(); return; }
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    cmdkSelectedIndex = Math.min(cmdkSelectedIndex + 1, items.length - 1);
+    updateCmdkSelection(items);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    cmdkSelectedIndex = Math.max(cmdkSelectedIndex - 1, 0);
+    updateCmdkSelection(items);
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    if (cmdkSelectedIndex >= 0 && cmdkCurrentItems[cmdkSelectedIndex]) {
+      cmdkCurrentItems[cmdkSelectedIndex].action();
+    } else if (cmdkCurrentItems.length > 0) {
+      cmdkCurrentItems[0].action();
+    }
+  }
+}
+function updateCmdkSelection(items) {
+  items.forEach((el, i) => el.classList.toggle('selected', i === cmdkSelectedIndex));
+  items[cmdkSelectedIndex]?.scrollIntoView({ block:'nearest' });
+}
+
+// Raccourci clavier global Cmd/Ctrl+K, en plus du clic sur la barre
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openCommandPalette();
+  }
+});
 
 // ── Dashboard : salutation, statistiques, patients récents ────────
 function renderDashGreeting() {
@@ -1281,7 +1694,7 @@ async function renderDashboard() {
   const recent = sorted.slice(0, 6);
   const grid = document.getElementById('dashRecentPatients');
   if (recent.length === 0) {
-    grid.innerHTML = `<div class="dash-empty" style="grid-column:1/-1;">Aucun patient pour l'instant. Créez votre premier patient pour commencer à suivre ses consultations.</div>`;
+    grid.innerHTML = `<div class="dash-empty">Aucun patient pour l'instant. Créez votre premier patient pour commencer à suivre ses consultations.</div>`;
   } else {
     grid.innerHTML = recent.map(p => `
       <div class="patient-card" onclick="switchAppView('patients'); openPatientDetail('${p.id}');">
@@ -1289,6 +1702,59 @@ async function renderDashboard() {
         <div class="patient-card-meta">${p.events_count || 0} événement(s)${p.last_event_date ? ' · ' + new Date(p.last_event_date).toLocaleDateString('fr-FR') : ''}</div>
       </div>
     `).join('');
+  }
+
+  // ── Raccourcis intelligents ────────────────────────────────────
+  const shortcuts = [
+    { icon:'💊', title:'Ordonnances', sub:'Toutes vos prescriptions', view:'doc-ordonnance' },
+    { icon:'✍️', title:'Courriers', sub:'Correspondance envoyée', view:'doc-courrier' },
+    { icon:'🧪', title:'Analyses', sub:'Résultats de laboratoire', view:'doc-labo' },
+    { icon:'✨', title:'Assistant IA', sub:'Tous les outils intelligents', view:'ia-hub' },
+  ];
+  document.getElementById('dashShortcuts').innerHTML = shortcuts.map(s => `
+    <button class="dash-shortcut-card" onclick="switchAppView('${s.view}')">
+      <div class="icon">${s.icon}</div>
+      <div class="title">${s.title}</div>
+      <div class="sub">${s.sub}</div>
+    </button>
+  `).join('');
+
+  // ── Résumé de la semaine + Activité récente (utilisent fetchAllEvents, déjà en cache) ──
+  try {
+    const events = await fetchAllEvents();
+    const now = Date.now();
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const thisWeek = events.filter(e => new Date(e.event_date).getTime() > weekAgo);
+    const consultsThisWeek = thisWeek.filter(e => e.type === 'consultation').length;
+    const patientsThisWeekSet = new Set(thisWeek.map(e => e.patientId));
+
+    const banner = document.getElementById('dashSummaryBanner');
+    if (thisWeek.length === 0) {
+      banner.innerHTML = `<span class="icon">👋</span><span>Aucune activité enregistrée cette semaine. Sélectionnez un patient pour commencer une consultation.</span>`;
+    } else {
+      banner.innerHTML = `<span class="icon">📈</span><span><strong>${consultsThisWeek} consultation${consultsThisWeek>1?'s':''}</strong> réalisée${consultsThisWeek>1?'s':''} cette semaine, pour <strong>${patientsThisWeekSet.size} patient${patientsThisWeekSet.size>1?'s':''}</strong> — ${thisWeek.length} document${thisWeek.length>1?'s':''} au total généré${thisWeek.length>1?'s':''}.</span>`;
+    }
+
+    const feedIcons = { consultation:'📄', ordonnance:'💊', courrier:'✍️', analyse_labo:'🧪', imagerie:'🩻' };
+    const feed = document.getElementById('dashActivityFeed');
+    const topEvents = events.slice(0, 8);
+    if (topEvents.length === 0) {
+      feed.innerHTML = `<div class="dash-empty">Aucune activité pour l'instant.</div>`;
+    } else {
+      feed.innerHTML = topEvents.map(e => `
+        <div class="activity-item" onclick="switchAppView('patients'); openPatientDetail('${e.patientId}');">
+          <div class="activity-icon type-${e.type}">${feedIcons[e.type] || '📄'}</div>
+          <div class="activity-body">
+            <div class="activity-title">${e.title}</div>
+            <div class="activity-meta">${e.patientPrenom} ${e.patientNom}</div>
+          </div>
+          <div class="activity-date">${new Date(e.event_date).toLocaleDateString('fr-FR', { day:'numeric', month:'short' })}</div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    document.getElementById('dashSummaryBanner').innerHTML = '';
+    document.getElementById('dashActivityFeed').innerHTML = `<div class="dash-empty">Impossible de charger l'activité récente.</div>`;
   }
 }
 
@@ -1447,6 +1913,36 @@ async function fetchPatients() {
     patientsCache = data.items || [];
     return patientsCache;
   } catch { return []; }
+}
+
+// ── Agrégation de tous les événements, tous patients confondus ─────
+// Construite entièrement côté frontend à partir des routes existantes
+// (aucune nouvelle route API) : sert le Dashboard, les vues Documents,
+// et la recherche universelle.
+let allEventsCache = null;
+let allEventsCacheTime = 0;
+
+async function fetchAllEvents(forceRefresh = false) {
+  const CACHE_DURATION = 30000; // 30s : évite de re-tout-charger à chaque clic
+  if (!forceRefresh && allEventsCache && (Date.now() - allEventsCacheTime) < CACHE_DURATION) {
+    return allEventsCache;
+  }
+  const patients = await fetchPatients();
+  const withEvents = patients.filter(p => (p.events_count || 0) > 0);
+
+  const results = await Promise.all(withEvents.map(async p => {
+    try {
+      const res = await fetch(API_BASE + '/api/patients/' + p.id, { headers: authHeaders() });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.events || []).map(e => ({ ...e, patientNom: p.nom, patientPrenom: p.prenom, patientId: p.id }));
+    } catch { return []; }
+  }));
+
+  const merged = results.flat().sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+  allEventsCache = merged;
+  allEventsCacheTime = Date.now();
+  return merged;
 }
 
 // ── Sélecteur rapide (avant génération) ────────────────────────────
