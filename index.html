@@ -825,6 +825,7 @@
         <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation</button>
         <button class="btn-export" onclick="openLabModal()">🧪 Ajouter un résultat de labo</button>
         <button class="btn-export" onclick="openImagingModal()">🩻 Ajouter un compte-rendu d'imagerie</button>
+        <button class="btn-export" onclick="openPatientPortalModal()">🔑 Activer l'accès patient</button>
       </div>
     </div>
     <div class="patient-notes">
@@ -1213,6 +1214,37 @@
     <textarea id="labTexteRapport" rows="8" placeholder="Ex : NFS du 12/06/2026 — Hémoglobine 13.2 g/dL (13-17), Leucocytes 7200/mm3 (4000-10000)..." style="width:100%; padding:11px 13px; border:1px solid var(--paper-line); border-radius:7px; font-family:var(--mono); font-size:12.5px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px;"></textarea>
     <button class="auth-submit" id="labSubmitBtn" onclick="submitLabResult()">Structurer et ajouter au dossier</button>
     <button class="modal-close" onclick="closeLabModal()" style="width:100%; text-align:center;">Annuler</button>
+  </div>
+</div>
+
+<!-- MODALE : activer l'accès patient -->
+<div class="modal-overlay" id="patientPortalModal">
+  <div class="modal-box" style="max-width:460px; text-align:left;">
+    <h3 style="text-align:center;">Activer l'accès patient</h3>
+
+    <div id="portalStep1">
+      <p style="text-align:center;">Le patient pourra consulter ce dossier depuis un espace dédié, séparé de votre logiciel.</p>
+      <div class="auth-error" id="portalError"></div>
+      <div class="auth-field">
+        <label>Email du patient</label>
+        <input type="email" id="portalEmail" placeholder="patient@exemple.fr">
+      </div>
+      <button class="auth-submit" id="portalSubmitBtn" onclick="submitActivatePortal()">Activer l'accès</button>
+    </div>
+
+    <div id="portalStep2" style="display:none; text-align:center;">
+      <p style="margin-bottom:14px;">Accès créé. Communiquez ces identifiants au patient — le mot de passe ne sera plus jamais réaffiché.</p>
+      <div style="background:var(--sage-tint); border-radius:var(--r-md); padding:16px; margin-bottom:16px;">
+        <div class="field-label">Email de connexion</div>
+        <div style="font-weight:600; margin-bottom:12px;" id="portalResultEmail"></div>
+        <div class="field-label">Mot de passe temporaire</div>
+        <div style="font-family:var(--mono, monospace); font-weight:700; font-size:16px; color:var(--sage-deep);" id="portalResultPassword"></div>
+      </div>
+      <p style="font-size:12px; color:var(--ink-faint); margin-bottom:16px;">Adresse de l'espace patient : <strong id="portalPatientUrl"></strong></p>
+      <button class="auth-submit" onclick="closePatientPortalModal()">Terminé</button>
+    </div>
+
+    <button class="modal-close" onclick="closePatientPortalModal()">Fermer</button>
   </div>
 </div>
 
@@ -2064,6 +2096,55 @@ async function submitLabResult() {
 }
 
 // ── Compte-rendu d'imagerie (structuration administrative) ─────────
+// ── Activation de l'accès patient (Phase 2.2) ──────────────────────
+function openPatientPortalModal() {
+  if (!currentDetailPatientId) return;
+  document.getElementById('portalEmail').value = '';
+  document.getElementById('portalError').classList.remove('visible');
+  document.getElementById('portalStep1').style.display = 'block';
+  document.getElementById('portalStep2').style.display = 'none';
+  document.getElementById('patientPortalModal').classList.add('visible');
+}
+function closePatientPortalModal() {
+  document.getElementById('patientPortalModal').classList.remove('visible');
+}
+async function submitActivatePortal() {
+  const email = document.getElementById('portalEmail').value.trim();
+  const errorEl = document.getElementById('portalError');
+  const btn = document.getElementById('portalSubmitBtn');
+  errorEl.classList.remove('visible');
+
+  if (!email || !email.includes('@')) {
+    errorEl.textContent = 'Email invalide';
+    errorEl.classList.add('visible');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Activation…';
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/activate-portal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+
+    document.getElementById('portalResultEmail').textContent = data.loginEmail;
+    document.getElementById('portalResultPassword').textContent = data.temporaryPassword;
+    document.getElementById('portalPatientUrl').textContent = window.location.origin + '/patient.html';
+    document.getElementById('portalStep1').style.display = 'none';
+    document.getElementById('portalStep2').style.display = 'block';
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Activer l'accès";
+  }
+}
+
 function openImagingModal() {
   document.getElementById('imagingTexteRapport').value = '';
   document.getElementById('imagingError').classList.remove('visible');
