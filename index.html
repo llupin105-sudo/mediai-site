@@ -594,6 +594,30 @@
   .cmdk-item-kbd{ font-family:var(--sans); font-size:11px; color:var(--ink-faint); background:var(--paper); border:1px solid var(--paper-line); padding:2px 6px; border-radius:var(--r-xs); flex-shrink:0; }
   .cmdk-empty{ padding:32px 20px; text-align:center; color:var(--ink-faint); font-size:13px; }
 
+  /* ── Toast — retour de succès/erreur unifié, remplace alert() ────── */
+  #toastContainer{ position:fixed; top:20px; right:20px; z-index:300; display:flex; flex-direction:column; gap:10px; }
+  .toast{
+    display:flex; align-items:center; gap:10px; background:var(--card); border-radius:var(--r-md);
+    padding:13px 18px; box-shadow:var(--shadow-lg); border:1px solid var(--paper-line);
+    font-size:13.5px; font-weight:500; color:var(--ink); min-width:240px; max-width:360px;
+    animation:toastIn .25s cubic-bezier(.16,1,.3,1);
+  }
+  .toast.success{ border-left:3px solid var(--green); }
+  .toast.error{ border-left:3px solid var(--rose); }
+  .toast-icon{ flex-shrink:0; font-size:16px; }
+  @keyframes toastIn{ from{ opacity:0; transform:translateX(16px); } to{ opacity:1; transform:none; } }
+  .toast.leaving{ animation:toastOut .2s ease forwards; }
+  @keyframes toastOut{ to{ opacity:0; transform:translateX(16px); } }
+
+  /* ── Skeleton loading — remplace les "Chargement..." textuels ───── */
+  @keyframes skeletonPulse{ 0%,100%{ opacity:.55; } 50%{ opacity:1; } }
+  .skel{ background:var(--paper-line); border-radius:var(--r-sm); animation:skeletonPulse 1.3s ease-in-out infinite; }
+  .skel-line{ height:12px; border-radius:6px; margin-bottom:8px; }
+  .skel-line.w-60{ width:60%; } .skel-line.w-80{ width:80%; } .skel-line.w-40{ width:40%; }
+  .skel-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-lg); padding:20px; margin-bottom:12px; }
+  .skel-row{ display:flex; align-items:center; gap:12px; padding:11px 0; }
+  .skel-circle{ width:36px; height:36px; border-radius:50%; flex-shrink:0; }
+
   /* Recent activity (Dashboard) */
   .dash-activity-list{ display:flex; flex-direction:column; gap:2px; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--shadow-xs); }
   .dash-activity-row{ display:flex; align-items:center; gap:14px; padding:13px 18px; cursor:pointer; transition:background .14s ease; border-bottom:1px solid var(--paper-line); }
@@ -660,6 +684,8 @@
 </style>
 </head>
 <body>
+
+<div id="toastContainer"></div>
 
 <!-- Logo officiel MédiAI — image reelle, integree directement a chaque usage -->
 
@@ -1308,6 +1334,15 @@
   </div>
 </div>
 
+<!-- MODALE : visualisation détaillée (résultats labo, imagerie) -->
+<div class="modal-overlay" id="detailViewerModal">
+  <div class="modal-box" style="max-width:520px; text-align:left;">
+    <h3 id="detailViewerTitle" style="text-align:center;">Détail</h3>
+    <div id="detailViewerBody" style="margin:16px 0;"></div>
+    <button class="modal-close" onclick="closeDetailViewerModal()" style="width:100%; text-align:center;">Fermer</button>
+  </div>
+</div>
+
 <!-- MODALE : profil médecin (pour le pied de page des PDF) -->
 <div class="modal-overlay" id="profileModal">
   <div class="modal-box" style="max-width:480px;">
@@ -1403,6 +1438,30 @@
 
 <script>
 const API_BASE = 'https://mediai-backend-156u.onrender.com';
+
+// ── Notification unifiee (remplace alert() pour tout retour de succes/erreur) ──
+// ── Generateur de lignes "squelette" pendant un chargement ────────
+function skeletonRows(n) {
+  n = n || 3;
+  let out = '';
+  for (let i = 0; i < n; i++) {
+    out += `<div class="skel-row"><div class="skel skel-circle"></div><div style="flex:1;"><div class="skel skel-line w-60"></div><div class="skel skel-line w-40" style="margin-bottom:0;"></div></div></div>`;
+  }
+  return out;
+}
+
+function showToast(message, type) {
+  type = type || 'success';
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.innerHTML = '<span class="toast-icon">' + (type === 'success' ? '✓' : '⚠') + '</span><span>' + message + '</span>';
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('leaving');
+    setTimeout(() => toast.remove(), 220);
+  }, 3200);
+}
 let currentSpec = 'generaliste';
 let recording = false;
 let mediaRecorder = null;
@@ -1518,7 +1577,7 @@ async function renderDocView(container) {
   const title = container.dataset.docTitle;
   container.innerHTML = `
     <div class="dash-header"><div class="dash-greeting">${title}</div><div class="dash-date">Tous patients confondus</div></div>
-    <div class="doc-list" id="docList-${type}"><div class="dash-empty">Chargement…</div></div>
+    <div class="doc-list" id="docList-${type}">${skeletonRows(4)}</div>
   `;
   const listEl = container.querySelector('.doc-list');
 
@@ -1698,6 +1757,14 @@ function renderDashGreeting() {
 async function renderDashboard() {
   if (!currentUser) return;
   renderDashGreeting();
+
+  // Squelette affiché immédiatement, remplacé dès que les données arrivent
+  document.getElementById('dashStats').innerHTML = `
+    <div class="skel-card"><div class="skel skel-line w-40"></div><div class="skel skel-line w-60" style="height:24px; margin-top:8px;"></div></div>
+    <div class="skel-card"><div class="skel skel-line w-40"></div><div class="skel skel-line w-60" style="height:24px; margin-top:8px;"></div></div>
+    <div class="skel-card"><div class="skel skel-line w-40"></div><div class="skel skel-line w-60" style="height:24px; margin-top:8px;"></div></div>
+  `;
+  document.getElementById('dashActivityFeed').innerHTML = skeletonRows(4);
 
   const list = await fetchPatients();
   const totalPatients = list.length;
@@ -1905,6 +1972,7 @@ async function submitPreferences(event) {
     currentUser.preferences = data.preferences;
     applyDefaultSpecialite();
     closePreferencesModal();
+    showToast('Préférences enregistrées.', 'success');
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.classList.add('visible');
@@ -2217,6 +2285,7 @@ async function submitNewPatient(event) {
     if (!res.ok) throw new Error(data.error || 'Erreur');
 
     closeNewPatientModal();
+    showToast(`Patient ${data.patient.prenom} ${data.patient.nom} créé.`, 'success');
     selectedPatient = { id: data.patient.id, nom: data.patient.nom, prenom: data.patient.prenom };
     renderPatientSelectorBar();
     if (document.getElementById('patientsSection').classList.contains('visible')) {
@@ -2355,15 +2424,39 @@ function viewTimelineEvent(event) {
     renderChart(event.data, null);
     switchAppView('consultation');
   } else if (event.type === 'analyse_labo') {
-    const d = event.data;
-    const lignes = (d.resultats || []).map(r =>
-      `${r.parametre} : ${r.valeur} ${r.unite || ''}  (réf. labo : ${r.valeurs_reference || '—'})${r.signale_par_labo ? '  [' + r.signale_par_labo + ']' : ''}`
-    ).join('\n');
-    alert(`RÉSULTATS DE LABORATOIRE${d.date_prelevement ? ' — ' + d.date_prelevement : ''}\n${d.laboratoire ? d.laboratoire + '\n' : ''}\n${lignes}${d.commentaire_biologiste ? '\n\nCommentaire du biologiste : ' + d.commentaire_biologiste : ''}`);
+    openDetailViewerModal('🧪 Résultats de laboratoire', renderLabDetailHtml(event.data));
   } else if (event.type === 'imagerie') {
-    const d = event.data;
-    alert(`${d.type_examen || 'Imagerie'} — ${d.zone_examinee || ''}${d.date_examen ? ' — ' + d.date_examen : ''}\n${d.indication ? 'Indication : ' + d.indication + '\n' : ''}\nConclusion du radiologue :\n${d.conclusion_radiologue || '—'}`);
+    openDetailViewerModal(`🩻 ${event.data.type_examen || 'Imagerie'}`, renderImagingDetailHtml(event.data));
   }
+}
+
+function renderLabDetailHtml(d) {
+  const lignes = (d.resultats || []).map(r => `
+    <div class="rx-card" style="margin-bottom:8px;">
+      <span class="rx-name">${r.parametre}</span>
+      <span class="rx-detail">${r.valeur} ${r.unite || ''} · réf. ${r.valeurs_reference || '—'}${r.signale_par_labo ? ' · ' + r.signale_par_labo : ''}</span>
+    </div>
+  `).join('');
+  return `
+    ${d.date_prelevement || d.laboratoire ? `<p style="font-size:12.5px; color:var(--ink-faint); margin-bottom:14px;">${[d.date_prelevement, d.laboratoire].filter(Boolean).join(' · ')}</p>` : ''}
+    ${lignes || '<p style="color:var(--ink-faint); font-size:13px;">Aucun résultat structuré.</p>'}
+    ${d.commentaire_biologiste ? `<p style="margin-top:14px; font-size:13.5px; color:var(--ink-soft);"><strong>Commentaire du biologiste :</strong> ${d.commentaire_biologiste}</p>` : ''}
+  `;
+}
+function renderImagingDetailHtml(d) {
+  return `
+    <p style="font-size:12.5px; color:var(--ink-faint); margin-bottom:14px;">${[d.zone_examinee, d.date_examen].filter(Boolean).join(' · ')}</p>
+    ${d.indication ? `<p style="font-size:13.5px; margin-bottom:10px;"><strong>Indication :</strong> ${d.indication}</p>` : ''}
+    <div class="diag-card"><div class="diag-main" style="font-size:14px;">Conclusion du radiologue</div><p style="margin-top:6px; font-size:13.5px; color:var(--ink-soft);">${d.conclusion_radiologue || '—'}</p></div>
+  `;
+}
+function openDetailViewerModal(title, bodyHtml) {
+  document.getElementById('detailViewerTitle').textContent = title;
+  document.getElementById('detailViewerBody').innerHTML = bodyHtml;
+  document.getElementById('detailViewerModal').classList.add('visible');
+}
+function closeDetailViewerModal() {
+  document.getElementById('detailViewerModal').classList.remove('visible');
 }
 
 // Associe les notes contextuelles générées par l'IA aux cartes de la
@@ -2779,6 +2872,7 @@ async function submitProfile(event) {
     if (!res.ok) throw new Error(data.error || 'Erreur');
     currentUser.profile = data.profile;
     closeProfileModal();
+    showToast('Profil mis à jour.', 'success');
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.classList.add('visible');
@@ -3369,7 +3463,7 @@ async function submitSendEmail(event) {
     if (!res.ok) throw new Error(data.error || "Erreur lors de l'envoi");
 
     closeEmailModal();
-    alert(`Document envoyé à ${recipient}.`);
+    showToast(`Document envoyé à ${recipient}.`, 'success');
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.classList.add('visible');
