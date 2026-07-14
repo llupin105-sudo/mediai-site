@@ -893,7 +893,7 @@
   <div class="station-card">
 
     <div class="usage-strip">
-      <span id="usageLabel">3 analyses gratuites / mois</span>
+      <span id="usageLabel">3 actions IA gratuites / mois</span>
       <div class="usage-bar" id="usageBar"></div>
     </div>
 
@@ -1122,7 +1122,7 @@
       <div class="price-num">49<sup>€/mois</sup></div>
       <div class="price-sub">Sans engagement, résiliable à tout moment</div>
       <ul class="price-feats">
-        <li>Analyses illimitées</li>
+        <li>IA illimitée</li>
         <li>Toutes les spécialités</li>
         <li>Export PDF et impression</li>
         <li>Historique des consultations</li>
@@ -1430,7 +1430,7 @@
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     </div>
     <h3>Quota gratuit atteint</h3>
-    <p>Vous avez utilisé vos 3 analyses gratuites de ce mois. Passez au plan Praticien pour continuer sans limite, à 49€/mois.</p>
+    <p>Vous avez utilisé vos 3 actions IA gratuites de ce mois. Passez au plan Praticien pour continuer sans limite, à 49€/mois.</p>
     <button class="btn-price solid" onclick="startCheckout()">Passer au plan Praticien</button>
     <button class="modal-close" onclick="closeModal()">Continuer sans mettre à niveau</button>
   </div>
@@ -1785,7 +1785,7 @@ async function renderDashboard() {
     <div class="dash-stat-card">
       <div class="dash-stat-label">Formule actuelle</div>
       <div class="dash-stat-value" style="font-size:20px;">${currentUser.isPro ? 'Praticien' : 'Découverte'}</div>
-      <div class="dash-stat-sub">${currentUser.isPro ? 'Analyses illimitées' : (currentUser.freeUsageCount || 0) + '/3 analyses utilisées'}</div>
+      <div class="dash-stat-sub">${currentUser.isPro ? 'IA illimitée' : (currentUser.freeUsageCount || 0) + '/3 actions IA utilisées'}</div>
     </div>
   `;
 
@@ -1889,12 +1889,12 @@ function renderUsageBar() {
     return;
   }
   if (currentUser.isPro) {
-    label.textContent = 'Plan Praticien — analyses illimitées';
+    label.textContent = 'Plan Praticien — IA illimitée';
     bar.innerHTML = '<span class="usage-dot pro"></span><span class="usage-dot pro"></span><span class="usage-dot pro"></span>';
     return;
   }
   const used = currentUser.freeUsageCount || 0;
-  label.textContent = `${Math.max(FREE_LIMIT - used, 0)} analyse(s) gratuite(s) restante(s) ce mois`;
+  label.textContent = `${Math.max(FREE_LIMIT - used, 0)} action(s) IA gratuite(s) restante(s) ce mois`;
   bar.innerHTML = Array.from({length: FREE_LIMIT}, (_, i) =>
     `<span class="usage-dot ${i < used ? 'used' : ''}"></span>`
   ).join('');
@@ -2909,7 +2909,7 @@ function updateAuthCopy() {
   document.getElementById('authTitle').textContent = isLogin ? 'Bon retour' : 'Créer votre compte';
   document.getElementById('authSubtitle').textContent = isLogin
     ? 'Connectez-vous pour retrouver vos analyses.'
-    : '3 analyses gratuites pour commencer, sans carte bancaire.';
+    : '3 actions IA gratuites pour commencer, sans carte bancaire.';
   document.getElementById('authSubmitBtn').textContent = isLogin ? 'Se connecter' : 'Créer mon compte';
   document.getElementById('authPassword').autocomplete = isLogin ? 'current-password' : 'new-password';
 }
@@ -2969,7 +2969,7 @@ async function submitAuth(event) {
       const data = await res.json();
       if (data.paid) {
         await loadAccount();
-        alert('Abonnement activé — merci ! Vous avez maintenant des analyses illimitées.');
+        alert('Abonnement activé — merci ! Vous avez maintenant l\'IA en illimité.');
       }
     } catch (e) { console.error(e); }
     window.history.replaceState({}, '', window.location.pathname);
