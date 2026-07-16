@@ -288,6 +288,65 @@
   .timeline-title{ font-size:14px; font-weight:500; color:var(--ink); }
   .timeline-type-badge{ font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--sage-deep); background:var(--sage-tint); padding:2px 8px; border-radius:10px; margin-left:8px; }
 
+  /* ══ Timeline médicale interactive — pièce maîtresse ══════════════ */
+  .tl-toolbar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .tl-search{ position:relative; flex:1; min-width:220px; }
+  .tl-search svg{ position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; color:var(--ink-faint); pointer-events:none; }
+  .tl-search input{
+    width:100%; height:40px; padding:0 14px 0 35px; border:1px solid var(--paper-line); border-radius:var(--r-md);
+    background:var(--card); color:var(--ink); font-family:var(--sans); font-size:13.5px;
+    transition:border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+  }
+  .tl-search input:focus{ outline:none; border-color:var(--sage); box-shadow:0 0 0 4px var(--sage-tint); }
+  .tl-actions{ display:flex; gap:8px; }
+
+  .tl-filters{ display:flex; gap:7px; flex-wrap:wrap; margin-bottom:20px; }
+  .tl-chip{
+    display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 13px; border-radius:var(--r-full);
+    border:1px solid var(--paper-line); background:var(--card); color:var(--ink-soft); cursor:pointer;
+    font-family:var(--sans); font-size:12.5px; font-weight:500; white-space:nowrap;
+    transition:background var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+  }
+  .tl-chip:hover{ border-color:var(--sage); color:var(--sage-deep); }
+  .tl-chip-count{ font-size:11px; font-weight:700; color:var(--ink-faint); }
+  .tl-chip-dot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .tl-chip.active{ background:var(--ink); border-color:var(--ink); color:#fff; }
+  .tl-chip.active .tl-chip-count{ color:rgba(255,255,255,.7); }
+
+  .tl-group-label{ font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-faint); margin:16px 0 12px; padding-left:2px; }
+  .tl-group:first-child .tl-group-label{ margin-top:0; }
+  .tl-item{ position:relative; display:flex; gap:14px; padding-bottom:14px; cursor:pointer; }
+  .tl-item::before{ content:''; position:absolute; left:15px; top:34px; bottom:-2px; width:2px; background:var(--paper-line); }
+  .tl-group:last-child .tl-item:last-child::before{ display:none; }
+  .tl-node{
+    width:32px; height:32px; border-radius:var(--r-sm); flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    font-size:14px; background:var(--card); border:1px solid var(--paper-line); box-shadow:var(--shadow-xs); z-index:1;
+  }
+  .tl-card-wrap{ flex:1; min-width:0; }
+  .tl-card{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-md); padding:12px 15px;
+    transition:border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+  }
+  .tl-item:hover .tl-card{ border-color:var(--sage); box-shadow:var(--shadow-sm); transform:translateY(-1px); }
+  .tl-card-head{ display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+  .tl-badge{ font-size:10.5px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; padding:2px 8px; border-radius:var(--r-full); }
+  .tl-date{ font-size:11.5px; color:var(--ink-faint); margin-left:auto; white-space:nowrap; }
+  .tl-title{ font-size:14px; font-weight:600; color:var(--ink); line-height:1.35; }
+  .tl-preview{ font-size:12.5px; color:var(--ink-faint); margin-top:4px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .tl-annotation{ font-size:12px; color:var(--sage-deep); background:var(--sage-tint); border:1px solid var(--tint-border); border-radius:6px; padding:6px 10px; margin-top:8px; font-weight:500; }
+
+  /* Couleurs par type (cohérentes avec le flux d'activité) */
+  .tl-item[data-type="consultation"] .tl-node{ color:var(--sage); background:var(--sage-tint); border-color:transparent; }
+  .tl-item[data-type="consultation"] .tl-badge{ color:var(--sage-deep); background:var(--sage-tint); }
+  .tl-item[data-type="ordonnance"] .tl-node{ color:var(--violet); background:var(--violet-tint); border-color:transparent; }
+  .tl-item[data-type="ordonnance"] .tl-badge{ color:var(--violet-deep); background:var(--violet-tint); }
+  .tl-item[data-type="courrier"] .tl-node{ color:var(--amber); background:var(--amber-tint); border-color:transparent; }
+  .tl-item[data-type="courrier"] .tl-badge{ color:#B45309; background:var(--amber-tint); }
+  .tl-item[data-type="analyse_labo"] .tl-node{ color:var(--green-deep); background:var(--green-tint); border-color:transparent; }
+  .tl-item[data-type="analyse_labo"] .tl-badge{ color:var(--green-deep); background:var(--green-tint); }
+  .tl-item[data-type="imagerie"] .tl-node{ color:var(--pink); background:var(--pink-tint); border-color:transparent; }
+  .tl-item[data-type="imagerie"] .tl-badge{ color:#BE185D; background:var(--pink-tint); }
+
   .rx-line{ display:grid; grid-template-columns:1.3fr 1fr 0.8fr auto; gap:8px; align-items:center; }
   .rx-line input{ padding:9px 10px; border:1px solid var(--paper-line); border-radius:6px; font-family:var(--sans); font-size:13px; background:var(--paper); color:var(--ink); width:100%; }
   .rx-line input:focus{ outline:none; border-color:var(--sage); }
@@ -1041,19 +1100,22 @@
       <textarea id="patientNotesText" placeholder="Antécédents, allergies, contexte général..." onblur="savePatientNotes()"></textarea>
     </div>
 
-    <div style="display:flex; gap:8px; margin-bottom:16px;">
-      <input type="text" id="patientSearchInput" placeholder="🔍 Rechercher dans ce dossier (ex : genou, tension, dernier traitement...)" style="flex:1; padding:11px 14px; border:1px solid var(--paper-line); border-radius:8px; font-family:var(--sans); font-size:13.5px; background:var(--card); color:var(--ink);" onkeydown="if(event.key==='Enter'){event.preventDefault(); runPatientSearch();}">
-      <button class="btn-export" style="width:auto; padding:0 18px;" onclick="runPatientSearch()">Rechercher</button>
+    <div class="tl-toolbar">
+      <div class="tl-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="patientSearchInput" placeholder="Rechercher dans la chronologie…" oninput="onTimelineSearch()">
+      </div>
+      <div class="tl-actions">
+        <button class="btn-export" style="width:auto; padding:0 14px;" onclick="runPatientSearch()" title="Recherche sémantique assistée par l'IA">✨ Recherche IA</button>
+        <button class="btn-export" style="width:auto; padding:0 14px;" onclick="generateDossierSummary()" id="summaryBtn">Résumé intelligent</button>
+      </div>
     </div>
-    <div id="searchResultsBanner" style="display:none; background:var(--clinical-tint); border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:13px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:center;">
+    <div id="searchResultsBanner" style="display:none; background:var(--clinical-tint); border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:13px; color:var(--ink-soft); justify-content:space-between; align-items:center;">
       <span id="searchResultsText"></span>
       <button class="modal-close" style="margin:0;" onclick="clearPatientSearch()">Effacer la recherche</button>
     </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <p class="clauses-title" style="margin:0;">Chronologie</p>
-      <button class="btn-export" style="width:auto; padding:8px 16px; font-size:12.5px;" onclick="generateDossierSummary()" id="summaryBtn">✨ Résumé intelligent</button>
-    </div>
+    <div class="tl-filters" id="timelineFilters"></div>
 
     <div id="dossierSummaryCard" style="display:none; background:var(--sage-tint); border:1px solid var(--tint-border); border-radius:12px; padding:20px 22px; margin-bottom:20px;">
       <div style="font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--sage-deep); margin-bottom:10px;">Synthèse — aide à la lecture, pas un avis médical</div>
@@ -1066,7 +1128,7 @@
       <ul class="field-list" id="summaryToCheck"></ul>
     </div>
 
-    <div class="timeline" id="patientTimeline"></div>
+    <div class="tl" id="patientTimeline"></div>
   </div>
 </section>
 
@@ -2717,7 +2779,11 @@ async function openPatientDetail(patientId) {
 
     currentPatientEvents = data.events || [];
     renderPatientHero(data.patient, currentPatientEvents);
-    renderTimeline(currentPatientEvents);
+    timelineFilter = 'all';
+    timelineQuery = '';
+    const si = document.getElementById('patientSearchInput');
+    if (si) si.value = '';
+    refreshTimeline();
 
     document.getElementById('patientsListView').style.display = 'none';
     document.getElementById('patientDetailView').classList.add('visible');
@@ -2729,25 +2795,109 @@ async function openPatientDetail(patientId) {
 // Affiche une liste d'événements dans la chronologie. `raisons` est une
 // Map optionnelle id -> texte, utilisée pour afficher le motif de
 // pertinence lors d'une recherche.
+// ── Timeline médicale interactive ──────────────────────────────────
+let timelineFilter = 'all';
+let timelineQuery = '';
+const TL_TYPES = {
+  consultation: { label: 'Consultation', icon: '📄', dot: 'sage' },
+  ordonnance:   { label: 'Ordonnance',   icon: '💊', dot: 'violet' },
+  courrier:     { label: 'Courrier',     icon: '✉️', dot: 'amber' },
+  analyse_labo: { label: 'Analyse',      icon: '🧪', dot: 'green-deep' },
+  imagerie:     { label: 'Imagerie',     icon: '🩻', dot: 'pink' },
+};
+
+// Extrait un aperçu textuel du contenu d'un événement (pour la carte).
+function eventPreview(e) {
+  const d = e.data || {};
+  switch (e.type) {
+    case 'consultation': return d.resume_1_ligne || d.sections?.assessment?.diagnostic_principal || d.sections?.subjectif?.motif_principal || '';
+    case 'ordonnance':   return (d.prescriptions || []).map(p => p.medicament).filter(Boolean).join(', ');
+    case 'courrier':     return d.objet || (d.destinataire_suggere ? 'À ' + d.destinataire_suggere : '');
+    case 'analyse_labo': return (d.resultats || []).slice(0, 5).map(r => r.parametre).filter(Boolean).join(', ');
+    case 'imagerie':     return d.conclusion_radiologue || d.zone_examinee || '';
+    default: return '';
+  }
+}
+function eventMatchesQuery(e, q) {
+  if (!q) return true;
+  return (e.title + ' ' + eventPreview(e) + ' ' + (TL_TYPES[e.type]?.label || e.type)).toLowerCase().includes(q);
+}
+
+// Recalcule filtres + recherche instantanée (100% client, aucune requête).
+function refreshTimeline() {
+  renderTimelineFilters();
+  const q = timelineQuery.trim().toLowerCase();
+  const list = currentPatientEvents.filter(e =>
+    (timelineFilter === 'all' || e.type === timelineFilter) && eventMatchesQuery(e, q)
+  );
+  renderTimeline(list);
+}
+function renderTimelineFilters() {
+  const el = document.getElementById('timelineFilters');
+  if (!el) return;
+  const counts = {};
+  currentPatientEvents.forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
+  const chip = (key, label, dotVar) => {
+    const n = key === 'all' ? currentPatientEvents.length : (counts[key] || 0);
+    if (key !== 'all' && n === 0) return '';
+    const dot = dotVar ? `<span class="tl-chip-dot" style="background:var(--${dotVar});"></span>` : '';
+    return `<button class="tl-chip${timelineFilter === key ? ' active' : ''}" onclick="setTimelineFilter('${key}')">${dot}${label}<span class="tl-chip-count">${n}</span></button>`;
+  };
+  el.innerHTML = chip('all', 'Tous') + Object.entries(TL_TYPES).map(([k, v]) => chip(k, v.label, v.dot)).join('');
+}
+function setTimelineFilter(type) { timelineFilter = type; refreshTimeline(); }
+function onTimelineSearch() {
+  timelineQuery = document.getElementById('patientSearchInput').value;
+  document.getElementById('searchResultsBanner').style.display = 'none'; // quitte l'éventuel mode recherche IA
+  refreshTimeline();
+}
+
 function renderTimeline(events, raisons) {
-  const timeline = document.getElementById('patientTimeline');
+  const el = document.getElementById('patientTimeline');
   if (!events || events.length === 0) {
-    timeline.innerHTML = '<p style="font-size:13px; color:var(--ink-faint); padding:12px 0;">Aucun événement à afficher.</p>';
+    const filtered = timelineQuery || timelineFilter !== 'all' || raisons;
+    el.innerHTML = emptyState({
+      icon: '🗓️',
+      title: filtered ? 'Aucun résultat' : 'Chronologie vide',
+      text: filtered ? 'Aucun événement ne correspond à ce filtre ou cette recherche.' : 'La frise se remplira au fil des consultations et documents générés.',
+    });
     return;
   }
-  timeline.innerHTML = events.map(e => {
-    const raison = raisons?.get(e.id);
-    return `
-      <div class="timeline-item">
-        <div class="timeline-dot"></div>
-        <div class="timeline-card" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g,"&#39;")})'>
-          <div class="timeline-date">${new Date(e.event_date).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' })}</div>
-          <div class="timeline-title">${e.title}<span class="timeline-type-badge">${e.type}</span></div>
-          ${raison ? `<div class="timeline-annotation" style="font-size:12px; color:var(--sage-deep); background:var(--sage-tint); border-radius:6px; padding:6px 10px; margin-top:6px; font-weight:500;">🔍 ${raison}</div>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
+  // Groupe par mois-année (events déjà triés du plus récent au plus ancien).
+  const groups = [];
+  let cur = null;
+  for (const e of events) {
+    const dt = new Date(e.event_date);
+    const key = dt.getFullYear() + '-' + dt.getMonth();
+    if (!cur || cur.key !== key) { cur = { key, label: dt.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }), items: [] }; groups.push(cur); }
+    cur.items.push(e);
+  }
+  el.innerHTML = groups.map(g => `
+    <div class="tl-group">
+      <div class="tl-group-label">${g.label}</div>
+      ${g.items.map(e => {
+        const meta = TL_TYPES[e.type] || { label: e.type, icon: '📄' };
+        const preview = eventPreview(e);
+        const raison = raisons?.get(e.id);
+        const dt = new Date(e.event_date);
+        return `
+        <div class="tl-item" data-type="${e.type}" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
+          <div class="tl-node">${meta.icon}</div>
+          <div class="tl-card-wrap">
+            <div class="tl-card">
+              <div class="tl-card-head">
+                <span class="tl-badge">${meta.label}</span>
+                <span class="tl-date">${dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} · ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+              <div class="tl-title">${e.title}</div>
+              ${preview ? `<div class="tl-preview">${preview}</div>` : ''}
+              ${raison ? `<div class="tl-annotation">🔍 ${raison}</div>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `).join('');
 }
 
 async function runPatientSearch() {
@@ -2785,25 +2935,69 @@ async function runPatientSearch() {
 function clearPatientSearch() {
   document.getElementById('patientSearchInput').value = '';
   document.getElementById('searchResultsBanner').style.display = 'none';
-  renderTimeline(currentPatientEvents);
+  timelineQuery = '';
+  refreshTimeline();
 }
 
+// Ouvre l'événement en aperçu modal — on ne quitte JAMAIS la frise.
 function viewTimelineEvent(event) {
+  const meta = TL_TYPES[event.type] || { label: 'Événement', icon: '📄' };
   if (event.type === 'consultation') {
-    lastCompteRendu = event.data;
-    lastEventId = event.id;
-    if (!selectedPatient && currentDetailPatientId) {
-      const p = patientsCache.find(x => x.id === currentDetailPatientId);
-      if (p) selectedPatient = { id: p.id, nom: p.nom, prenom: p.prenom };
-      renderPatientSelectorBar();
-    }
-    renderChart(event.data, null);
-    switchAppView('consultation');
+    openDetailViewerModal(`${meta.icon} Consultation`, renderConsultationDetailHtml(event));
+  } else if (event.type === 'ordonnance') {
+    openDetailViewerModal(`${meta.icon} Ordonnance`, renderOrdonnanceDetailHtml(event.data));
+  } else if (event.type === 'courrier') {
+    openDetailViewerModal(`${meta.icon} ${event.data?.objet || 'Courrier'}`, renderCourrierDetailHtml(event.data));
   } else if (event.type === 'analyse_labo') {
     openDetailViewerModal('🧪 Résultats de laboratoire', renderLabDetailHtml(event.data));
   } else if (event.type === 'imagerie') {
-    openDetailViewerModal(`🩻 ${event.data.type_examen || 'Imagerie'}`, renderImagingDetailHtml(event.data));
+    openDetailViewerModal(`🩻 ${event.data?.type_examen || 'Imagerie'}`, renderImagingDetailHtml(event.data));
   }
+}
+
+// Ouvre le compte-rendu complet (vue éditable plein écran) depuis le modal.
+function openConsultationFull(eventId) {
+  const e = currentPatientEvents.find(x => x.id === eventId);
+  if (!e) return;
+  closeDetailViewerModal();
+  lastCompteRendu = e.data;
+  lastEventId = e.id;
+  if (!selectedPatient && currentDetailPatientId) {
+    const p = patientsCache.find(x => x.id === currentDetailPatientId);
+    if (p) { selectedPatient = { id: p.id, nom: p.nom, prenom: p.prenom }; renderPatientSelectorBar(); }
+  }
+  renderChart(e.data, null);
+  switchAppView('consultation');
+}
+
+function renderConsultationDetailHtml(event) {
+  const d = event.data || {}; const s = d.sections || {};
+  const rows = [];
+  if (s.subjectif?.motif_principal) rows.push(['Motif', s.subjectif.motif_principal]);
+  if (s.assessment?.diagnostic_principal) rows.push(['Diagnostic', s.assessment.diagnostic_principal + (s.assessment.code_cim10 ? ' (' + s.assessment.code_cim10 + ')' : '')]);
+  const rx = (s.plan?.prescriptions || []).map(p => p.medicament).filter(Boolean).join(', ');
+  if (rx) rows.push(['Prescriptions', rx]);
+  if (s.plan?.suivi) rows.push(['Suivi', s.plan.suivi]);
+  return `
+    ${d.resume_1_ligne ? `<p style="font-size:14px; color:var(--ink); line-height:1.6; margin-bottom:16px;">${d.resume_1_ligne}</p>` : ''}
+    ${rows.map(([k, v]) => `<div style="margin-bottom:11px;"><div class="field-label">${k}</div><div style="font-size:13.5px; color:var(--ink-soft); line-height:1.5;">${v}</div></div>`).join('')}
+    <button class="btn-price solid" style="margin-top:10px;" onclick="openConsultationFull('${event.id}')">Ouvrir le compte-rendu complet</button>
+  `;
+}
+function renderOrdonnanceDetailHtml(d) {
+  const lignes = (d.prescriptions || []).map(p => `
+    <div class="rx-card" style="margin-bottom:8px;">
+      <span class="rx-name">${p.medicament || ''}</span>
+      <span class="rx-detail">${[p.posologie, p.duree, p.voie].filter(Boolean).join(' · ') || '—'}</span>
+    </div>`).join('');
+  return lignes || '<p style="color:var(--ink-faint); font-size:13px;">Aucune prescription enregistrée.</p>';
+}
+function renderCourrierDetailHtml(d) {
+  const corps = (d.corps_lettre || '').replace(/</g, '&lt;');
+  return `
+    ${d.destinataire_suggere ? `<p style="font-size:12.5px; color:var(--ink-faint); margin-bottom:12px;">Destinataire suggéré : ${d.destinataire_suggere}</p>` : ''}
+    <div style="white-space:pre-wrap; font-size:13.5px; color:var(--ink-soft); line-height:1.7;">${corps || '—'}</div>
+  `;
 }
 
 function renderLabDetailHtml(d) {
@@ -2839,18 +3033,18 @@ function closeDetailViewerModal() {
 // chronologie déjà affichées, en faisant correspondre par titre + date.
 // C'est la brique visible de la "timeline médicale intelligente".
 function applyTimelineAnnotations(annotations) {
-  document.querySelectorAll('.timeline-annotation').forEach(el => el.remove());
+  document.querySelectorAll('.tl-annotation.ai').forEach(el => el.remove());
 
   annotations.forEach(a => {
     if (!a.note || !a.note.trim()) return;
-    const cards = document.querySelectorAll('.timeline-title');
-    cards.forEach(titleEl => {
+    document.querySelectorAll('.tl-title').forEach(titleEl => {
       if (titleEl.textContent.includes(a.titre)) {
+        const card = titleEl.closest('.tl-card');
+        if (!card) return;
         const note = document.createElement('div');
-        note.className = 'timeline-annotation';
-        note.style.cssText = 'font-size:12px; color:var(--sage-deep); background:var(--sage-tint); border-radius:6px; padding:6px 10px; margin-top:6px; font-weight:500;';
+        note.className = 'tl-annotation ai';
         note.textContent = '✨ ' + a.note;
-        titleEl.closest('.timeline-card').appendChild(note);
+        card.appendChild(note);
       }
     });
   });
