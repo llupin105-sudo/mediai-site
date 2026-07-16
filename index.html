@@ -471,38 +471,101 @@
   body.app-mode > nav, body.app-mode > .hero, body.app-mode > .features, body.app-mode > .pricing, body.app-mode > footer{ display:none !important; }
   body.app-mode #appSidebar, body.app-mode #appTopbar{ display:flex; }
 
-  /* Sidebar */
+  /* ══ Sidebar — signature MediAI (marine profond, densité Linear) ══ */
   #appSidebar{
-    position:fixed; left:0; top:0; height:100vh; width:264px; z-index:80;
-    background:var(--navy); border-right:1px solid rgba(255,255,255,.07);
-    flex-direction:column; transition:width .22s cubic-bezier(.4,0,.2,1); overflow:hidden;
+    position:fixed; left:0; top:0; height:100vh; width:250px; z-index:80;
+    background:linear-gradient(180deg, #081A33 0%, #06112A 100%);
+    border-right:1px solid rgba(255,255,255,.05);
+    flex-direction:column; transition:width .26s var(--ease); overflow:hidden;
   }
-  #appSidebar.collapsed{ width:68px; }
-  .sidebar-brand{ display:flex; align-items:center; gap:10px; padding:18px 20px; height:60px; border-bottom:1px solid rgba(255,255,255,.09); flex-shrink:0; }
-  .sidebar-brand .brand-mark{ flex-shrink:0; }
-  .sidebar-brand-label{ font-family:var(--sans); font-weight:800; font-size:16px; letter-spacing:-.01em; color:#fff; white-space:nowrap; }
+  #appSidebar.collapsed{ width:64px; overflow:visible; }
+  #appSidebar.collapsed .sidebar-nav{ overflow:visible; }
+
+  .sidebar-brand{ display:flex; align-items:center; gap:10px; padding:0 18px; height:60px; border-bottom:1px solid rgba(255,255,255,.05); flex-shrink:0; }
+  .sidebar-brand .brand-mark, .sidebar-brand img{ flex-shrink:0; }
+  .sidebar-brand-label{ font-family:var(--sans); font-weight:700; font-size:16px; letter-spacing:-.01em; color:#fff; white-space:nowrap; opacity:.96; }
+  #appSidebar.collapsed .sidebar-brand{ justify-content:center; padding:0; }
   #appSidebar.collapsed .sidebar-brand-label{ display:none; }
-  .sidebar-nav{ padding:14px 12px; display:flex; flex-direction:column; gap:2px; flex:1; overflow-y:auto; overflow-x:hidden; }
-  .sidebar-section-label{ font-family:var(--sans); font-weight:600; font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:rgba(255,255,255,.32); padding:18px 12px 8px; white-space:nowrap; transition:opacity .15s ease; }
-  .sidebar-nav .sidebar-section-label:first-child{ padding-top:4px; }
-  #appSidebar.collapsed .sidebar-section-label{ opacity:0; height:0; padding:6px 0 0; overflow:hidden; }
+
+  .sidebar-nav{ padding:12px 10px; display:flex; flex-direction:column; gap:1px; flex:1; overflow-y:auto; overflow-x:hidden; }
+  .sidebar-divider{ height:1px; background:rgba(255,255,255,.06); margin:9px 10px; }
+  #appSidebar.collapsed .sidebar-divider{ margin:9px 8px; }
+
   .sidebar-link{
-    display:flex; align-items:center; gap:13px; padding:10px 13px; border-radius:var(--r-sm);
-    font-size:13.5px; color:rgba(255,255,255,.68); cursor:pointer; white-space:nowrap; overflow:hidden;
-    border:none; background:transparent; width:100%; text-align:left; font-family:var(--sans); font-weight:500;
-    transition:background .16s ease, color .16s ease, transform .1s ease;
-    position:relative;
+    display:flex; align-items:center; gap:12px; padding:8px 11px; border-radius:var(--r-sm);
+    font-size:13.5px; color:rgba(255,255,255,.6); cursor:pointer; white-space:nowrap; overflow:visible;
+    border:1px solid transparent; background:transparent; width:100%; text-align:left;
+    font-family:var(--sans); font-weight:500; position:relative;
+    transition:background var(--dur-2) var(--ease), color var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
   }
-  .sidebar-link:hover{ background:rgba(255,255,255,.08); color:#fff; }
-  .sidebar-link:active{ transform:scale(.97); }
-  .sidebar-link.active{ background:var(--blue); color:#fff; font-weight:600; box-shadow:0 6px 16px -2px rgba(20,96,255,.5); }
-  .sidebar-link.active:hover{ background:var(--blue); }
-  .sidebar-link .icon{ width:18px; height:18px; flex-shrink:0; display:flex; align-items:center; justify-content:center; opacity:.9; }
-  .sidebar-link.active .icon{ opacity:1; }
+  .sidebar-link:hover{ background:rgba(255,255,255,.055); color:#fff; }
+  .sidebar-link.active{
+    background:linear-gradient(90deg, rgba(20,96,255,.24), rgba(20,96,255,.09));
+    color:#fff; font-weight:600; border-color:rgba(255,255,255,.09);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 1px 3px rgba(0,0,0,.28);
+  }
+  /* Barre d'accent — signature de l'élément actif */
+  .sidebar-link.active::before{
+    content:''; position:absolute; left:-1px; top:50%; transform:translateY(-50%);
+    width:3px; height:17px; border-radius:0 3px 3px 0; background:var(--blue-light);
+    box-shadow:0 0 8px rgba(0,198,255,.5);
+  }
+  .sidebar-link .icon{ width:18px; height:18px; flex-shrink:0; display:flex; align-items:center; justify-content:center; opacity:.75; transition:opacity var(--dur-2) var(--ease); }
+  .sidebar-link:hover .icon, .sidebar-link.active .icon{ opacity:1; }
   .sidebar-link .icon svg{ width:17px; height:17px; }
+
+  /* Mode réduit : icônes seules + tooltips élégants */
   #appSidebar.collapsed .sidebar-link span.label{ display:none; }
-  #appSidebar.collapsed .sidebar-link{ justify-content:center; padding:10px; }
-  .sidebar-footer{ padding:12px; border-top:1px solid rgba(255,255,255,.09); flex-shrink:0; }
+  #appSidebar.collapsed .sidebar-link{ justify-content:center; padding:9px; }
+  #appSidebar.collapsed .sidebar-link.active::before{ display:none; }
+  #appSidebar.collapsed .sidebar-link::after{
+    content:attr(data-tooltip); position:absolute; left:calc(100% + 12px); top:50%;
+    transform:translateY(-50%) translateX(-4px);
+    background:#0C1E3A; color:#fff; font-size:12.5px; font-weight:500; padding:6px 11px; border-radius:7px;
+    white-space:nowrap; box-shadow:var(--shadow-md); border:1px solid rgba(255,255,255,.08);
+    opacity:0; pointer-events:none; z-index:120;
+    transition:opacity var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+  }
+  #appSidebar.collapsed .sidebar-link:hover::after{ opacity:1; transform:translateY(-50%) translateX(0); }
+
+  /* ── Footer profil — composant premium (Notion/Slack) ──────────── */
+  .sidebar-footer{ padding:10px; border-top:1px solid rgba(255,255,255,.05); flex-shrink:0; position:relative; }
+  .sidebar-profile-trigger{
+    display:flex; align-items:center; gap:10px; width:100%; padding:8px; border-radius:var(--r-md);
+    background:transparent; border:1px solid transparent; cursor:pointer; text-align:left; font-family:var(--sans);
+    transition:background var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
+  }
+  .sidebar-profile-trigger:hover{ background:rgba(255,255,255,.055); border-color:rgba(255,255,255,.07); }
+  .sb-avatar{
+    width:32px; height:32px; border-radius:var(--r-sm); flex-shrink:0; display:flex; align-items:center;
+    justify-content:center; font-weight:700; font-size:13px; color:#fff; letter-spacing:.02em;
+  }
+  .sb-profile-info{ flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+  .sb-profile-name{ font-size:13px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sb-profile-role{ font-size:11.5px; color:rgba(255,255,255,.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sb-profile-caret{ width:15px; height:15px; color:rgba(255,255,255,.4); flex-shrink:0; transition:transform var(--dur-2) var(--ease); }
+  .sidebar-profile.open .sb-profile-caret{ transform:rotate(180deg); }
+  #appSidebar.collapsed .sb-profile-info, #appSidebar.collapsed .sb-profile-caret{ display:none; }
+  #appSidebar.collapsed .sidebar-profile-trigger{ justify-content:center; padding:8px 0; }
+
+  .sidebar-menu{
+    position:absolute; left:10px; right:10px; bottom:calc(100% - 2px);
+    background:#0C1E3A; border:1px solid rgba(255,255,255,.09); border-radius:var(--r-md);
+    box-shadow:var(--shadow-lg); padding:6px; margin-bottom:6px;
+    opacity:0; transform:translateY(6px); pointer-events:none;
+    transition:opacity var(--dur-2) var(--ease), transform var(--dur-2) var(--ease); z-index:130;
+  }
+  .sidebar-profile.open .sidebar-menu{ opacity:1; transform:none; pointer-events:auto; }
+  .sidebar-menu-email{ font-size:11.5px; color:rgba(255,255,255,.5); padding:7px 10px 9px; border-bottom:1px solid rgba(255,255,255,.07); margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sidebar-menu-item{
+    display:flex; align-items:center; gap:9px; width:100%; padding:8px 10px; border-radius:var(--r-sm);
+    background:transparent; border:none; cursor:pointer; text-align:left; font-family:var(--sans);
+    font-size:13px; font-weight:500; color:rgba(255,255,255,.82); transition:background var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+  }
+  .sidebar-menu-item:hover{ background:rgba(255,255,255,.07); color:#fff; }
+  .sidebar-menu-item.danger{ color:#FCA5A5; }
+  .sidebar-menu-item.danger:hover{ background:rgba(239,68,68,.14); color:#FECACA; }
+  .sidebar-menu-status{ display:flex; align-items:center; gap:7px; font-size:11px; color:rgba(255,255,255,.45); padding:8px 10px 4px; margin-top:4px; border-top:1px solid rgba(255,255,255,.07); }
 
   /* Topbar */
   #appTopbar{
@@ -836,59 +899,55 @@
     <span class="sidebar-brand-label">MédiAI</span>
   </div>
   <nav class="sidebar-nav">
-    <div class="sidebar-section-label">Espace de travail</div>
-    <button class="sidebar-link active" data-view="dashboard" onclick="switchAppView('dashboard')">
+    <button class="sidebar-link active" data-view="dashboard" data-tooltip="Tableau de bord" onclick="switchAppView('dashboard')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
-      <span class="label">Dashboard</span>
+      <span class="label">Tableau de bord</span>
     </button>
-    <button class="sidebar-link" data-view="patients" onclick="switchAppView('patients')">
+    <button class="sidebar-link" data-view="patients" data-tooltip="Patients" onclick="switchAppView('patients')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-      <span class="label">Mes patients</span>
+      <span class="label">Patients</span>
     </button>
-    <button class="sidebar-link" data-view="consultation" onclick="switchAppView('consultation')">
+    <button class="sidebar-link" data-view="consultation" data-tooltip="Consultations" onclick="switchAppView('consultation')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
-      <span class="label">Nouvelle consultation</span>
+      <span class="label">Consultations</span>
     </button>
 
-    <div class="sidebar-section-label">Documents</div>
-    <button class="sidebar-link" data-view="doc-consultation" onclick="switchAppView('doc-consultation')">
+    <div class="sidebar-divider"></div>
+    <button class="sidebar-link" data-view="doc-consultation" data-tooltip="Comptes-rendus" onclick="switchAppView('doc-consultation')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg></span>
       <span class="label">Comptes-rendus</span>
     </button>
-    <button class="sidebar-link" data-view="doc-ordonnance" onclick="switchAppView('doc-ordonnance')">
+    <button class="sidebar-link" data-view="doc-ordonnance" data-tooltip="Ordonnances" onclick="switchAppView('doc-ordonnance')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/></svg></span>
       <span class="label">Ordonnances</span>
     </button>
-    <button class="sidebar-link" data-view="doc-courrier" onclick="switchAppView('doc-courrier')">
+    <button class="sidebar-link" data-view="doc-courrier" data-tooltip="Courriers" onclick="switchAppView('doc-courrier')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg></span>
       <span class="label">Courriers</span>
     </button>
-    <button class="sidebar-link" data-view="doc-labo" onclick="switchAppView('doc-labo')">
+    <button class="sidebar-link" data-view="doc-labo" data-tooltip="Analyses" onclick="switchAppView('doc-labo')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L4.5 19a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L14 9.5V3"/></svg></span>
       <span class="label">Analyses</span>
     </button>
-    <button class="sidebar-link" data-view="doc-imagerie" onclick="switchAppView('doc-imagerie')">
+    <button class="sidebar-link" data-view="doc-imagerie" data-tooltip="Imagerie" onclick="switchAppView('doc-imagerie')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></span>
       <span class="label">Imagerie</span>
     </button>
 
-    <div class="sidebar-section-label">Intelligence</div>
-    <button class="sidebar-link" data-view="ia-hub" onclick="switchAppView('ia-hub')">
+    <div class="sidebar-divider"></div>
+    <button class="sidebar-link" data-view="ia-hub" data-tooltip="Assistant IA" onclick="switchAppView('ia-hub')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36-1.42 1.42M6.05 17.95l-1.42 1.42m12.73 0-1.42-1.42M6.05 6.05 4.63 4.63"/><circle cx="12" cy="12" r="4"/></svg></span>
       <span class="label">Assistant IA</span>
     </button>
 
-    <div class="sidebar-section-label">Système</div>
-    <button class="sidebar-link" data-view="parametres" onclick="switchAppView('parametres')">
+    <div class="sidebar-divider"></div>
+    <button class="sidebar-link" data-view="parametres" data-tooltip="Paramètres" onclick="switchAppView('parametres')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></span>
       <span class="label">Paramètres</span>
     </button>
   </nav>
   <div class="sidebar-footer">
-    <button class="sidebar-link" onclick="openProfileModal()">
-      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></span>
-      <span class="label">Profil professionnel</span>
-    </button>
+    <div id="sidebarProfile"></div>
   </div>
 </aside>
 
@@ -1626,25 +1685,37 @@ async function loadAccount() {
   renderUsageBar();
 }
 
+// Profil premium dans le footer de la sidebar (façon Notion/Slack).
 function renderAccountZone() {
-  const zone = document.getElementById('accountZone');
+  const zone = document.getElementById('sidebarProfile');
+  if (!zone) return;
 
   if (currentUser) {
     enterAppMode();
 
-    const initial = currentUser.email.charAt(0).toUpperCase();
+    const name = currentUser.profile?.nom || currentUser.email.split('@')[0];
+    const initials = (currentUser.profile?.nom
+      ? currentUser.profile.nom.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('')
+      : currentUser.email.charAt(0)).toUpperCase();
+    const color = patientAvatarColor(currentUser.email);
+    const role = currentUser.isPro ? 'Plan Praticien' : 'Plan Découverte';
+
     zone.innerHTML = `
-      <div class="account-menu">
-        <button class="account-trigger" onclick="toggleAccountDropdown(event)">
-          <span class="account-avatar">${initial}</span>
-          <span>${currentUser.email.split('@')[0]}</span>
+      <div class="sidebar-profile" id="sidebarProfileMenu">
+        <button class="sidebar-profile-trigger" onclick="toggleSidebarMenu(event)" title="${name}">
+          <span class="sb-avatar" style="background:${color};">${initials}</span>
+          <span class="sb-profile-info">
+            <span class="sb-profile-name">${name}</span>
+            <span class="sb-profile-role">${role}</span>
+          </span>
+          <svg class="sb-profile-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
         </button>
-        <div class="account-dropdown" id="accountDropdown">
-          <div class="account-dropdown-email">${currentUser.email}</div>
-          <button class="account-dropdown-item" onclick="openProfileModal(); closeAccountDropdown();">Profil professionnel</button>
-          <button class="account-dropdown-item" onclick="openPreferencesModal(); closeAccountDropdown();">Mes modèles</button>
-          <button class="account-dropdown-item danger" onclick="logout()">Déconnexion</button>
-          <div class="account-dropdown-status"><span class="dot off" id="statusDot"></span><span id="statusText">Vérification…</span></div>
+        <div class="sidebar-menu">
+          <div class="sidebar-menu-email">${currentUser.email}</div>
+          <button class="sidebar-menu-item" onclick="openProfileModal(); closeSidebarMenu();">Profil professionnel</button>
+          <button class="sidebar-menu-item" onclick="openPreferencesModal(); closeSidebarMenu();">Mes modèles</button>
+          <button class="sidebar-menu-item danger" onclick="logout()">Déconnexion</button>
+          <div class="sidebar-menu-status"><span class="dot off" id="statusDot"></span><span id="statusText">Vérification…</span></div>
         </div>
       </div>
     `;
@@ -1653,6 +1724,14 @@ function renderAccountZone() {
     exitAppMode();
     zone.innerHTML = '';
   }
+}
+
+function toggleSidebarMenu(event) {
+  event.stopPropagation();
+  document.getElementById('sidebarProfileMenu')?.classList.toggle('open');
+}
+function closeSidebarMenu() {
+  document.getElementById('sidebarProfileMenu')?.classList.remove('open');
 }
 
 // ── Bascule entre le site marketing et la coquille applicative ────
@@ -2056,11 +2135,15 @@ function toggleAccountDropdown(event) {
 function closeAccountDropdown() {
   document.getElementById('accountDropdown')?.classList.remove('open');
 }
-// Ferme le menu si on clique ailleurs sur la page
+// Ferme les menus si on clique ailleurs sur la page
 document.addEventListener('click', (e) => {
   const dropdown = document.getElementById('accountDropdown');
   if (dropdown && dropdown.classList.contains('open') && !e.target.closest('.account-menu')) {
     dropdown.classList.remove('open');
+  }
+  const sbMenu = document.getElementById('sidebarProfileMenu');
+  if (sbMenu && sbMenu.classList.contains('open') && !e.target.closest('.sidebar-profile')) {
+    sbMenu.classList.remove('open');
   }
 });
 
