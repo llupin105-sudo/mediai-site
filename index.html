@@ -53,9 +53,35 @@
     --shadow-sm: 0 2px 8px rgba(10,17,40,.06);
     --shadow-md: 0 8px 20px rgba(10,17,40,.08);
     --shadow-lg: 0 16px 40px rgba(10,17,40,.14);
+
+    /* ── Système de mouvement premium ───────────────────────────── */
+    --ease:     cubic-bezier(.4, 0, .2, 1);    /* standard, naturel */
+    --ease-out: cubic-bezier(.16, 1, .3, 1);   /* entrées, ressort doux */
+    --dur-1: .12s;   /* press / feedback immédiat */
+    --dur-2: .2s;    /* hover / transitions courantes */
+    --dur-3: .34s;   /* apparitions de panneaux / cartes */
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
+
+  /* Anneau de focus clavier cohérent (accessibilité premium) — ne
+     s'affiche qu'à la navigation clavier, jamais au clic souris. */
+  a:focus-visible, button:focus-visible, [role="button"]:focus-visible,
+  .sidebar-link:focus-visible, [tabindex]:focus-visible{
+    outline: 2px solid var(--sage);
+    outline-offset: 2px;
+    border-radius: var(--r-sm);
+  }
+
+  /* Respect des préférences système : coupe les animations si demandé. */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;
+      scroll-behavior:auto !important;
+    }
+  }
   body{
     font-family:var(--sans);
     background:var(--paper);
@@ -216,6 +242,28 @@
   .patient-detail-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
   .patient-detail-title{ font-family:var(--sans); font-weight:700; font-size:23px; letter-spacing:-.01em; color:var(--ink); }
   .patient-detail-sub{ font-family:var(--mono); font-size:12px; color:var(--ink-faint); margin-top:4px; }
+
+  /* ── Fiche patient moderne — hero + synthèse dérivée ────────────── */
+  .patient-hero{
+    display:flex; gap:20px; align-items:flex-start; background:var(--card); border:1px solid var(--paper-line);
+    border-radius:var(--r-lg); padding:22px 24px; margin-bottom:16px; box-shadow:var(--shadow-xs);
+    animation:dashIn var(--dur-3) var(--ease-out) both;
+  }
+  .patient-avatar{
+    width:60px; height:60px; border-radius:var(--r-full); flex-shrink:0; display:flex; align-items:center;
+    justify-content:center; font-weight:800; font-size:22px; color:#fff; letter-spacing:.02em; box-shadow:var(--shadow-sm);
+  }
+  .patient-hero-main{ flex:1; min-width:0; }
+  .patient-hero-name{ font-size:22px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+  .patient-hero-meta{ font-size:13px; color:var(--ink-faint); margin-top:4px; display:flex; gap:9px; flex-wrap:wrap; align-items:center; }
+  .patient-hero-meta .dot{ width:3px; height:3px; border-radius:50%; background:currentColor; opacity:.45; }
+  .patient-synthese{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:16px; }
+  .synthese-block{ background:var(--paper); border:1px solid var(--paper-line); border-radius:var(--r-md); padding:12px 14px; }
+  .synthese-label{ font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:9px; }
+  .synthese-content{ font-size:13px; color:var(--ink); line-height:1.5; }
+  .synthese-chip{ display:inline-block; background:var(--sage-tint); color:var(--sage-deep); font-size:12px; font-weight:500; padding:3px 9px; border-radius:var(--r-full); margin:0 4px 4px 0; }
+  .synthese-empty{ font-size:12.5px; color:var(--ink-faint); }
+  .patient-actions-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
   .patient-notes{ background:var(--card); border:1px solid var(--paper-line); border-radius:10px; padding:16px 18px; margin-bottom:24px; }
   .patient-notes textarea{ width:100%; border:none; background:transparent; font-family:var(--sans); font-size:13.5px; color:var(--ink); resize:vertical; min-height:60px; }
   .patient-notes textarea:focus{ outline:none; }
@@ -508,6 +556,41 @@
   .dash-stat-label{ font-family:var(--sans); font-weight:600; font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px; }
   .dash-stat-value{ font-family:var(--sans); font-weight:800; font-size:32px; letter-spacing:-.02em; color:var(--ink); }
   .dash-stat-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:6px; }
+
+  /* Entrée animée premium des blocs du dashboard */
+  @keyframes dashIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+  .dash-stats .dash-stat-card{ animation:dashIn var(--dur-3) var(--ease-out) both; }
+  .dash-stats .dash-stat-card:nth-child(2){ animation-delay:.05s; }
+  .dash-stats .dash-stat-card:nth-child(3){ animation-delay:.1s; }
+
+  /* ── Panneau « Aujourd'hui » — poste de travail du jour ─────────── */
+  .dash-today{
+    background:var(--grad-primary); color:#fff; border-radius:var(--r-lg); padding:24px 26px;
+    margin-bottom:28px; box-shadow:var(--shadow-md); animation:dashIn var(--dur-3) var(--ease-out) both;
+  }
+  .dash-today-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .dash-today-label{ font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; opacity:.78; }
+  .dash-today-headline{ font-size:21px; font-weight:800; letter-spacing:-.01em; margin-top:7px; }
+  .dash-today-sub{ font-size:13px; opacity:.85; margin-top:4px; }
+  .dash-today-cta{
+    height:38px; padding:0 16px; border-radius:var(--btn-radius); border:none; cursor:pointer; flex-shrink:0;
+    background:rgba(255,255,255,.16); color:#fff; font-weight:600; font-size:13px; font-family:var(--sans);
+    transition:var(--btn-transition);
+  }
+  .dash-today-cta:hover{ background:rgba(255,255,255,.28); }
+  .dash-today-cta:active{ transform:scale(.97); }
+  .dash-today-list{ margin-top:18px; display:flex; flex-direction:column; gap:8px; }
+  .dash-today-item{
+    display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:var(--r-sm);
+    background:rgba(255,255,255,.1); cursor:pointer; transition:background var(--dur-2) var(--ease);
+  }
+  .dash-today-item:hover{ background:rgba(255,255,255,.2); }
+  .dash-today-item .ti-icon{ font-size:15px; flex-shrink:0; }
+  .dash-today-item .ti-body{ flex:1; min-width:0; }
+  .dash-today-item .ti-title{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dash-today-item .ti-meta{ font-size:11.5px; opacity:.82; }
+  .dash-today-item .ti-time{ font-size:11.5px; opacity:.82; flex-shrink:0; }
+
   .dash-actions{ display:flex; gap:12px; margin-bottom:36px; flex-wrap:wrap; }
   .dash-action-btn{
     display:flex; align-items:center; gap:8px; padding:0 20px; height:var(--btn-h); border-radius:var(--btn-radius);
@@ -609,14 +692,40 @@
   .toast.leaving{ animation:toastOut .2s ease forwards; }
   @keyframes toastOut{ to{ opacity:0; transform:translateX(16px); } }
 
-  /* ── Skeleton loading — remplace les "Chargement..." textuels ───── */
-  @keyframes skeletonPulse{ 0%,100%{ opacity:.55; } 50%{ opacity:1; } }
-  .skel{ background:var(--paper-line); border-radius:var(--r-sm); animation:skeletonPulse 1.3s ease-in-out infinite; }
+  /* ── Skeleton loading — shimmer premium (balayage de lumière) ───── */
+  @keyframes skeletonShimmer{ 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }
+  .skel{
+    border-radius:var(--r-sm);
+    background:linear-gradient(90deg, var(--paper-line) 25%, #F1F5F9 37%, var(--paper-line) 63%);
+    background-size:400% 100%;
+    animation:skeletonShimmer 1.4s ease-in-out infinite;
+  }
   .skel-line{ height:12px; border-radius:6px; margin-bottom:8px; }
   .skel-line.w-60{ width:60%; } .skel-line.w-80{ width:80%; } .skel-line.w-40{ width:40%; }
   .skel-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-lg); padding:20px; margin-bottom:12px; }
   .skel-row{ display:flex; align-items:center; gap:12px; padding:11px 0; }
   .skel-circle{ width:36px; height:36px; border-radius:50%; flex-shrink:0; }
+
+  /* ── État vide guidé (icône + titre + texte + action) ──────────── */
+  @keyframes emptyIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  .empty-state{
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:48px 28px; background:var(--card); border:1px dashed var(--paper-line);
+    border-radius:var(--r-lg); animation:emptyIn var(--dur-3) var(--ease-out);
+  }
+  .empty-state .es-icon{
+    width:56px; height:56px; border-radius:var(--r-lg); display:flex; align-items:center;
+    justify-content:center; background:var(--sage-tint); color:var(--sage); font-size:26px; margin-bottom:16px;
+  }
+  .empty-state .es-title{ font-size:15px; font-weight:700; color:var(--ink); margin-bottom:6px; letter-spacing:-.01em; }
+  .empty-state .es-text{ font-size:13px; color:var(--ink-faint); max-width:340px; line-height:1.6; margin-bottom:18px; }
+  .empty-state .es-action{
+    height:38px; padding:0 18px; border-radius:var(--btn-radius); border:none; cursor:pointer;
+    background:var(--sage); color:#fff; font-weight:600; font-size:13px; font-family:var(--sans);
+    box-shadow:var(--shadow-sm); transition:var(--btn-transition);
+  }
+  .empty-state .es-action:hover{ background:var(--sage-deep); box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  .empty-state .es-action:active{ transform:scale(.98); }
 
   /* Recent activity (Dashboard) */
   .dash-activity-list{ display:flex; flex-direction:column; gap:2px; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--shadow-xs); }
@@ -797,6 +906,8 @@
         <div class="dash-date" id="dashDate"></div>
       </div>
 
+      <div id="dashTodaySection"></div>
+
       <div class="dash-stats" id="dashStats"></div>
 
       <div class="dash-actions">
@@ -842,17 +953,12 @@
 
   <div class="patient-detail" id="patientDetailView">
     <button class="modal-close" style="margin-bottom:16px;" onclick="closePatientDetail()">← Retour à la liste</button>
-    <div class="patient-detail-header">
-      <div>
-        <div class="patient-detail-title" id="detailPatientName">—</div>
-        <div class="patient-detail-sub" id="detailPatientMeta">—</div>
-      </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation</button>
-        <button class="btn-export" onclick="openLabModal()">🧪 Ajouter un résultat de labo</button>
-        <button class="btn-export" onclick="openImagingModal()">🩻 Ajouter un compte-rendu d'imagerie</button>
-        <button class="btn-export" onclick="openPatientPortalModal()">🔑 Activer l'accès patient</button>
-      </div>
+    <div id="patientHero"></div>
+    <div class="patient-actions-row">
+      <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation</button>
+      <button class="btn-export" onclick="openLabModal()">🧪 Résultat de labo</button>
+      <button class="btn-export" onclick="openImagingModal()">🩻 Imagerie</button>
+      <button class="btn-export" onclick="openPatientPortalModal()">🔑 Accès patient</button>
     </div>
     <div class="patient-notes">
       <div class="field-label" style="margin-bottom:8px;">Notes générales</div>
@@ -1450,6 +1556,21 @@ function skeletonRows(n) {
   return out;
 }
 
+// État vide guidé et réutilisable : icône + titre + texte + action optionnelle.
+// actionOnclick est une chaîne (ex. "openNewPatientModal()") pour rester
+// cohérent avec la convention onclick inline du reste de l'app.
+function emptyState({ icon = '📋', title, text, actionLabel, actionOnclick, style = '' }) {
+  const btn = (actionLabel && actionOnclick)
+    ? `<button class="es-action" onclick="${actionOnclick}">${actionLabel}</button>`
+    : '';
+  return `<div class="empty-state" style="${style}">
+    <div class="es-icon">${icon}</div>
+    <div class="es-title">${title}</div>
+    ${text ? `<div class="es-text">${text}</div>` : ''}
+    ${btn}
+  </div>`;
+}
+
 function showToast(message, type) {
   type = type || 'success';
   const container = document.getElementById('toastContainer');
@@ -1765,6 +1886,7 @@ async function renderDashboard() {
     <div class="skel-card"><div class="skel skel-line w-40"></div><div class="skel skel-line w-60" style="height:24px; margin-top:8px;"></div></div>
   `;
   document.getElementById('dashActivityFeed').innerHTML = skeletonRows(4);
+  document.getElementById('dashTodaySection').innerHTML = `<div class="skel-card" style="height:92px; margin-bottom:28px;"></div>`;
 
   const list = await fetchPatients();
   const totalPatients = list.length;
@@ -1793,7 +1915,14 @@ async function renderDashboard() {
   const recent = sorted.slice(0, 6);
   const grid = document.getElementById('dashRecentPatients');
   if (recent.length === 0) {
-    grid.innerHTML = `<div class="dash-empty">Aucun patient pour l'instant. Créez votre premier patient pour commencer à suivre ses consultations.</div>`;
+    grid.innerHTML = emptyState({
+      icon: '👤',
+      title: "Aucun patient pour l'instant",
+      text: 'Créez votre premier dossier pour commencer à suivre vos consultations.',
+      actionLabel: '+ Nouveau patient',
+      actionOnclick: 'openNewPatientModal()',
+      style: 'grid-column:1/-1;',
+    });
   } else {
     grid.innerHTML = recent.map(p => `
       <div class="patient-card" onclick="switchAppView('patients'); openPatientDetail('${p.id}');">
@@ -1835,10 +1964,60 @@ async function renderDashboard() {
     }
 
     const feedIcons = { consultation:'📄', ordonnance:'💊', courrier:'✍️', analyse_labo:'🧪', imagerie:'🩻' };
+
+    // ── Panneau « Aujourd'hui » ──────────────────────────────────
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEvents = events.filter(e => new Date(e.event_date).getTime() >= todayStart.getTime());
+    const todayConsults = todayEvents.filter(e => e.type === 'consultation').length;
+    const todayLabel = new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+    const todaySection = document.getElementById('dashTodaySection');
+    if (todayEvents.length === 0) {
+      todaySection.innerHTML = `
+        <div class="dash-today">
+          <div class="dash-today-head">
+            <div>
+              <div class="dash-today-label">Aujourd'hui · ${todayLabel}</div>
+              <div class="dash-today-headline">Prêt à démarrer votre journée</div>
+              <div class="dash-today-sub">Aucune consultation enregistrée aujourd'hui.</div>
+            </div>
+            <button class="dash-today-cta" onclick="dashboardNewConsultation()">Nouvelle consultation</button>
+          </div>
+        </div>`;
+    } else {
+      const headline = todayConsults > 0
+        ? `${todayConsults} consultation${todayConsults > 1 ? 's' : ''} aujourd'hui`
+        : `${todayEvents.length} document${todayEvents.length > 1 ? 's' : ''} aujourd'hui`;
+      const items = todayEvents.slice(0, 4).map(e => `
+        <div class="dash-today-item" onclick="switchAppView('patients'); openPatientDetail('${e.patientId}');">
+          <span class="ti-icon">${feedIcons[e.type] || '📄'}</span>
+          <div class="ti-body">
+            <div class="ti-title">${e.title}</div>
+            <div class="ti-meta">${e.patientPrenom} ${e.patientNom}</div>
+          </div>
+          <span class="ti-time">${new Date(e.event_date).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}</span>
+        </div>`).join('');
+      todaySection.innerHTML = `
+        <div class="dash-today">
+          <div class="dash-today-head">
+            <div>
+              <div class="dash-today-label">Aujourd'hui · ${todayLabel}</div>
+              <div class="dash-today-headline">${headline}</div>
+              <div class="dash-today-sub">${todayEvents.length} document${todayEvents.length > 1 ? 's' : ''} généré${todayEvents.length > 1 ? 's' : ''} au total.</div>
+            </div>
+            <button class="dash-today-cta" onclick="dashboardNewConsultation()">Nouvelle consultation</button>
+          </div>
+          <div class="dash-today-list">${items}</div>
+        </div>`;
+    }
+
     const feed = document.getElementById('dashActivityFeed');
     const topEvents = events.slice(0, 8);
     if (topEvents.length === 0) {
-      feed.innerHTML = `<div class="dash-empty">Aucune activité pour l'instant.</div>`;
+      feed.innerHTML = emptyState({
+        icon: '🗂️',
+        title: 'Aucune activité pour l\'instant',
+        text: 'Vos consultations, ordonnances et courriers récents apparaîtront ici.',
+      });
     } else {
       feed.innerHTML = topEvents.map(e => `
         <div class="activity-item" onclick="switchAppView('patients'); openPatientDetail('${e.patientId}');">
@@ -1852,6 +2031,7 @@ async function renderDashboard() {
       `).join('');
     }
   } catch (err) {
+    document.getElementById('dashTodaySection').innerHTML = '';
     document.getElementById('dashSummaryBanner').innerHTML = '';
     document.getElementById('dashActivityFeed').innerHTML = `<div class="dash-empty">Impossible de charger l'activité récente.</div>`;
   }
@@ -2304,7 +2484,14 @@ async function renderPatientsList() {
   const list = await fetchPatients();
   const grid = document.getElementById('patientGrid');
   if (list.length === 0) {
-    grid.innerHTML = '<div class="patient-empty" style="grid-column:1/-1;">Aucun patient pour l\'instant. Créez votre premier patient pour commencer à suivre ses consultations.</div>';
+    grid.innerHTML = emptyState({
+      icon: '👤',
+      title: "Aucun patient pour l'instant",
+      text: 'Créez votre premier dossier pour commencer à suivre vos consultations.',
+      actionLabel: '+ Nouveau patient',
+      actionOnclick: 'openNewPatientModal()',
+      style: 'grid-column:1/-1;',
+    });
     return;
   }
   grid.innerHTML = list.map(p => `
@@ -2326,6 +2513,96 @@ function closePatientDetail() {
 let currentDetailPatientId = null;
 let currentPatientEvents = []; // liste complète des événements du patient actuellement ouvert
 
+// ── Fiche patient moderne : hero + synthèse dérivée du dossier ──────
+function patientInitials(prenom, nom) {
+  return (((prenom || '').trim()[0] || '') + ((nom || '').trim()[0] || '')).toUpperCase();
+}
+function patientAvatarColor(seed) {
+  const colors = ['#1460FF', '#8B5CF6', '#EC4899', '#F59E0B', '#22C55E', '#00C6FF'];
+  let h = 0;
+  for (const ch of String(seed || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return colors[h % colors.length];
+}
+function parseDob(dob) {
+  if (!dob) return null;
+  let d = new Date(dob);
+  if (!isNaN(d.getTime())) return d;
+  const m = String(dob).match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/); // JJ/MM/AAAA
+  if (m) { d = new Date(`${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`); if (!isNaN(d.getTime())) return d; }
+  return null;
+}
+function computeAge(dob) {
+  const d = parseDob(dob);
+  if (!d) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const md = now.getMonth() - d.getMonth();
+  if (md < 0 || (md === 0 && now.getDate() < d.getDate())) age--;
+  return (age >= 0 && age < 130) ? age : null;
+}
+// Traitements en cours : dérivés de la dernière ordonnance, sinon de la
+// dernière consultation (les événements sont triés du + récent au + ancien).
+function deriveTreatments(events) {
+  const ord = (events || []).find(e => e.type === 'ordonnance');
+  if (ord && Array.isArray(ord.data?.prescriptions)) {
+    return ord.data.prescriptions.map(p => p.medicament).filter(Boolean);
+  }
+  const consult = (events || []).find(e => e.type === 'consultation');
+  const t = consult?.data?.sections?.subjectif?.traitements_en_cours;
+  return Array.isArray(t) ? t.filter(Boolean) : [];
+}
+function deriveAntecedents(events) {
+  const set = new Set();
+  for (const e of (events || [])) {
+    if (e.type === 'consultation') {
+      const a = e.data?.sections?.subjectif?.antecedents_pertinents;
+      if (Array.isArray(a)) a.forEach(x => x && set.add(x));
+    }
+  }
+  return [...set];
+}
+function renderPatientHero(patient, events) {
+  const initials = patientInitials(patient.prenom, patient.nom) || '👤';
+  const color = patientAvatarColor(patient.id || (patient.prenom + patient.nom));
+  const age = computeAge(patient.date_naissance);
+  const metaBits = [];
+  if (age !== null) metaBits.push(`${age} ans`);
+  if (patient.date_naissance) metaBits.push(`Né(e) le ${patient.date_naissance}`);
+  metaBits.push(`${events.length} événement${events.length > 1 ? 's' : ''}`);
+  const meta = metaBits.join(' <span class="dot"></span> ');
+
+  const treatments = deriveTreatments(events);
+  const antecedents = deriveAntecedents(events);
+  const lastConsult = events.find(e => e.type === 'consultation');
+
+  const chips = (arr, empty) => arr.length
+    ? arr.slice(0, 6).map(x => `<span class="synthese-chip">${x}</span>`).join('') + (arr.length > 6 ? `<span class="synthese-empty"> +${arr.length - 6}</span>` : '')
+    : `<span class="synthese-empty">${empty}</span>`;
+
+  document.getElementById('patientHero').innerHTML = `
+    <div class="patient-hero">
+      <div class="patient-avatar" style="background:${color};">${initials}</div>
+      <div class="patient-hero-main">
+        <div class="patient-hero-name">${patient.prenom} ${patient.nom}</div>
+        <div class="patient-hero-meta">${meta}</div>
+        <div class="patient-synthese" title="Synthèse déduite automatiquement des consultations et ordonnances du dossier — à vérifier, ce n'est pas un avis médical.">
+          <div class="synthese-block">
+            <div class="synthese-label">💊 Traitements en cours</div>
+            <div class="synthese-content">${chips(treatments, 'Aucun traitement identifié')}</div>
+          </div>
+          <div class="synthese-block">
+            <div class="synthese-label">📋 Antécédents</div>
+            <div class="synthese-content">${chips(antecedents, 'Aucun antécédent noté')}</div>
+          </div>
+          <div class="synthese-block">
+            <div class="synthese-label">🕐 Dernière consultation</div>
+            <div class="synthese-content">${lastConsult ? new Date(lastConsult.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '<span class="synthese-empty">Aucune consultation</span>'}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 async function openPatientDetail(patientId) {
   currentDetailPatientId = patientId;
   document.getElementById('dossierSummaryCard').style.display = 'none';
@@ -2336,11 +2613,10 @@ async function openPatientDetail(patientId) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    document.getElementById('detailPatientName').textContent = `${data.patient.prenom} ${data.patient.nom}`;
-    document.getElementById('detailPatientMeta').textContent = data.patient.date_naissance ? `Né(e) le ${data.patient.date_naissance}` : '';
     document.getElementById('patientNotesText').value = data.patient.notes || '';
 
     currentPatientEvents = data.events || [];
+    renderPatientHero(data.patient, currentPatientEvents);
     renderTimeline(currentPatientEvents);
 
     document.getElementById('patientsListView').style.display = 'none';
