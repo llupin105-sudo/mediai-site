@@ -1102,16 +1102,19 @@
       <textarea id="patientNotesText" placeholder="Antécédents, allergies, contexte général..." onblur="savePatientNotes()"></textarea>
     </div>
 
+    <div id="keyDocuments"></div>
+
     <div class="tl-toolbar">
       <div class="tl-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="patientSearchInput" placeholder="Rechercher dans la chronologie…" oninput="onTimelineSearch()">
+        <input type="text" id="patientSearchInput" placeholder="Rechercher : « dernière IRM », « prise de sang », « ordonnance de mars »…" oninput="onTimelineSearch()" onkeydown="if(event.key==='Enter')runPatientSearch()">
       </div>
       <div class="tl-actions">
-        <button class="btn-export" style="width:auto; padding:0 14px;" onclick="runPatientSearch()" title="Recherche sémantique assistée par l'IA">✨ Recherche IA</button>
+        <button class="btn-export" style="width:auto; padding:0 14px;" onclick="runPatientSearch()" title="Recherche clinique en langage naturel, assistée par l'IA">✨ Recherche clinique</button>
         <button class="btn-export" style="width:auto; padding:0 14px;" onclick="generateDossierSummary()" id="summaryBtn">Résumé intelligent</button>
       </div>
     </div>
+    <div id="searchExamples" class="search-examples"></div>
     <div id="searchResultsBanner" style="display:none; background:var(--clinical-tint); border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:13px; color:var(--ink-soft); justify-content:space-between; align-items:center;">
       <span id="searchResultsText"></span>
       <button class="modal-close" style="margin:0;" onclick="clearPatientSearch()">Effacer la recherche</button>
@@ -1130,7 +1133,7 @@
       <ul class="field-list" id="summaryToCheck"></ul>
     </div>
 
-    <div class="tl" id="patientTimeline"></div>
+    <div class="tl tl-anim" id="patientTimeline"></div>
   </div>
 </section>
 
@@ -2676,6 +2679,8 @@ function closePatientDetail() {
 
 let currentDetailPatientId = null;
 let currentPatientEvents = []; // liste complète des événements du patient actuellement ouvert
+let currentPatientSnapshot = null; // dernière synthèse IA chargée (pour le mode lecture 30 s)
+let currentPatientInfo = null; // { nom, prenom, date_naissance, id } du dossier ouvert
 
 // ── Fiche patient moderne : hero + synthèse dérivée du dossier ──────
 function patientInitials(prenom, nom) {
@@ -2946,6 +2951,7 @@ async function fetchPatientSnapshot(patientId, forceRefresh) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erreur');
     if (currentDetailPatientId !== patientId) return; // le médecin a changé de dossier entre-temps
+    currentPatientSnapshot = data.snapshot || null; // Sprint 2.2 : dispo pour la lecture 30 s
     renderPatientSnapshot(data.snapshot, { cached: data.cached, empty: data.empty, generatedAt: data.generated_at });
     fillCockpitBriefing(data.snapshot); // Sprint 2 : alimente le récit + les rappels du Cockpit
   } catch (err) {
@@ -3076,6 +3082,7 @@ function renderCockpit(patient, events) {
         <div style="font-size:12.5px; color:var(--ink-faint); margin-top:3px; line-height:1.5;">${metaBits.map(escapeHtml).join('  ·  ')}</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button onclick="openQuickRead()" class="ckpt-pill" style="background:var(--ink); color:#fff; border:none; cursor:pointer; font-weight:600;" title="Lecture rapide : les éléments critiques du dossier">⚡ Lecture 30 s</button>
         <span class="ckpt-pill" style="background:var(--sage-tint); color:var(--sage-deep); font-weight:600;">✦ Préparé par IA</span>
         <span class="ckpt-pill" id="ckptReading" style="background:var(--paper); border:1px solid var(--paper-line); color:var(--ink-soft);">≈ 30 s de lecture</span>
       </div>
@@ -3171,7 +3178,10 @@ async function openPatientDetail(patientId) {
     document.getElementById('patientNotesText').value = data.patient.notes || '';
 
     currentPatientEvents = data.events || [];
+    currentPatientInfo = data.patient || null;
+    currentPatientSnapshot = null;
     renderCockpit(data.patient, currentPatientEvents); // Sprint 2 : briefing en tête de dossier (instantané)
+    renderKeyDocuments(currentPatientEvents); // Sprint 2.2 : documents importants auto-remontés
     fetchPatientSnapshot(patientId); // Phase 5 : synthèse intelligente + récit du briefing (IA, cachée)
     timelineFilter = 'all';
     timelineQuery = '';
@@ -3331,6 +3341,103 @@ function clearPatientSearch() {
   document.getElementById('searchResultsBanner').style.display = 'none';
   timelineQuery = '';
   refreshTimeline();
+}
+
+// ══ Sprint 2.2 — Documents importants · recherche clinique · lecture 30 s ══
+function ensureTimeline2Styles() {
+  if (document.getElementById('tl2Styles')) return;
+  const st = document.createElement('style');
+  st.id = 'tl2Styles';
+  st.textContent = '@keyframes tlItemIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}'
+    + '.tl-anim .tl-item{animation:tlItemIn var(--dur-3,.24s) var(--ease-out,ease) both}'
+    + '.kd-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:4px 0 10px}'
+    + '.kd-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;margin-bottom:18px}'
+    + '.kd-card{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--paper-line);border-radius:12px;padding:11px 13px;cursor:pointer;transition:border-color var(--dur-2,.16s),transform var(--dur-1,.1s),box-shadow var(--dur-2,.16s)}'
+    + '.kd-card:hover{border-color:var(--sage);transform:translateY(-1px);box-shadow:var(--shadow-sm)}'
+    + '.kd-icon{font-size:18px;line-height:1.2}'
+    + '.kd-body{min-width:0;flex:1}'
+    + '.kd-type{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}'
+    + '.kd-prev{font-size:13px;color:var(--ink);font-weight:500;line-height:1.35;margin:1px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    + '.kd-date{font-size:11px;color:var(--ink-faint)}'
+    + '.search-examples{display:flex;gap:7px;flex-wrap:wrap;margin:-6px 0 16px}'
+    + '.search-ex{background:var(--paper);border:1px solid var(--paper-line);color:var(--ink-soft);border-radius:999px;padding:4px 12px;font-size:12px;cursor:pointer;transition:border-color var(--dur-2,.16s),color var(--dur-2,.16s)}'
+    + '.search-ex:hover{border-color:var(--sage);color:var(--sage-deep)}'
+    + '.qr-sec{margin-bottom:16px}.qr-sec:last-child{margin-bottom:0}'
+    + '.qr-h{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:7px}'
+    + '@media (prefers-reduced-motion:reduce){.tl-anim .tl-item{animation:none}}';
+  document.head.appendChild(st);
+}
+
+// Documents importants : le plus récent de chaque type remonte automatiquement.
+function renderKeyDocuments(events) {
+  const el = document.getElementById('keyDocuments');
+  if (!el) return;
+  ensureTimeline2Styles();
+  renderSearchExamples();
+  if (!events || events.length === 0) { el.innerHTML = ''; return; }
+  const byType = {};
+  events.forEach((e) => { if (!byType[e.type]) byType[e.type] = e; }); // events triés desc → 1er = + récent
+  const order = ['consultation', 'ordonnance', 'analyse_labo', 'imagerie', 'courrier'];
+  const picks = order.map((t) => byType[t]).filter(Boolean).slice(0, 4);
+  if (!picks.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="kd-label">📁 Documents importants</div><div class="kd-row">` + picks.map((e) => {
+    const meta = TL_TYPES[e.type] || { icon: '📄', label: e.type };
+    const dt = new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    const prev = eventPreview(e) || e.title;
+    return `<div class="kd-card" data-type="${e.type}" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
+      <div class="kd-icon">${meta.icon}</div>
+      <div class="kd-body"><div class="kd-type">${meta.label}</div><div class="kd-prev" title="${escapeHtml(prev)}">${escapeHtml(prev)}</div><div class="kd-date">${dt}</div></div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function renderSearchExamples() {
+  const el = document.getElementById('searchExamples');
+  if (!el) return;
+  const ex = ['dernière IRM', 'dernière prise de sang', 'ordonnance récente', 'tension artérielle'];
+  el.innerHTML = ex.map((x) => `<button class="search-ex" onclick="runClinicalExample('${x.replace(/'/g, "\\'")}')">${x}</button>`).join('');
+}
+function runClinicalExample(q) {
+  const input = document.getElementById('patientSearchInput');
+  if (input) input.value = q;
+  runPatientSearch();
+}
+
+// Mode « Lecture 30 secondes » : le dossier distillé à ses éléments critiques.
+function openQuickRead() {
+  const p = currentPatientInfo || {};
+  const s = currentPatientSnapshot || {};
+  const events = currentPatientEvents || [];
+  const age = computeAge(p.date_naissance);
+  const lastConsult = events.find((e) => e.type === 'consultation');
+  const treatments = deriveTreatments(events);
+  const recentResults = events.filter((e) => e.type === 'analyse_labo' || e.type === 'imagerie').slice(0, 3);
+  const critiques = (s.points_de_vigilance || []).filter((v) => v && (v.severite === 'important' || v.severite === 'attention'));
+
+  const sec = (title, body) => body ? `<div class="qr-sec"><div class="qr-h">${title}</div>${body}</div>` : '';
+  const briefing = s.briefing_consultation || s.synthese_narrative || '';
+
+  let html = '';
+  if (events.length === 0) {
+    html = `<p style="font-size:14px; color:var(--ink-soft);">Nouveau dossier — aucun élément à résumer pour l'instant.</p>`;
+  } else {
+    html += sec('Briefing', briefing ? `<p style="font-size:14.5px; line-height:1.7; color:var(--ink); margin:0;">${escapeHtml(briefing)}</p>` : `<p style="font-size:13px; color:var(--ink-faint); margin:0;">Synthèse IA en cours de préparation.</p>`);
+    html += sec('⚠️ À ne pas manquer', critiques.length
+      ? critiques.map((v) => `<div style="font-size:13.5px; color:var(--ink); line-height:1.5; margin-bottom:5px;">${v.severite === 'important' ? '🔴' : '🟠'} ${escapeHtml(v.libelle)}</div>`).join('')
+      : '');
+    html += sec('💊 Traitements en cours', treatments.length
+      ? `<div style="display:flex; flex-wrap:wrap; gap:6px;">${treatments.map((t) => `<span style="background:var(--violet-tint); color:var(--violet-deep); border-radius:999px; padding:3px 11px; font-size:12.5px;">${escapeHtml(t)}</span>`).join('')}</div>`
+      : '');
+    html += sec('🧪 Résultats récents', recentResults.length
+      ? recentResults.map((e) => `<div style="font-size:13px; color:var(--ink); margin-bottom:4px;">${(TL_TYPES[e.type] || {}).icon || '•'} ${escapeHtml(eventPreview(e) || e.title)} <span style="color:var(--ink-faint);">· ${new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span></div>`).join('')
+      : '');
+    if (lastConsult) {
+      html += sec('🩺 Dernière consultation', `<div style="font-size:13.5px; color:var(--ink); line-height:1.5;">${escapeHtml(eventPreview(lastConsult) || lastConsult.title)} <span style="color:var(--ink-faint);">· ${humanizeElapsed(lastConsult.event_date)}</span></div>`);
+    }
+  }
+
+  const title = `⚡ Lecture 30 s — ${escapeHtml((p.prenom || '') + ' ' + (p.nom || ''))}${age !== null ? ` · ${age} ans` : ''}`;
+  openDetailViewerModal(title, html);
 }
 
 // Ouvre l'événement en aperçu modal — on ne quitte JAMAIS la frise.
