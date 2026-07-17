@@ -1043,6 +1043,8 @@
 
       <div id="dashTodaySection"></div>
 
+      <div id="dashSignalsSection"></div>
+
       <div class="dash-stats" id="dashStats"></div>
 
       <div class="dash-actions">
@@ -2114,6 +2116,7 @@ async function renderDashboard() {
   // ── Résumé de la semaine + Activité récente (utilisent fetchAllEvents, déjà en cache) ──
   try {
     const events = await fetchAllEvents();
+    renderDashboardSignals(events); // Sprint 4 : signaux cliniques transversaux
     const now = Date.now();
     const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
     const thisWeek = events.filter(e => new Date(e.event_date).getTime() > weekAgo);
@@ -3055,6 +3058,120 @@ function cockpitEvolutionHtml(events) {
   }).join('');
 }
 
+// ══ Sprint 4 — Signaux & alertes proactifs (100% déterministe) ══════
+// Règles FACTUELLES sur les données du dossier — jamais un diagnostic ni
+// une conduite à tenir. Ce sont des observations « à vérifier ».
+// Conservateur par choix : mieux vaut manquer un signal qu'une fausse alerte.
+function parseDelayToDays(t) {
+  if (!t) return null;
+  const m = String(t).toLowerCase().match(/(\d+)\s*(jour|semaine|mois|an)/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return ({ jour: n, semaine: n * 7, mois: n * 30, an: n * 365 })[m[2]] || null;
+}
+function latestTension(consults) {
+  for (const c of consults) {
+    const raw = c.data && c.data.sections && c.data.sections.objectif && c.data.sections.objectif.constantes && c.data.sections.objectif.constantes.tension;
+    const m = raw && String(raw).match(/(\d+)\s*\/\s*(\d+)/);
+    if (m) return { sys: +m[1], dia: +m[2], raw: String(raw) };
+  }
+  return null;
+}
+function computePatientSignals(events) {
+  const list = (events || []).slice().sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+  const now = Date.now();
+  const consults = list.filter((e) => e.type === 'consultation');
+  const lastConsult = consults[0];
+  const lastEvent = list[0];
+  const out = [];
+
+  // Suivi recommandé dépassé (le plan disait « revoir dans X », c'est passé).
+  if (lastConsult) {
+    const days = parseDelayToDays(lastConsult.data && lastConsult.data.sections && lastConsult.data.sections.plan && lastConsult.data.sections.plan.suivi);
+    if (days) {
+      const due = new Date(lastConsult.event_date).getTime() + days * 86400000;
+      if (now > due + 3 * 86400000) out.push({ severite: 'attention', titre: 'Suivi recommandé dépassé', detail: `Prévu vers le ${new Date(due).toLocaleDateString('fr-FR')}` });
+    }
+  }
+  // Traitement possiblement à renouveler (durée de la dernière ordonnance écoulée).
+  const lastOrd = list.find((e) => e.type === 'ordonnance');
+  if (lastOrd) {
+    const durs = (lastOrd.data && lastOrd.data.prescriptions || []).map((p) => parseDelayToDays(p.duree)).filter(Boolean);
+    if (durs.length) {
+      const exp = new Date(lastOrd.event_date).getTime() + Math.max(...durs) * 86400000;
+      if (now > exp) out.push({ severite: 'info', titre: 'Traitement possiblement à renouveler', detail: 'Dernière ordonnance arrivée à échéance' });
+    }
+  }
+  // Résultat récent non revu (dernier événement = analyse/imagerie, pas de consult depuis).
+  if (lastEvent && (lastEvent.type === 'analyse_labo' || lastEvent.type === 'imagerie')) {
+    const age = (now - new Date(lastEvent.event_date).getTime()) / 86400000;
+    if (age >= 2) {
+      const meta = TL_TYPES[lastEvent.type] || { label: 'Résultat' };
+      out.push({ severite: 'attention', titre: 'Résultat en attente de revue', detail: `${meta.label} du ${new Date(lastEvent.event_date).toLocaleDateString('fr-FR')}, aucune consultation depuis` });
+    }
+  }
+  // Tension élevée au dernier relevé (fait chiffré, pas un diagnostic).
+  const ta = latestTension(consults);
+  if (ta) {
+    if (ta.sys >= 160 || ta.dia >= 100) out.push({ severite: 'important', titre: 'Tension élevée au dernier relevé', detail: `${ta.raw} — à confirmer` });
+    else if (ta.sys >= 140 || ta.dia >= 90) out.push({ severite: 'attention', titre: 'Tension élevée au dernier relevé', detail: `${ta.raw} — à surveiller` });
+  }
+  // Patient sous traitement sans consultation depuis > 1 an.
+  if (lastConsult && list.some((e) => e.type === 'ordonnance')) {
+    const months = (now - new Date(lastConsult.event_date).getTime()) / (86400000 * 30);
+    if (months >= 12) out.push({ severite: 'attention', titre: 'Aucune consultation depuis plus d\'un an', detail: `Dernière ${humanizeElapsed(lastConsult.event_date)}` });
+  }
+
+  const rank = { important: 0, attention: 1, info: 2 };
+  return out.sort((a, b) => rank[a.severite] - rank[b.severite]);
+}
+function signalDot(sev) { return sev === 'important' ? '🔴' : sev === 'attention' ? '🟠' : '🔵'; }
+
+function ensureSignalStyles() {
+  if (document.getElementById('signalStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'signalStyles';
+  st.textContent = '.dash-signals{background:var(--card);border:1px solid var(--paper-line);border-radius:14px;padding:16px 18px;margin-bottom:28px;box-shadow:var(--shadow-sm)}'
+    + '.dash-signals-head{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:flex;align-items:center;gap:7px}'
+    + '.dash-signal-row{display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid var(--paper-line);cursor:pointer;transition:opacity var(--dur-2,.16s)}'
+    + '.dash-signal-row:first-of-type{border-top:none}'
+    + '.dash-signal-row:hover{opacity:.65}';
+  document.head.appendChild(st);
+}
+
+// Panneau transversal du dashboard : quels patients méritent un regard.
+function renderDashboardSignals(events) {
+  const el = document.getElementById('dashSignalsSection');
+  if (!el) return;
+  ensureSignalStyles();
+  const byPatient = new Map();
+  (events || []).forEach((e) => {
+    if (!byPatient.has(e.patientId)) byPatient.set(e.patientId, { id: e.patientId, nom: e.patientNom, prenom: e.patientPrenom, events: [] });
+    byPatient.get(e.patientId).events.push(e);
+  });
+  const flagged = [];
+  for (const p of byPatient.values()) {
+    const signals = computePatientSignals(p.events).filter((s) => s.severite !== 'info'); // dashboard = ce qui mérite attention
+    if (signals.length) flagged.push({ id: p.id, nom: p.nom, prenom: p.prenom, signals });
+  }
+  if (flagged.length === 0) { el.innerHTML = ''; return; }
+  const hasImportant = (s) => s.some((x) => x.severite === 'important') ? 0 : 1;
+  flagged.sort((a, b) => hasImportant(a.signals) - hasImportant(b.signals) || b.signals.length - a.signals.length);
+
+  el.innerHTML = `<div class="dash-signals">
+    <div class="dash-signals-head">🛎️ Signaux cliniques · ${flagged.length} patient${flagged.length > 1 ? 's' : ''} à regarder</div>
+    ${flagged.slice(0, 6).map((p) => `
+      <div class="dash-signal-row" onclick="switchAppView('patients'); openPatientDetail('${p.id}');">
+        <span style="font-size:15px;">${signalDot(p.signals[0].severite)}</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13.5px; font-weight:600; color:var(--ink);">${escapeHtml((p.prenom || '') + ' ' + (p.nom || ''))}</div>
+          <div style="font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.signals[0].titre)}${p.signals.length > 1 ? ` · +${p.signals.length - 1} autre${p.signals.length > 2 ? 's' : ''}` : ''}</div>
+        </div>
+        <span style="color:var(--ink-faint);">→</span>
+      </div>`).join('')}
+  </div>`;
+}
+
 // ── Sprint 3.2 — Évolution des constantes (100% déterministe) ──────
 // Les constantes sont capturées à chaque consultation dans
 // data.sections.objectif.constantes. On les lit à travers le dossier et
@@ -3170,6 +3287,14 @@ function renderCockpit(patient, events) {
     return;
   }
 
+  // Signaux détectés (Sprint 4) : en tête du Cockpit, colorés par sévérité.
+  const signals = computePatientSignals(events);
+  const sev = signals.length ? (SNAP_SEVERITIES[signals[0].severite] || SNAP_SEVERITIES.info) : null;
+  const signalsHtml = signals.length ? `<div class="ckpt-card" style="margin-top:14px; border-color:${sev.dot}; background:${sev.bg};">
+      <div class="ckpt-label" style="color:${sev.ink};">⚠️ Signaux détectés · ${signals.length}</div>
+      ${signals.map((sg) => `<div class="ckpt-rem"><span style="font-size:15px;">${signalDot(sg.severite)}</span><div><div style="font-size:13.5px; font-weight:600; color:var(--ink);">${escapeHtml(sg.titre)}</div><div style="font-size:12px; color:var(--ink-soft);">${escapeHtml(sg.detail)}</div></div></div>`).join('')}
+    </div>` : '';
+
   const timeSaved = estimateTimeSaved(events);
   const reminders = cockpitDeterministicReminders(events);
   const remindersHtml = reminders.length
@@ -3179,6 +3304,7 @@ function renderCockpit(patient, events) {
   el.innerHTML = `
     <div class="cockpit">
       ${heroHtml}
+      ${signalsHtml}
       <div class="ckpt-card" style="margin-top:14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:11px;">
           <div class="ckpt-label"><span style="font-size:13px;">✦</span> Préparer ma consultation</div>
