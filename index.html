@@ -1088,7 +1088,8 @@
 
   <div class="patient-detail" id="patientDetailView">
     <button class="modal-close" style="margin-bottom:16px;" onclick="closePatientDetail()">← Retour à la liste</button>
-    <div id="patientHero"></div>
+    <div id="consultationCockpit"></div>
+    <div id="patientHero" style="display:none;"></div>
     <div id="patientSnapshotCard" style="display:none; margin-top:16px;"></div>
     <div class="patient-actions-row">
       <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation</button>
@@ -2946,6 +2947,7 @@ async function fetchPatientSnapshot(patientId, forceRefresh) {
     if (!res.ok) throw new Error(data.error || 'Erreur');
     if (currentDetailPatientId !== patientId) return; // le médecin a changé de dossier entre-temps
     renderPatientSnapshot(data.snapshot, { cached: data.cached, empty: data.empty, generatedAt: data.generated_at });
+    fillCockpitBriefing(data.snapshot); // Sprint 2 : alimente le récit + les rappels du Cockpit
   } catch (err) {
     if (currentDetailPatientId !== patientId) return;
     card.innerHTML = `<div class="snap-card" style="background:var(--card); border:1px solid var(--paper-line); border-radius:14px; padding:16px 20px; font-size:13px; color:var(--ink-faint);">Synthèse indisponible pour le moment. <button onclick="refreshPatientSnapshot()" style="background:none; border:none; color:var(--sage); cursor:pointer; font-size:13px;">Réessayer</button></div>`;
@@ -2954,6 +2956,206 @@ async function fetchPatientSnapshot(patientId, forceRefresh) {
 
 function refreshPatientSnapshot() {
   if (currentDetailPatientId) fetchPatientSnapshot(currentDetailPatientId, true);
+}
+
+// ══ Consultation Cockpit (Phase 5, Sprint 2) ═══════════════════════
+// Le dossier vu comme un briefing préparé par un excellent interne.
+// Tout le déterministe (hero, rappels, évolution, temps gagné) est calculé
+// côté client depuis les événements déjà chargés → affichage instantané.
+// Seul le récit "Préparer ma consultation" vient de l'IA (via le cache
+// Snapshot, aucun appel LLM supplémentaire).
+const CKPT_TYPE = {
+  consultation: { icon: '🩺', label: 'consultation' },
+  ordonnance:   { icon: '💊', label: 'ordonnance' },
+  courrier:     { icon: '✉️', label: 'courrier' },
+  analyse_labo: { icon: '🧪', label: 'analyse' },
+  imagerie:     { icon: '🩻', label: 'imagerie' },
+};
+
+function ensureCockpitStyles() {
+  if (document.getElementById('ckptStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'ckptStyles';
+  st.textContent = '@keyframes ckptFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}'
+    + '.cockpit{animation:ckptFade var(--dur-3,.24s) var(--ease-out,ease)}'
+    + '.ckpt-card{background:var(--card);border:1px solid var(--paper-line);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-sm)}'
+    + '.ckpt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:14px;margin-top:14px}'
+    + '.ckpt-hero{display:flex;align-items:center;gap:16px;flex-wrap:wrap}'
+    + '.ckpt-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--sage-deep);display:flex;align-items:center;gap:6px}'
+    + '.ckpt-pill{font-size:11.5px;border-radius:999px;padding:3px 10px;white-space:nowrap}'
+    + '.ckpt-rem{display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--paper-line)}'
+    + '.ckpt-rem:first-child{border-top:none;padding-top:2px}'
+    + '@media (prefers-reduced-motion:reduce){.cockpit{animation:none}}';
+  document.head.appendChild(st);
+}
+
+function humanizeElapsed(iso) {
+  if (!iso) return '';
+  const then = new Date(iso), now = new Date();
+  const days = Math.floor((now - then) / 86400000);
+  if (days <= 0) return "aujourd'hui";
+  if (days === 1) return 'hier';
+  if (days < 7) return `il y a ${days} jours`;
+  if (days < 31) { const w = Math.round(days / 7); return `il y a ${w} semaine${w > 1 ? 's' : ''}`; }
+  if (days < 365) { const m = Math.round(days / 30); return `il y a ${m} mois`; }
+  const y = Math.round(days / 365); return `il y a ${y} an${y > 1 ? 's' : ''}`;
+}
+
+// Estimation réaliste du temps gagné : temps qu'aurait pris la relecture
+// manuelle du dossier (consultations + autres documents + navigation) moins
+// le temps de lecture du briefing. Borné pour rester crédible.
+function estimateTimeSaved(events) {
+  const c = events.filter((e) => e.type === 'consultation').length;
+  const o = events.length - c;
+  const manualMin = c * 0.8 + o * 0.4 + 1.5;
+  return Math.max(1, Math.min(Math.round(manualMin - 0.5), 9));
+}
+
+function cockpitReminderRow(icon, title, sub) {
+  return `<div class="ckpt-rem"><span style="font-size:16px; line-height:1.3;">${icon}</span>
+    <div><div style="font-size:13.5px; font-weight:500; color:var(--ink); line-height:1.4;">${escapeHtml(title)}</div>
+    ${sub ? `<div style="font-size:12px; color:var(--ink-soft); line-height:1.45;">${escapeHtml(sub)}</div>` : ''}</div></div>`;
+}
+
+// Rappels déterministes tirés des événements (résultats récents, ordonnance
+// ancienne). Les suivis/vigilances issus de l'IA sont ajoutés ensuite.
+function cockpitDeterministicReminders(events) {
+  const out = [];
+  const now = Date.now();
+  const recent = (e) => (now - new Date(e.event_date).getTime()) < 120 * 86400000;
+  const labo = events.find((e) => e.type === 'analyse_labo' && recent(e));
+  if (labo) out.push(['🧪', 'Résultats de laboratoire récents', 'À consulter avant la consultation']);
+  const imag = events.find((e) => e.type === 'imagerie' && recent(e));
+  if (imag) out.push(['🩻', 'Imagerie récente', (imag.data && imag.data.type_examen) || 'À consulter']);
+  const ord = events.find((e) => e.type === 'ordonnance');
+  if (ord && (now - new Date(ord.event_date).getTime()) / 86400000 > 80) {
+    out.push(['💊', 'Ordonnance à vérifier', 'Dernière prescription ancienne — renouvellement possible']);
+  }
+  return out;
+}
+
+function cockpitEvolutionHtml(events) {
+  const lastConsult = events.find((e) => e.type === 'consultation');
+  if (!lastConsult) return `<div style="font-size:13px; color:var(--ink-faint);">Aucune consultation antérieure enregistrée.</div>`;
+  const since = events.filter((e) => new Date(e.event_date) > new Date(lastConsult.event_date));
+  if (since.length === 0) return `<div style="font-size:13px; color:var(--ink-faint);">Aucun nouvel élément depuis la dernière consultation.</div>`;
+  const counts = {};
+  since.forEach((e) => { counts[e.type] = (counts[e.type] || 0) + 1; });
+  return Object.entries(counts).map(([type, n]) => {
+    const meta = CKPT_TYPE[type] || { icon: '•', label: type };
+    return `<div class="ckpt-rem"><span style="font-size:16px;">${meta.icon}</span>
+      <div style="font-size:13.5px; color:var(--ink);"><strong>${n}</strong> ${meta.label}${n > 1 ? 's' : ''} depuis la dernière consultation</div></div>`;
+  }).join('');
+}
+
+function renderCockpit(patient, events) {
+  const el = document.getElementById('consultationCockpit');
+  if (!el) return;
+  ensureCockpitStyles();
+
+  const initials = patientInitials(patient.prenom, patient.nom) || '👤';
+  const color = patientAvatarColor(patient.id || (patient.prenom + patient.nom));
+  const age = computeAge(patient.date_naissance);
+  const lastConsult = (events || []).find((e) => e.type === 'consultation');
+
+  const metaBits = [];
+  if (age !== null) metaBits.push(`${age} ans`);
+  if (lastConsult) {
+    metaBits.push(`Dernière consultation ${humanizeElapsed(lastConsult.event_date)}`);
+    const motif = lastConsult.data && (lastConsult.data.resume_1_ligne || lastConsult.title);
+    if (motif) metaBits.push(`Motif : ${motif}`);
+  } else {
+    metaBits.push('Aucune consultation enregistrée');
+  }
+
+  const heroHtml = `
+    <div class="ckpt-hero">
+      <div class="patient-avatar" style="background:${color}; width:54px; height:54px; font-size:18px;">${initials}</div>
+      <div style="flex:1; min-width:180px;">
+        <div style="font-size:19px; font-weight:600; color:var(--ink);">${escapeHtml(patient.prenom + ' ' + patient.nom)}</div>
+        <div style="font-size:12.5px; color:var(--ink-faint); margin-top:3px; line-height:1.5;">${metaBits.map(escapeHtml).join('  ·  ')}</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <span class="ckpt-pill" style="background:var(--sage-tint); color:var(--sage-deep); font-weight:600;">✦ Préparé par IA</span>
+        <span class="ckpt-pill" id="ckptReading" style="background:var(--paper); border:1px solid var(--paper-line); color:var(--ink-soft);">≈ 30 s de lecture</span>
+      </div>
+    </div>`;
+
+  // Dossier vide : hero + invitation, pas de briefing.
+  if (!events || events.length === 0) {
+    el.innerHTML = `<div class="cockpit">${heroHtml}
+      <div class="ckpt-card" style="margin-top:14px; font-size:13.5px; color:var(--ink-soft);">Nouveau dossier — le briefing de consultation apparaîtra dès la première consultation enregistrée.</div>
+    </div>`;
+    return;
+  }
+
+  const timeSaved = estimateTimeSaved(events);
+  const reminders = cockpitDeterministicReminders(events);
+  const remindersHtml = reminders.length
+    ? reminders.map((r) => cockpitReminderRow(r[0], r[1], r[2])).join('')
+    : `<div style="font-size:13px; color:var(--ink-faint);">Rien de particulier à préparer avant cette consultation.</div>`;
+
+  el.innerHTML = `
+    <div class="cockpit">
+      ${heroHtml}
+      <div class="ckpt-card" style="margin-top:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:11px;">
+          <div class="ckpt-label"><span style="font-size:13px;">✦</span> Préparer ma consultation</div>
+          <span class="ckpt-pill" style="background:var(--green-tint); color:var(--green-deep); font-weight:600;">≈ ${timeSaved} min économisées</span>
+        </div>
+        <div id="ckptBriefingText" style="font-size:15px; color:var(--ink); line-height:1.72;">
+          <div class="skel skel-line w-60" style="margin-bottom:8px;"></div>
+          <div class="skel skel-line w-40" style="margin-bottom:0;"></div>
+        </div>
+      </div>
+      <div class="ckpt-grid">
+        <div class="ckpt-card">
+          <div class="ckpt-label" style="margin-bottom:12px; color:var(--ink-soft);">📌 Ce qu'il ne faut pas oublier</div>
+          <div id="ckptReminders">${remindersHtml}</div>
+        </div>
+        <div class="ckpt-card">
+          <div class="ckpt-label" style="margin-bottom:12px; color:var(--ink-soft);">📈 Depuis la dernière consultation</div>
+          <div>${cockpitEvolutionHtml(events)}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Rempli quand le Snapshot (caché) est chargé : injecte le récit de briefing
+// et enrichit les rappels avec les suivis/vigilances déduits par l'IA.
+function fillCockpitBriefing(snapshot) {
+  if (!snapshot) return;
+  const textEl = document.getElementById('ckptBriefingText');
+  if (textEl) {
+    const briefing = snapshot.briefing_consultation || snapshot.synthese_narrative || '';
+    if (briefing) {
+      textEl.innerHTML = escapeHtml(briefing);
+      const words = briefing.split(/\s+/).length;
+      const secs = Math.max(15, Math.min(Math.round(words / 3), 90));
+      const rd = document.getElementById('ckptReading');
+      if (rd) rd.textContent = `≈ ${secs} s de lecture`;
+    } else {
+      textEl.innerHTML = `<span style="color:var(--ink-faint); font-size:13.5px;">Pas encore assez d'éléments pour un briefing détaillé.</span>`;
+    }
+  }
+
+  // Enrichit "Ce qu'il ne faut pas oublier" avec les points importants et
+  // les suivis à prévoir issus de la synthèse IA.
+  const remEl = document.getElementById('ckptReminders');
+  if (!remEl) return;
+  const extra = [];
+  (snapshot.points_de_vigilance || []).forEach((v) => {
+    if (!v || !v.libelle) return;
+    if (v.severite === 'important') extra.push(['🔴', v.libelle, v.raison || 'Point important du dossier']);
+    else if (v.severite === 'attention') extra.push(['🟠', v.libelle, v.raison || 'À surveiller']);
+  });
+  (snapshot.suivi_a_prevoir || []).forEach((x) => {
+    if (x && x.libelle) extra.push(['📌', x.libelle, x.echeance ? `Échéance : ${x.echeance}` : 'Suivi à prévoir']);
+  });
+  if (extra.length) {
+    const base = cockpitDeterministicReminders(currentPatientEvents).map((r) => cockpitReminderRow(r[0], r[1], r[2])).join('');
+    remEl.innerHTML = base + extra.map((r) => cockpitReminderRow(r[0], r[1], r[2])).join('');
+  }
 }
 
 async function openPatientDetail(patientId) {
@@ -2969,8 +3171,8 @@ async function openPatientDetail(patientId) {
     document.getElementById('patientNotesText').value = data.patient.notes || '';
 
     currentPatientEvents = data.events || [];
-    renderPatientHero(data.patient, currentPatientEvents);
-    fetchPatientSnapshot(patientId); // Phase 5 : synthèse intelligente en tête de fiche
+    renderCockpit(data.patient, currentPatientEvents); // Sprint 2 : briefing en tête de dossier (instantané)
+    fetchPatientSnapshot(patientId); // Phase 5 : synthèse intelligente + récit du briefing (IA, cachée)
     timelineFilter = 'all';
     timelineQuery = '';
     const si = document.getElementById('patientSearchInput');
