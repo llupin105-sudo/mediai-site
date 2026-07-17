@@ -1089,6 +1089,7 @@
   <div class="patient-detail" id="patientDetailView">
     <button class="modal-close" style="margin-bottom:16px;" onclick="closePatientDetail()">← Retour à la liste</button>
     <div id="patientHero"></div>
+    <div id="patientSnapshotCard" style="display:none; margin-top:16px;"></div>
     <div class="patient-actions-row">
       <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation</button>
       <button class="btn-export" onclick="openLabModal()">🧪 Résultat de labo</button>
@@ -2765,6 +2766,196 @@ function renderPatientHero(patient, events) {
     </div>`;
 }
 
+// ── Patient Snapshot (Phase 5) — synthèse intelligente du dossier ──
+// Affichée en tête de la fiche. Servie/cachée par le backend
+// (GET /api/patients/:id/snapshot). Faits déterministes côté serveur
+// (traitements, dernière consult) + couche IA (narratif, problèmes,
+// vigilance, suivi). Le hero conserve les traitements ; cette carte porte
+// l'intelligence de fond.
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Styles injectés une fois : animation douce (respecte prefers-reduced-motion).
+function ensureSnapshotStyles() {
+  if (document.getElementById('snapStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'snapStyles';
+  st.textContent = '@keyframes snapFadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}'
+    + '.snap-card{animation:snapFadeUp var(--dur-3,.24s) var(--ease-out,ease);transition:opacity var(--dur-2,.16s) ease}'
+    + '@media (prefers-reduced-motion:reduce){.snap-card{animation:none}}';
+  document.head.appendChild(st);
+}
+
+// Hiérarchie de vigilance : le médecin doit saisir le niveau d'attention
+// en une seconde. Ordre + couleurs par sévérité (tokens de la charte).
+const SNAP_SEVERITIES = {
+  important: { rank: 0, label: 'Important',     dot: 'var(--rose)',  bg: 'var(--rose-tint)',  ink: '#991B1B' },
+  attention: { rank: 1, label: 'À surveiller',  dot: 'var(--amber)', bg: 'var(--amber-tint)', ink: '#92400E' },
+  info:      { rank: 2, label: 'Information',    dot: 'var(--sage)',  bg: 'var(--sage-tint)',  ink: 'var(--sage-deep)' },
+};
+
+function snapshotSkeletonHtml() {
+  return `<div style="background:var(--card); border:1px solid var(--paper-line); border-radius:14px; padding:20px 22px; box-shadow:var(--shadow-sm);">
+    <div class="skel skel-line w-40" style="margin-bottom:14px;"></div>
+    ${skeletonRows(2)}
+  </div>`;
+}
+
+function snapshotSection(title, itemsHtml) {
+  return itemsHtml
+    ? `<div style="margin-top:16px;"><div class="field-label" style="margin-bottom:7px;">${title}</div>${itemsHtml}</div>`
+    : '';
+}
+
+// Une ligne de vigilance = une phrase, colorée selon sa sévérité.
+function snapshotVigilanceRow(v) {
+  const sev = SNAP_SEVERITIES[v.severite] || SNAP_SEVERITIES.info;
+  return `<div style="display:flex; gap:10px; align-items:flex-start; background:${sev.bg}; border-radius:10px; padding:10px 14px; margin-bottom:8px;">
+    <span style="color:${sev.dot}; font-size:14px; line-height:1.4; margin-top:2px;">●</span>
+    <div style="flex:1;">
+      <div style="font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; color:${sev.ink}; font-weight:600; margin-bottom:3px;">${sev.label}</div>
+      <div style="font-size:13.5px; color:var(--ink); line-height:1.55;">${escapeHtml(v.libelle)}${v.raison ? ` <span style="color:var(--ink-soft);">— ${escapeHtml(v.raison)}</span>` : ''}</div>
+    </div>
+  </div>`;
+}
+
+// Date de génération en langage humain (renforce la confiance).
+function snapshotWhen(iso) {
+  if (!iso) return '';
+  const day = new Date(iso); day.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff = Math.round((today - day) / 86400000);
+  if (diff <= 0) return "aujourd'hui";
+  if (diff === 1) return 'hier';
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Rendu de la carte. STRUCTURE PAR BLOCS, volontairement extensible :
+// les futurs modules du dossier (briefing avant consultation, évolution
+// du patient, recommandations de suivi, alertes, historique intelligent)
+// s'ajouteront comme de nouveaux blocs dans le tableau `blocks` ci-dessous,
+// sans réécrire le composant.
+function renderPatientSnapshot(snapshot, meta) {
+  const card = document.getElementById('patientSnapshotCard');
+  if (!card) return;
+  ensureSnapshotStyles();
+  meta = meta || {};
+
+  if (meta.empty) {
+    card.innerHTML = `<div class="snap-card" style="background:var(--card); border:1px dashed var(--paper-line); border-radius:14px;">
+      ${emptyState({ icon: '✦', title: 'Synthèse intelligente', text: 'Elle apparaîtra automatiquement dès la première consultation enregistrée pour ce patient.' })}
+    </div>`;
+    return;
+  }
+
+  const s = snapshot || {};
+
+  // Vigilance triée par sévérité ; les points "Important" remontent en tête.
+  const vig = (s.points_de_vigilance || [])
+    .filter((v) => v && v.libelle)
+    .sort((a, b) => (SNAP_SEVERITIES[a.severite]?.rank ?? 2) - (SNAP_SEVERITIES[b.severite]?.rank ?? 2));
+  const important = vig.filter((v) => v.severite === 'important');
+  const autresVig = vig.filter((v) => v.severite !== 'important');
+
+  const problemes = (s.problemes_actifs || []).filter((p) => p && p.libelle);
+  const antecedents = (s.antecedents_notables || []).filter(Boolean);
+  const suivi = (s.suivi_a_prevoir || []).filter((x) => x && x.libelle);
+
+  // Contexte compact (chips discrètes) — secondaire par rapport au récit.
+  const contextParts = [];
+  if (problemes.length) contextParts.push(problemes.map((p) =>
+    `<span title="${escapeHtml(p.detail || '')}" style="background:var(--sage-tint); border:1px solid var(--tint-border); color:var(--sage-deep); border-radius:999px; padding:3px 11px; font-size:12px; font-weight:500;">${escapeHtml(p.libelle)}</span>`).join(''));
+  if (antecedents.length) contextParts.push(antecedents.map((a) =>
+    `<span style="background:var(--paper); border:1px solid var(--paper-line); color:var(--ink-soft); border-radius:999px; padding:3px 11px; font-size:12px;">${escapeHtml(a)}</span>`).join(''));
+  const contextHtml = contextParts.length
+    ? `<div style="display:flex; flex-wrap:wrap; gap:6px;">${contextParts.join('')}</div>` : '';
+
+  const suiviHtml = suivi.length
+    ? `<ul class="field-list" style="margin:0;">` + suivi.map((x) =>
+        `<li>${escapeHtml(x.libelle)}${x.echeance ? ` <span style="color:var(--ink-faint);">(${escapeHtml(x.echeance)})</span>` : ''}</li>`).join('') + `</ul>`
+    : '';
+
+  const hasContent = s.synthese_narrative || vig.length || contextHtml || suivi.length;
+
+  // ── Blocs, dans l'ordre de lecture (le critique d'abord) ──────────
+  const blocks = [];
+  // 1) Alertes importantes : tout en haut, pour une compréhension immédiate.
+  if (important.length) blocks.push(important.map(snapshotVigilanceRow).join(''));
+  // 2) Le récit : la pièce maîtresse, lisible comme un résumé de confrère.
+  if (s.synthese_narrative) {
+    blocks.push(`<p style="font-size:15px; color:var(--ink); line-height:1.72; margin:0; letter-spacing:.001em;">${escapeHtml(s.synthese_narrative)}</p>`);
+  }
+  if (!hasContent) {
+    blocks.push(`<p style="font-size:13px; color:var(--ink-faint); margin:0;">Pas encore assez d'éléments dans le dossier pour une synthèse détaillée.</p>`);
+  }
+  // 3) Autres points de vigilance (à surveiller / information).
+  if (autresVig.length) blocks.push(snapshotSection('Points de vigilance', autresVig.map(snapshotVigilanceRow).join('')));
+  // 4) Suivi à prévoir.
+  if (suivi.length) blocks.push(snapshotSection('Suivi à prévoir', suiviHtml));
+  // 5) Contexte du dossier (compact, secondaire).
+  if (contextHtml) blocks.push(snapshotSection('Contexte du dossier', contextHtml));
+  // [Point d'extension Phase 5+] : briefing consultation, évolution,
+  // recommandations, historique intelligent → nouveaux blocks.push(...) ici.
+
+  const n = s.nb_evenements || 0;
+  const eventsLabel = `${n} événement${n > 1 ? 's' : ''} médica${n > 1 ? 'ux' : 'l'}`;
+  const when = snapshotWhen(meta.generatedAt);
+
+  card.innerHTML = `
+    <div class="snap-card" style="background:var(--card); border:1px solid var(--paper-line); border-radius:14px; padding:22px 24px; box-shadow:var(--shadow-sm);">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+        <div>
+          <div style="font-family:var(--mono); font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--sage-deep); display:flex; align-items:center; gap:6px;">
+            <span style="font-size:13px;">✦</span> Synthèse intelligente
+          </div>
+          <div style="font-size:11px; color:var(--ink-faint); margin-top:4px;">Analyse générée à partir de ${eventsLabel}${when ? ` · Mise à jour ${when}` : ''}</div>
+        </div>
+        <button onclick="refreshPatientSnapshot()" title="Régénérer la synthèse" style="background:none; border:1px solid var(--paper-line); border-radius:8px; height:30px; padding:0 11px; font-size:12px; color:var(--ink-soft); cursor:pointer; white-space:nowrap;">↻ Actualiser</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        ${blocks.join('')}
+      </div>
+      <div style="margin-top:16px; font-size:11px; color:var(--ink-faint); border-top:1px solid var(--paper-line); padding-top:11px; display:flex; align-items:center; gap:6px;">
+        <span style="font-size:12px;">✦</span> Synthèse assistée par IA, établie à partir des seules données du dossier — à vérifier, ce n'est pas un avis médical.
+      </div>
+    </div>`;
+}
+
+async function fetchPatientSnapshot(patientId, forceRefresh) {
+  const card = document.getElementById('patientSnapshotCard');
+  if (!card) return;
+  ensureSnapshotStyles();
+  card.style.display = 'block';
+
+  // Rafraîchissement : on garde la carte visible (atténuée) plutôt que de la
+  // vider brutalement. Premier chargement : squelette.
+  const existing = card.querySelector('.snap-card');
+  if (forceRefresh && existing) {
+    existing.style.opacity = '.5';
+  } else {
+    card.innerHTML = snapshotSkeletonHtml();
+  }
+
+  try {
+    const url = API_BASE + '/api/patients/' + patientId + '/snapshot' + (forceRefresh ? '?refresh=1' : '');
+    const res = await fetch(url, { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    if (currentDetailPatientId !== patientId) return; // le médecin a changé de dossier entre-temps
+    renderPatientSnapshot(data.snapshot, { cached: data.cached, empty: data.empty, generatedAt: data.generated_at });
+  } catch (err) {
+    if (currentDetailPatientId !== patientId) return;
+    card.innerHTML = `<div class="snap-card" style="background:var(--card); border:1px solid var(--paper-line); border-radius:14px; padding:16px 20px; font-size:13px; color:var(--ink-faint);">Synthèse indisponible pour le moment. <button onclick="refreshPatientSnapshot()" style="background:none; border:none; color:var(--sage); cursor:pointer; font-size:13px;">Réessayer</button></div>`;
+  }
+}
+
+function refreshPatientSnapshot() {
+  if (currentDetailPatientId) fetchPatientSnapshot(currentDetailPatientId, true);
+}
+
 async function openPatientDetail(patientId) {
   currentDetailPatientId = patientId;
   document.getElementById('dossierSummaryCard').style.display = 'none';
@@ -2779,6 +2970,7 @@ async function openPatientDetail(patientId) {
 
     currentPatientEvents = data.events || [];
     renderPatientHero(data.patient, currentPatientEvents);
+    fetchPatientSnapshot(patientId); // Phase 5 : synthèse intelligente en tête de fiche
     timelineFilter = 'all';
     timelineQuery = '';
     const si = document.getElementById('patientSearchInput');
