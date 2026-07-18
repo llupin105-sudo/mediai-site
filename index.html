@@ -3336,38 +3336,105 @@ function vitalsTrend(nums) {
     ? '<span style="color:var(--ink-soft); font-size:12px;">↗︎ en hausse</span>'
     : '<span style="color:var(--ink-soft); font-size:12px;">↘︎ en baisse</span>';
 }
+function ensureVitalsStyles() {
+  if (document.getElementById('vitStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'vitStyles';
+  st.textContent = '.vit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:12px}'
+    + '.vit-card{background:var(--card);border:1px solid var(--paper-line);border-radius:12px;padding:12px 14px}'
+    + '.vit-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}'
+    + '.vit-label{font-size:12px;color:var(--ink-soft);font-weight:500}'
+    + '.vit-last{font-size:17px;font-weight:600;color:var(--ink)}'
+    + '.vit-chart svg{display:block;width:100%;height:auto}'
+    + '.vit-foot{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--ink-faint);margin-top:2px}';
+  document.head.appendChild(st);
+}
+function vitDateShort(t) { return new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }); }
+
+// Graphique multi-courbes : aire dégradée + ligne + dernier point. Échelle
+// partagée. Rien d'interprété — les points sont les valeurs brutes du dossier.
+function vitalsMultiSvg(series, minV, maxV, minX, maxX) {
+  const w = 280, h = 74, pt = 10, pb = 12, px = 6;
+  const rX = (maxX - minX) || 1, rV = (maxV - minV) || 1;
+  const X = (t) => px + ((t - minX) / rX) * (w - 2 * px);
+  const Y = (v) => pt + (1 - (v - minV) / rV) * (h - pt - pb);
+  let defs = '', body = '';
+  series.forEach((s, i) => {
+    if (!s.pts || s.pts.length < 2) return;
+    const line = s.pts.map((p) => `${X(p.t).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ');
+    if (s.area) {
+      const gid = 'vg' + i + '_' + Math.random().toString(36).slice(2, 7);
+      defs += `<linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${s.color}" stop-opacity="0.16"/><stop offset="100%" stop-color="${s.color}" stop-opacity="0"/></linearGradient>`;
+      body += `<polygon points="${X(s.pts[0].t).toFixed(1)},${(h - pb).toFixed(1)} ${line} ${X(s.pts[s.pts.length - 1].t).toFixed(1)},${(h - pb).toFixed(1)}" fill="url(#${gid})"/>`;
+    }
+    body += `<polyline points="${line}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const last = s.pts[s.pts.length - 1];
+    body += `<circle cx="${X(last.t).toFixed(1)}" cy="${Y(last.v).toFixed(1)}" r="3" fill="${s.color}"/>`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}">${defs ? `<defs>${defs}</defs>` : ''}${body}</svg>`;
+}
+function vitCard(label, lastRaw, series, firstT, lastT, trendNums) {
+  const npts = Math.max(0, ...series.map((s) => s.pts.length));
+  let chart;
+  if (npts >= 2) {
+    const allV = [], allT = [];
+    series.forEach((s) => s.pts.forEach((p) => { allV.push(p.v); allT.push(p.t); }));
+    chart = `<div class="vit-chart">${vitalsMultiSvg(series, Math.min(...allV), Math.max(...allV), Math.min(...allT), Math.max(...allT))}</div>`;
+  } else {
+    chart = `<div style="height:44px; display:flex; align-items:center; font-size:11.5px; color:var(--ink-faint);">Un seul relevé</div>`;
+  }
+  return `<div class="vit-card">
+    <div class="vit-head"><span class="vit-label">${escapeHtml(label)}</span><span class="vit-last">${escapeHtml(lastRaw)}</span></div>
+    ${chart}
+    <div class="vit-foot"><span>${vitDateShort(firstT)}</span>${npts >= 2 ? vitalsTrend(trendNums) : '<span></span>'}<span>${vitDateShort(lastT)}</span></div>
+  </div>`;
+}
 function renderVitalsEvolutionHtml(events) {
   const consults = (events || [])
     .filter((e) => e.type === 'consultation' && e.data && e.data.sections && e.data.sections.objectif && e.data.sections.objectif.constantes)
-    .slice().reverse(); // ordre chronologique croissant
+    .slice().reverse(); // chronologique croissant
   if (consults.length === 0) return '';
+  ensureVitalsStyles();
+  const getRaw = (c, k) => c.data.sections.objectif.constantes[k];
+  const cards = [];
 
-  const rows = [];
-  for (const m of VITALS) {
-    const series = [];
-    for (const c of consults) {
-      const raw = c.data.sections.objectif.constantes[m.key];
-      const num = firstNum(raw);
-      if (num !== null) series.push({ raw: String(raw), num });
-    }
-    if (series.length === 0) continue;
-    const nums = series.map((s) => s.num);
-    const last = series[series.length - 1];
-    rows.push(`<div style="display:flex; align-items:center; gap:14px; padding:9px 0; border-top:1px solid var(--paper-line);">
-      <div style="width:66px; font-size:12px; color:var(--ink-soft); flex-shrink:0;">${m.label}</div>
-      <div style="flex:1; min-width:0;">${vitalsSparkline(nums)}</div>
-      <div style="text-align:right; flex-shrink:0; min-width:92px;">
-        <div style="font-size:14px; font-weight:600; color:var(--ink);">${escapeHtml(last.raw)}</div>
-        <div>${vitalsTrend(nums)}</div>
-      </div>
-    </div>`);
+  // Tension : systolique (aire) + diastolique, même échelle.
+  const ta = [];
+  for (const c of consults) {
+    const raw = getRaw(c, 'tension');
+    const m = raw && String(raw).match(/(\d+)\D+(\d+)/);
+    if (m) ta.push({ t: new Date(c.event_date).getTime(), sys: +m[1], dia: +m[2], raw: String(raw) });
   }
-  if (rows.length === 0) return '';
+  if (ta.length) {
+    const series = [
+      { pts: ta.map((p) => ({ t: p.t, v: p.sys })), color: '#1460FF', area: true },
+      { pts: ta.map((p) => ({ t: p.t, v: p.dia })), color: '#8B5CF6', area: false },
+    ];
+    cards.push(vitCard('Tension', ta[ta.length - 1].raw, series, ta[0].t, ta[ta.length - 1].t, ta.map((p) => p.sys)));
+  }
+
+  // Constantes simples.
+  const single = [
+    { key: 'poids', label: 'Poids', color: '#1460FF' },
+    { key: 'pouls', label: 'Pouls', color: '#8B5CF6' },
+    { key: 'temperature', label: 'Température', color: '#F59E0B' },
+    { key: 'saturation', label: 'SpO₂', color: '#22C55E' },
+  ];
+  for (const m of single) {
+    const pts = []; let lastRaw = '';
+    for (const c of consults) {
+      const raw = getRaw(c, m.key); const n = firstNum(raw);
+      if (n != null) { pts.push({ t: new Date(c.event_date).getTime(), v: n }); lastRaw = String(raw); }
+    }
+    if (!pts.length) continue;
+    cards.push(vitCard(m.label, lastRaw, [{ pts, color: m.color, area: true }], pts[0].t, pts[pts.length - 1].t, pts.map((p) => p.v)));
+  }
+  if (!cards.length) return '';
 
   return `<div class="ckpt-card" style="margin-top:14px;">
-    <div class="ckpt-label" style="margin-bottom:6px; color:var(--ink-soft);">📊 Évolution des constantes</div>
-    ${rows.join('')}
-    <div style="font-size:10.5px; color:var(--ink-faint); margin-top:10px; border-top:1px solid var(--paper-line); padding-top:8px;">Relevées sur ${consults.length} consultation${consults.length > 1 ? 's' : ''} · valeurs issues des comptes-rendus, non interprétées</div>
+    <div class="ckpt-label" style="margin-bottom:12px; color:var(--ink-soft);">📊 Évolution des constantes</div>
+    <div class="vit-grid">${cards.join('')}</div>
+    <div style="font-size:10.5px; color:var(--ink-faint); margin-top:12px; border-top:1px solid var(--paper-line); padding-top:8px;">Relevées sur ${consults.length} consultation${consults.length > 1 ? 's' : ''} · valeurs issues des comptes-rendus, non interprétées</div>
   </div>`;
 }
 
