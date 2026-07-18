@@ -1092,6 +1092,8 @@
 
   <div class="patient-detail" id="patientDetailView">
     <button class="modal-close" style="margin-bottom:16px;" onclick="closePatientDetail()">← Retour à la liste</button>
+    <div class="piw-layout">
+    <div class="piw-main">
     <div id="consultationCockpit"></div>
     <div id="patientHero" style="display:none;"></div>
     <div id="patientSnapshotCard" style="display:none; margin-top:16px;"></div>
@@ -1138,6 +1140,9 @@
     </div>
 
     <div class="tl tl-anim" id="patientTimeline"></div>
+    </div>
+    <aside class="piw-rail"><div id="patientInsights"></div></aside>
+    </div>
   </div>
 </section>
 
@@ -3000,6 +3005,7 @@ async function fetchPatientSnapshot(patientId, forceRefresh) {
     currentPatientSnapshot = data.snapshot || null; // Sprint 2.2 : dispo pour la lecture 30 s
     renderPatientSnapshot(data.snapshot, { cached: data.cached, empty: data.empty, generatedAt: data.generated_at });
     fillCockpitBriefing(data.snapshot); // Sprint 2 : alimente le récit + les rappels du Cockpit
+    renderPatientInsights(currentPatientInfo, currentPatientEvents); // enrichit le rail (suivi issu du snapshot)
   } catch (err) {
     if (currentDetailPatientId !== patientId) return;
     card.innerHTML = `<div class="snap-card" style="background:var(--card); border:1px solid var(--paper-line); border-radius:14px; padding:16px 20px; font-size:13px; color:var(--ink-faint);">Synthèse indisponible pour le moment. <button onclick="refreshPatientSnapshot()" style="background:none; border:none; color:var(--sage); cursor:pointer; font-size:13px;">Réessayer</button></div>`;
@@ -3438,6 +3444,69 @@ function renderVitalsEvolutionHtml(events) {
   </div>`;
 }
 
+// ══ Patient Workspace — Colonne « Insights » latérale (sticky) ═════
+// Panneau permanent : reste visible pendant qu'on parcourt le dossier.
+// Consolide vigilance, signaux, documents clés, à préparer, constantes.
+// 100% déterministe + suivi issu du snapshot (quand chargé).
+function ensurePiwStyles() {
+  if (document.getElementById('piwStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'piwStyles';
+  st.textContent = '.piw-layout{display:grid;grid-template-columns:minmax(0,1fr) 322px;gap:22px;align-items:start}'
+    + '.piw-rail{position:sticky;top:16px}'
+    + '.piw-ins-title{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px;padding-left:2px}'
+    + '.piw-ins-badge{font-size:12.5px;font-weight:600;border-radius:10px;padding:9px 12px;margin-bottom:12px}'
+    + '.piw-ins-card{background:var(--card);border:1px solid var(--paper-line);border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:var(--shadow-xs)}'
+    + '.piw-ins-h{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:8px}'
+    + '.piw-ins-row{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink);line-height:1.45;padding:3px 0}'
+    + '.piw-ins-link{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink);padding:5px 0;cursor:pointer;border-radius:6px;transition:opacity var(--dur-2,.16s)}'
+    + '.piw-ins-link:hover{opacity:.6}'
+    + '@media (max-width:1000px){.piw-layout{grid-template-columns:1fr}.piw-rail{position:static;margin-top:8px}}';
+  document.head.appendChild(st);
+}
+function piwInsCard(title, body) {
+  return `<div class="piw-ins-card"><div class="piw-ins-h">${title}</div>${body}</div>`;
+}
+function renderPatientInsights(patient, events) {
+  const el = document.getElementById('patientInsights');
+  if (!el) return;
+  ensurePiwStyles();
+  const list = events || [];
+  const snap = currentPatientSnapshot || {};
+  const blocks = [];
+
+  // Vigilance + signaux.
+  const signals = computePatientSignals(list);
+  const vigil = signals.some((x) => x.severite === 'important') ? { t: 'Vigilance élevée', c: 'var(--rose)', bg: 'var(--rose-tint)', ink: '#991B1B' }
+    : signals.some((x) => x.severite === 'attention') ? { t: 'À surveiller', c: 'var(--amber)', bg: 'var(--amber-tint)', ink: '#92400E' }
+      : (list.length ? { t: 'Rien à signaler', c: 'var(--green)', bg: 'var(--green-tint)', ink: 'var(--green-deep)' } : null);
+  if (vigil) blocks.push(`<div class="piw-ins-badge" style="background:${vigil.bg}; color:${vigil.ink};" title="Basé sur les signaux détectés, pas un score de risque clinique."><span style="color:${vigil.c};">●</span> ${vigil.t}</div>`);
+  if (signals.length) blocks.push(piwInsCard('⚠️ Signaux', signals.map((x) => `<div class="piw-ins-row"><span>${signalDot(x.severite)}</span><span>${escapeHtml(x.titre)}</span></div>`).join('')));
+
+  // Documents clés (accès rapide).
+  const byType = {};
+  list.forEach((e) => { if (!byType[e.type]) byType[e.type] = e; });
+  const docs = ['consultation', 'ordonnance', 'analyse_labo', 'imagerie', 'courrier'].map((t) => byType[t]).filter(Boolean).slice(0, 4);
+  if (docs.length) blocks.push(piwInsCard('📁 Documents clés', docs.map((e) => {
+    const meta = TL_TYPES[e.type] || { icon: '📄', label: e.type };
+    return `<div class="piw-ins-link" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g, "&#39;")})'><span>${meta.icon}</span><span style="flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(eventPreview(e) || e.title)}</span><span style="color:var(--ink-faint);">→</span></div>`;
+  }).join('')));
+
+  // À préparer (suivi du snapshot).
+  const suivi = (snap.suivi_a_prevoir || []).filter((x) => x && x.libelle);
+  if (suivi.length) blocks.push(piwInsCard('📌 À préparer', suivi.map((x) => `<div class="piw-ins-row"><span>•</span><span>${escapeHtml(x.libelle)}${x.echeance ? ` <span style="color:var(--ink-faint);">(${escapeHtml(x.echeance)})</span>` : ''}</span></div>`).join('')));
+
+  // Dernières constantes.
+  const ta = latestTension(list.filter((e) => e.type === 'consultation'));
+  const consts = [];
+  if (ta) consts.push(['Tension', ta.raw]);
+  const poids = lastVital(list, 'poids'); if (poids) consts.push(['Poids', poids]);
+  const pouls = lastVital(list, 'pouls'); if (pouls) consts.push(['Pouls', pouls]);
+  if (consts.length) blocks.push(piwInsCard('🩺 Dernières constantes', consts.map((c) => `<div class="piw-ins-row" style="justify-content:space-between;"><span style="color:var(--ink-soft);">${c[0]}</span><span style="font-weight:600;">${escapeHtml(c[1])}</span></div>`).join('')));
+
+  el.innerHTML = blocks.length ? `<div class="piw-ins-title">Insights</div>${blocks.join('')}` : '';
+}
+
 function renderCockpit(patient, events) {
   const el = document.getElementById('consultationCockpit');
   if (!el) return;
@@ -3598,6 +3667,7 @@ async function openPatientDetail(patientId) {
     currentPatientSnapshot = null;
     renderCockpit(data.patient, currentPatientEvents); // Sprint 2 : briefing en tête de dossier (instantané)
     renderKeyDocuments(currentPatientEvents); // Sprint 2.2 : documents importants auto-remontés
+    renderPatientInsights(data.patient, currentPatientEvents); // Colonne Insights latérale (instantané)
     fetchPatientSnapshot(patientId); // Phase 5 : synthèse intelligente + récit du briefing (IA, cachée)
     timelineFilter = 'all';
     timelineQuery = '';
