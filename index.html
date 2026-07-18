@@ -1041,6 +1041,8 @@
         <div class="dash-date" id="dashDate"></div>
       </div>
 
+      <div id="dashIntelligentHome"></div>
+
       <div id="dashTodaySection"></div>
 
       <div id="dashSignalsSection"></div>
@@ -2052,6 +2054,7 @@ async function renderDashboard() {
     <div class="skel-card"><div class="skel skel-line w-40"></div><div class="skel skel-line w-60" style="height:24px; margin-top:8px;"></div></div>
   `;
   document.getElementById('dashActivityFeed').innerHTML = skeletonRows(4);
+  document.getElementById('dashIntelligentHome').innerHTML = `<div class="skel-card" style="height:120px; margin-bottom:24px;"></div>`;
   document.getElementById('dashTodaySection').innerHTML = `<div class="skel-card" style="height:92px; margin-bottom:28px;"></div>`;
 
   const list = await fetchPatients();
@@ -2116,6 +2119,7 @@ async function renderDashboard() {
   // ── Résumé de la semaine + Activité récente (utilisent fetchAllEvents, déjà en cache) ──
   try {
     const events = await fetchAllEvents();
+    renderIntelligentHome(events); // Intelligence Workspace : la journée racontée
     renderDashboardSignals(events); // Sprint 4 : signaux cliniques transversaux
     const now = Date.now();
     const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
@@ -3170,6 +3174,77 @@ function renderDashboardSignals(events) {
         <span style="color:var(--ink-faint);">→</span>
       </div>`).join('')}
   </div>`;
+}
+
+// ══ Intelligence Workspace — Home intelligente ═════════════════════
+// Le dashboard raconte la journée : quelques phrases, chacune ouvrant la
+// bonne page. Composé des données et signaux déjà calculés (déterministe,
+// aucun appel IA). Ton calme et premium — jamais agressif.
+function ensureHomeStyles() {
+  if (document.getElementById('homeStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'homeStyles';
+  st.textContent = '@keyframes ihIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}'
+    + '.ih{background:linear-gradient(135deg,var(--card),var(--sage-tint));border:1px solid var(--paper-line);border-radius:16px;padding:22px 24px;margin-bottom:24px;animation:ihIn var(--dur-3,.24s) var(--ease-out,ease)}'
+    + '.ih-lead{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:8px}'
+    + '.ih-line{font-size:16.5px;line-height:1.85;color:var(--ink)}'
+    + '.ih-link{color:var(--sage-deep);font-weight:600;cursor:pointer;border-bottom:1.5px solid transparent;transition:border-color var(--dur-2,.16s)}'
+    + '.ih-link:hover{border-bottom-color:var(--sage)}'
+    + '@media (prefers-reduced-motion:reduce){.ih{animation:none}}';
+  document.head.appendChild(st);
+}
+
+function computeDayFacts(events) {
+  const now = Date.now();
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayConsults = events.filter((e) => e.type === 'consultation' && new Date(e.event_date).getTime() >= todayStart.getTime()).length;
+  const weekAgo = now - 7 * 86400000;
+  const recentResults = events.filter((e) => (e.type === 'analyse_labo' || e.type === 'imagerie') && new Date(e.event_date).getTime() > weekAgo).length;
+
+  const byPatient = new Map();
+  events.forEach((e) => {
+    if (!byPatient.has(e.patientId)) byPatient.set(e.patientId, []);
+    byPatient.get(e.patientId).push(e);
+  });
+  let flagged = 0, urgent = 0, expiring = 0;
+  for (const evs of byPatient.values()) {
+    const sigs = computePatientSignals(evs).filter((s) => s.severite !== 'info');
+    if (sigs.length) { flagged++; if (sigs.some((s) => s.severite === 'important')) urgent++; }
+    const lastOrd = evs.filter((e) => e.type === 'ordonnance').sort((a, b) => new Date(b.event_date) - new Date(a.event_date))[0];
+    if (lastOrd) {
+      const durs = (lastOrd.data && lastOrd.data.prescriptions || []).map((x) => parseDelayToDays(x.duree)).filter(Boolean);
+      if (durs.length) {
+        const exp = new Date(lastOrd.event_date).getTime() + Math.max(...durs) * 86400000;
+        if (exp > now && exp < now + 7 * 86400000) expiring++;
+      }
+    }
+  }
+  return { todayConsults, recentResults, flagged, urgent, expiring };
+}
+
+function renderIntelligentHome(events) {
+  const el = document.getElementById('dashIntelligentHome');
+  if (!el) return;
+  ensureHomeStyles();
+  const f = computeDayFacts(events || []);
+  const pl = (n) => (n > 1 ? 's' : '');
+  const A = (txt, js) => `<span class="ih-link" onclick="${js}">${txt}</span>`;
+  const scrollTo = (id) => `var _e=document.getElementById('${id}'); if(_e)_e.scrollIntoView({behavior:'smooth',block:'start'})`;
+
+  const lines = [];
+  if (f.todayConsults) lines.push(`Vous avez ${A(f.todayConsults + ' consultation' + pl(f.todayConsults), scrollTo('dashTodaySection'))} aujourd'hui.`);
+  if (f.recentResults) lines.push(`${A(f.recentResults + ' nouveau' + pl(f.recentResults) + ' résultat' + pl(f.recentResults), "switchAppView('doc-labo')")} ${f.recentResults > 1 ? 'sont arrivés' : 'est arrivé'} récemment.`);
+  if (f.flagged) {
+    const urgentTxt = f.urgent ? `, dont ${f.urgent} à regarder en priorité` : '';
+    lines.push(`${A(f.flagged + ' patient' + pl(f.flagged), scrollTo('dashSignalsSection'))} ${f.flagged > 1 ? 'méritent' : 'mérite'} votre attention${urgentTxt}.`);
+  }
+  if (f.expiring) lines.push(`${A(f.expiring + ' ordonnance' + pl(f.expiring), "switchAppView('doc-ordonnance')")} ${f.expiring > 1 ? 'arrivent' : 'arrive'} à échéance cette semaine.`);
+
+  const body = lines.length
+    ? lines.map((l) => `<div class="ih-line">${l}</div>`).join('')
+    : `<div class="ih-line">Rien ne requiert votre attention immédiate. Belle journée.</div>`;
+
+  el.innerHTML = `<div class="ih"><div class="ih-lead">Votre journée</div>${body}</div>`;
 }
 
 // ── Sprint 3.2 — Évolution des constantes (100% déterministe) ──────
