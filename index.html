@@ -1127,6 +1127,8 @@
       <button class="modal-close" style="margin:0;" onclick="clearPatientSearch()">Effacer la recherche</button>
     </div>
 
+    <div id="timelineNarrative"></div>
+
     <div class="tl-filters" id="timelineFilters"></div>
 
     <div id="dossierSummaryCard" style="display:none; background:var(--sage-tint); border:1px solid var(--tint-border); border-radius:12px; padding:20px 22px; margin-bottom:20px;">
@@ -3856,6 +3858,7 @@ async function openPatientDetail(patientId) {
     const si = document.getElementById('patientSearchInput');
     if (si) si.value = '';
     refreshTimeline();
+    fetchTimelineNarrative(patientId); // Smart Timeline : le récit du dossier (IA, caché)
 
     document.getElementById('patientsListView').style.display = 'none';
     document.getElementById('patientDetailView').classList.add('visible');
@@ -3893,6 +3896,54 @@ function eventPreview(e) {
 function eventMatchesQuery(e, q) {
   if (!q) return true;
   return (e.title + ' ' + eventPreview(e) + ' ' + (TL_TYPES[e.type]?.label || e.type)).toLowerCase().includes(q);
+}
+
+// ══ Smart Timeline — le dossier raconté par périodes (IA, cachée) ══
+function ensureTimelineNarrativeStyles() {
+  if (document.getElementById('tnStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'tnStyles';
+  st.textContent = '.tn-card{background:linear-gradient(180deg,var(--card),var(--sage-tint));border:1px solid var(--paper-line);border-radius:14px;padding:18px 20px;margin-bottom:20px;animation:snapFadeUp var(--dur-3,.24s) var(--ease-out,ease)}'
+    + '.tn-head{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--sage-deep);margin-bottom:14px;display:flex;align-items:center;gap:6px}'
+    + '.tn-item{display:flex;gap:14px;padding-bottom:16px;position:relative}'
+    + '.tn-item:last-child{padding-bottom:0}'
+    + '.tn-marker{position:relative;width:12px;flex-shrink:0}'
+    + '.tn-dot{position:absolute;left:0;top:3px;width:11px;height:11px;border-radius:50%;background:var(--sage);border:2px solid var(--card);z-index:1}'
+    + '.tn-item:not(:last-child) .tn-marker::after{content:"";position:absolute;left:5px;top:15px;bottom:-16px;width:2px;background:var(--tint-border)}'
+    + '.tn-title{font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:2px}'
+    + '.tn-text{font-size:13.5px;color:var(--ink);line-height:1.6}'
+    + '.tn-foot{font-size:10.5px;color:var(--ink-faint);margin-top:14px;border-top:1px solid var(--paper-line);padding-top:10px;display:flex;align-items:center;gap:6px}';
+  document.head.appendChild(st);
+}
+function renderTimelineNarrative(periodes) {
+  const el = document.getElementById('timelineNarrative');
+  if (!el) return;
+  if (!periodes || periodes.length === 0) { el.innerHTML = ''; return; }
+  ensureTimelineNarrativeStyles();
+  el.innerHTML = `<div class="tn-card">
+    <div class="tn-head"><span style="font-size:13px;">✨</span> Le récit du dossier</div>
+    ${periodes.map((p) => `<div class="tn-item">
+      <div class="tn-marker"><span class="tn-dot"></span></div>
+      <div style="flex:1; min-width:0;">
+        ${p.titre ? `<div class="tn-title">${escapeHtml(p.titre)}</div>` : ''}
+        <div class="tn-text">${escapeHtml(p.resume || '')}</div>
+      </div>
+    </div>`).join('')}
+    <div class="tn-foot"><span>✨</span> Récit assisté par IA à partir des seules données du dossier — à vérifier, ce n'est pas un avis médical.</div>
+  </div>`;
+}
+async function fetchTimelineNarrative(patientId) {
+  const el = document.getElementById('timelineNarrative');
+  if (!el) return;
+  ensureTimelineNarrativeStyles();
+  el.innerHTML = `<div class="tn-card"><div class="tn-head"><span style="font-size:13px;">✨</span> Le récit du dossier</div>${skeletonRows(2)}</div>`;
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + patientId + '/timeline-narrative', { headers: authHeaders() });
+    const data = await res.json();
+    if (currentDetailPatientId !== patientId) return; // dossier changé entre-temps
+    if (!res.ok) { el.innerHTML = ''; return; }
+    renderTimelineNarrative(data.periodes);
+  } catch { if (el) el.innerHTML = ''; }
 }
 
 // Recalcule filtres + recherche instantanée (100% client, aucune requête).
