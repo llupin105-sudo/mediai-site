@@ -1160,6 +1160,7 @@
       <span id="selectedPatientLabel">👤 Sélectionner un patient</span>
       <span class="patient-selector-change">changer →</span>
     </div>
+    <button onclick="toggleFocusMode()" style="width:100%; margin-bottom:16px; background:none; border:1px dashed var(--paper-line); border-radius:10px; height:40px; cursor:pointer; color:var(--ink-soft); font-size:13px; font-weight:500; transition:border-color .16s, color .16s;" onmouseover="this.style.borderColor='var(--sage)';this.style.color='var(--sage-deep)'" onmouseout="this.style.borderColor='var(--paper-line)';this.style.color='var(--ink-soft)'">🎯 Mode Focus — consultation sans distraction</button>
 
     <div id="prepBriefingCard" style="display:none; background:var(--clinical-tint); border-radius:10px; padding:16px 18px; margin-bottom:20px;">
       <div style="font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--clinical); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
@@ -1582,6 +1583,12 @@
   </div>
 </div>
 
+<!-- Mode Focus : barre minimale -->
+<div id="focusBar">
+  <div class="fb-left"><span class="fb-dot"></span><span id="focusPatientLabel">Consultation</span><span style="color:var(--ink-faint); font-weight:400; font-size:12px;">· Mode Focus</span></div>
+  <button class="focus-exit" onclick="exitFocusMode()">Quitter · Échap</button>
+</div>
+
 <!-- MODALE : sélection rapide d'un patient avant génération -->
 <!-- Recherche universelle — palette de commandes (Spotlight/Raycast) -->
 <div class="cmdk-overlay" id="cmdkOverlay" onclick="if(event.target===this) closeCommandPalette();">
@@ -1967,6 +1974,7 @@ function cmdkCommands() {
   return [
     { kind:'command', icon:'✨', title:'Nouvelle consultation', sub:'Démarrer une consultation', keywords:'nouvelle consultation dicter compte rendu cr soap enregistrer', action:() => { closeCommandPalette(); dashboardNewConsultation(); } },
     { kind:'command', icon:'👤', title:'Nouveau patient', sub:'Créer une fiche patient', keywords:'nouveau patient creer créer fiche ajouter', action:() => { closeCommandPalette(); openNewPatientModal(); } },
+    { kind:'command', icon:'🎯', title:'Mode Focus', sub:'Consultation sans distraction', keywords:'focus concentration consultation sans distraction plein ecran écran zen', action:() => { closeCommandPalette(); enterFocusMode(); } },
     nav('Tableau de bord', 'dashboard', '🏠', 'accueil home dashboard tableau bord journee journée'),
     nav('Patients', 'patients', '👥', 'patients liste dossiers'),
     nav('Consultations', 'consultation', '🎙️', 'consultation dicter enregistrer micro'),
@@ -2211,6 +2219,43 @@ function closeNotifCenter() {
   const ov = document.getElementById('notifOverlay'); if (ov) ov.classList.remove('visible');
 }
 ensureNotifStyles(); // styles disponibles dès le chargement (cloche statique)
+
+// ══ Mode Focus consultation ════════════════════════════════════════
+// Pendant une consultation, l'interface s'efface : sidebar, topbar et
+// cloche disparaissent, ne reste que l'essentiel. Échap pour quitter.
+function ensureFocusStyles() {
+  if (document.getElementById('focusStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'focusStyles';
+  st.textContent = 'body.focus-mode #appSidebar{transform:translateX(-100%)}'
+    + 'body.focus-mode #appTopbar{display:none}'
+    + 'body.focus-mode #appContentArea{margin-left:0!important;padding-top:0!important}'
+    + 'body.focus-mode #notifBell{display:none!important}'
+    + 'body.focus-mode .app-content-inner{padding-top:74px;max-width:860px}'
+    + '#focusBar{position:fixed;top:0;left:0;right:0;height:52px;z-index:90;display:none;align-items:center;justify-content:space-between;padding:0 22px;background:var(--card);border-bottom:1px solid var(--paper-line);box-shadow:var(--shadow-xs)}'
+    + 'body.focus-mode #focusBar{display:flex}'
+    + '#focusBar .fb-left{display:flex;align-items:center;gap:10px;font-weight:600;color:var(--ink);font-size:14px}'
+    + '#focusBar .fb-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px var(--blue-tint)}'
+    + '.focus-exit{background:var(--paper);border:1px solid var(--paper-line);border-radius:8px;height:34px;padding:0 14px;cursor:pointer;font-size:13px;color:var(--ink-soft);transition:border-color var(--dur-2,.16s),color var(--dur-2,.16s)}'
+    + '.focus-exit:hover{border-color:var(--sage);color:var(--sage-deep)}';
+  document.head.appendChild(st);
+}
+function isFocusMode() { return document.body.classList.contains('focus-mode'); }
+function updateFocusBar() {
+  const l = document.getElementById('focusPatientLabel');
+  if (l) l.textContent = (typeof selectedPatient !== 'undefined' && selectedPatient) ? `${selectedPatient.prenom} ${selectedPatient.nom}` : 'Consultation';
+}
+function enterFocusMode() {
+  ensureFocusStyles();
+  if (typeof switchAppView === 'function') switchAppView('consultation');
+  updateFocusBar();
+  document.body.classList.add('focus-mode');
+  window.scrollTo({ top: 0 });
+}
+function exitFocusMode() { document.body.classList.remove('focus-mode'); }
+function toggleFocusMode() { isFocusMode() ? exitFocusMode() : enterFocusMode(); }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isFocusMode()) exitFocusMode(); });
+ensureFocusStyles();
 
 // ── Dashboard : salutation, statistiques, patients récents ────────
 function renderDashGreeting() {
@@ -2536,6 +2581,7 @@ function renderPatientSelectorBar() {
     label.textContent = '👤 Sélectionner un patient';
     bar.classList.add('empty');
   }
+  if (typeof updateFocusBar === 'function') updateFocusBar(); // garde le Mode Focus synchro
 }
 
 async function fetchPatients() {
