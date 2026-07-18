@@ -3037,6 +3037,9 @@ function ensureCockpitStyles() {
     + '.ckpt-pill{font-size:11.5px;border-radius:999px;padding:3px 10px;white-space:nowrap}'
     + '.ckpt-rem{display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--paper-line)}'
     + '.ckpt-rem:first-child{border-top:none;padding-top:2px}'
+    + '.ckpt-heropro{background:linear-gradient(180deg,var(--card),var(--paper));border:1px solid var(--paper-line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow-sm)}'
+    + '.ckpt-glance{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--paper-line)}'
+    + '.ckpt-glance-chip{font-size:12.5px;color:var(--ink-soft);background:var(--card);border:1px solid var(--paper-line);border-radius:999px;padding:4px 12px;font-weight:500}'
     + '@media (prefers-reduced-motion:reduce){.cockpit{animation:none}}';
   document.head.appendChild(st);
 }
@@ -3116,6 +3119,16 @@ function latestTension(consults) {
     const raw = c.data && c.data.sections && c.data.sections.objectif && c.data.sections.objectif.constantes && c.data.sections.objectif.constantes.tension;
     const m = raw && String(raw).match(/(\d+)\s*\/\s*(\d+)/);
     if (m) return { sys: +m[1], dia: +m[2], raw: String(raw) };
+  }
+  return null;
+}
+// Dernière valeur non vide d'une constante (poids, pouls…) sur les consultations.
+function lastVital(events, key) {
+  const consults = (events || []).filter((e) => e.type === 'consultation')
+    .sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+  for (const c of consults) {
+    const v = c.data && c.data.sections && c.data.sections.objectif && c.data.sections.objectif.constantes && c.data.sections.objectif.constantes[key];
+    if (v && String(v).trim() && String(v) !== 'null') return String(v);
   }
   return null;
 }
@@ -3368,27 +3381,49 @@ function renderCockpit(patient, events) {
   const age = computeAge(patient.date_naissance);
   const lastConsult = (events || []).find((e) => e.type === 'consultation');
 
+  const doctorName = (currentUser && currentUser.profile && currentUser.profile.nom) ? currentUser.profile.nom : null;
   const metaBits = [];
   if (age !== null) metaBits.push(`${age} ans`);
-  if (lastConsult) {
-    metaBits.push(`Dernière consultation ${humanizeElapsed(lastConsult.event_date)}`);
-    const motif = lastConsult.data && (lastConsult.data.resume_1_ligne || lastConsult.title);
-    if (motif) metaBits.push(`Motif : ${motif}`);
-  } else {
-    metaBits.push('Aucune consultation enregistrée');
-  }
+  if (doctorName) metaBits.push(`Suivi par Dr ${doctorName}`);
+  if (lastConsult) metaBits.push(`Dernière consultation ${humanizeElapsed(lastConsult.event_date)}`);
+  else metaBits.push('Aucune consultation enregistrée');
+
+  // Niveau de vigilance = agrégation des signaux détectés (PAS un score de
+  // risque clinique). Factuel, dérivé du dossier.
+  const heroSignals = computePatientSignals(events || []);
+  const vigil = heroSignals.some((s) => s.severite === 'important')
+    ? { label: 'Vigilance élevée', dot: 'var(--rose)', bg: 'var(--rose-tint)', ink: '#991B1B' }
+    : heroSignals.some((s) => s.severite === 'attention')
+      ? { label: 'À surveiller', dot: 'var(--amber)', bg: 'var(--amber-tint)', ink: '#92400E' }
+      : ((events && events.length) ? { label: 'Rien à signaler', dot: 'var(--green)', bg: 'var(--green-tint)', ink: 'var(--green-deep)' } : null);
+
+  // Coup d'œil : quelques chiffres clés, déterministes.
+  const heroTreatments = deriveTreatments(events || []);
+  const heroTension = latestTension((events || []).filter((e) => e.type === 'consultation'));
+  const heroPoids = lastVital(events || [], 'poids');
+  const glanceChips = [['💊', `${heroTreatments.length} traitement${heroTreatments.length > 1 ? 's' : ''} en cours`]];
+  if (heroTension) glanceChips.push(['🩺', `TA ${heroTension.raw}`]);
+  if (heroPoids) glanceChips.push(['⚖️', heroPoids]);
+  glanceChips.push(['🗂️', `${(events || []).length} événement${(events || []).length > 1 ? 's' : ''}`]);
 
   const heroHtml = `
-    <div class="ckpt-hero">
-      <div class="patient-avatar" style="background:${color}; width:54px; height:54px; font-size:18px;">${initials}</div>
-      <div style="flex:1; min-width:180px;">
-        <div style="font-size:19px; font-weight:600; color:var(--ink);">${escapeHtml(patient.prenom + ' ' + patient.nom)}</div>
-        <div style="font-size:12.5px; color:var(--ink-faint); margin-top:3px; line-height:1.5;">${metaBits.map(escapeHtml).join('  ·  ')}</div>
+    <div class="ckpt-heropro">
+      <div class="ckpt-hero">
+        <div class="patient-avatar" style="background:${color}; width:60px; height:60px; font-size:21px;">${initials}</div>
+        <div style="flex:1; min-width:180px;">
+          <div style="font-size:22px; font-weight:600; color:var(--ink); letter-spacing:-.01em;">${escapeHtml(patient.prenom + ' ' + patient.nom)}</div>
+          <div style="font-size:12.5px; color:var(--ink-faint); margin-top:4px; line-height:1.5;">${metaBits.map(escapeHtml).join('  ·  ')}</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+          ${vigil ? `<span class="ckpt-pill" style="background:${vigil.bg}; color:${vigil.ink}; font-weight:600;" title="Basé sur les signaux détectés dans le dossier — pas un score de risque clinique."><span style="color:${vigil.dot};">●</span> ${vigil.label}</span>` : ''}
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+            <button onclick="openQuickRead()" class="ckpt-pill" style="background:var(--ink); color:#fff; border:none; cursor:pointer; font-weight:600;" title="Lecture rapide : les éléments critiques du dossier">⚡ Lecture 30 s</button>
+            <span class="ckpt-pill" id="ckptReading" style="background:var(--paper); border:1px solid var(--paper-line); color:var(--ink-soft);">≈ 30 s de lecture</span>
+          </div>
+        </div>
       </div>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <button onclick="openQuickRead()" class="ckpt-pill" style="background:var(--ink); color:#fff; border:none; cursor:pointer; font-weight:600;" title="Lecture rapide : les éléments critiques du dossier">⚡ Lecture 30 s</button>
-        <span class="ckpt-pill" style="background:var(--sage-tint); color:var(--sage-deep); font-weight:600;">✦ Préparé par IA</span>
-        <span class="ckpt-pill" id="ckptReading" style="background:var(--paper); border:1px solid var(--paper-line); color:var(--ink-soft);">≈ 30 s de lecture</span>
+      <div class="ckpt-glance">
+        ${glanceChips.map((c) => `<span class="ckpt-glance-chip"><span style="opacity:.85;">${c[0]}</span> ${escapeHtml(c[1])}</span>`).join('')}
       </div>
     </div>`;
 
@@ -3401,7 +3436,7 @@ function renderCockpit(patient, events) {
   }
 
   // Signaux détectés (Sprint 4) : en tête du Cockpit, colorés par sévérité.
-  const signals = computePatientSignals(events);
+  const signals = heroSignals; // déjà calculé pour le badge de vigilance
   const sev = signals.length ? (SNAP_SEVERITIES[signals[0].severite] || SNAP_SEVERITIES.info) : null;
   const signalsHtml = signals.length ? `<div class="ckpt-card" style="margin-top:14px; border-color:${sev.dot}; background:${sev.bg};">
       <div class="ckpt-label" style="color:${sev.ink};">⚠️ Signaux détectés · ${signals.length}</div>
