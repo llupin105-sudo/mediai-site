@@ -1571,10 +1571,16 @@
   <div class="cmdk-box">
     <div class="cmdk-input-row">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="cmdkInput" placeholder="Rechercher un patient, un document, une action…" autocomplete="off" oninput="runCommandPaletteSearch()" onkeydown="handleCommandPaletteKey(event)">
+      <input type="text" id="cmdkInput" placeholder="Rechercher un patient, un document — ou taper une action (« ordo », « labo », « nouveau patient »…)" autocomplete="off" oninput="runCommandPaletteSearch()" onkeydown="handleCommandPaletteKey(event)">
       <span class="cmdk-esc">Échap</span>
     </div>
     <div class="cmdk-results" id="cmdkResults"></div>
+    <div class="cmdk-foot" id="cmdkFoot">
+      <span><kbd>↑</kbd><kbd>↓</kbd> naviguer</span>
+      <span><kbd>↵</kbd> ouvrir</span>
+      <span><kbd>esc</kbd> fermer</span>
+      <span style="margin-left:auto; opacity:.7;">MediAI · recherche universelle</span>
+    </div>
   </div>
 </div>
 
@@ -1928,77 +1934,109 @@ function closeCommandPalette() {
 const CMDK_TYPE_ICONS = { consultation:'📄', ordonnance:'💊', courrier:'✍️', analyse_labo:'🧪', imagerie:'🩻' };
 const CMDK_TYPE_LABELS = { consultation:'Compte-rendu', ordonnance:'Ordonnance', courrier:'Courrier', analyse_labo:'Analyse', imagerie:'Imagerie' };
 
-async function runCommandPaletteSearch() {
-  const query = document.getElementById('cmdkInput').value.trim().toLowerCase();
-  const resultsEl = document.getElementById('cmdkResults');
-  cmdkSelectedIndex = -1;
+function ensureCmdkStyles() {
+  if (document.getElementById('cmdkStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'cmdkStyles';
+  st.textContent = '.cmdk-foot{display:flex;align-items:center;gap:14px;padding:9px 14px;border-top:1px solid var(--paper-line);font-size:11.5px;color:var(--ink-faint)}'
+    + '.cmdk-foot kbd{display:inline-block;min-width:15px;text-align:center;padding:1px 5px;margin-right:2px;border:1px solid var(--paper-line);border-bottom-width:2px;border-radius:5px;background:var(--paper);font-family:inherit;font-size:10.5px;color:var(--ink-soft)}'
+    + '.cmdk-item-kbd{margin-left:auto;font-size:10px;color:var(--ink-faint);border:1px solid var(--paper-line);border-radius:5px;padding:1px 7px;background:var(--paper);text-transform:uppercase;letter-spacing:.03em}';
+  document.head.appendChild(st);
+}
 
-  const quickActions = [
-    { type:'action', icon:'✨', title:'Nouvelle consultation', sub:'Sélectionner un patient et commencer', action:() => { closeCommandPalette(); dashboardNewConsultation(); } },
-    { type:'action', icon:'👤', title:'Nouveau patient', sub:'Créer une fiche patient', action:() => { closeCommandPalette(); openNewPatientModal(); } },
-    { type:'action', icon:'🏠', title:'Dashboard', sub:'Retour au centre de contrôle', action:() => { closeCommandPalette(); switchAppView('dashboard'); } },
+// Registre de commandes — création + navigation. `keywords` = alias de recherche.
+function cmdkCommands() {
+  const nav = (title, view, icon, keywords) => ({ kind:'command', icon, title, sub:'Ouvrir', keywords, action:() => { closeCommandPalette(); switchAppView(view); } });
+  return [
+    { kind:'command', icon:'✨', title:'Nouvelle consultation', sub:'Démarrer une consultation', keywords:'nouvelle consultation dicter compte rendu cr soap enregistrer', action:() => { closeCommandPalette(); dashboardNewConsultation(); } },
+    { kind:'command', icon:'👤', title:'Nouveau patient', sub:'Créer une fiche patient', keywords:'nouveau patient creer créer fiche ajouter', action:() => { closeCommandPalette(); openNewPatientModal(); } },
+    nav('Tableau de bord', 'dashboard', '🏠', 'accueil home dashboard tableau bord journee journée'),
+    nav('Patients', 'patients', '👥', 'patients liste dossiers'),
+    nav('Consultations', 'consultation', '🎙️', 'consultation dicter enregistrer micro'),
+    nav('Comptes-rendus', 'doc-consultation', '📄', 'compte rendu cr comptes rendus soap'),
+    nav('Ordonnances', 'doc-ordonnance', '💊', 'ordonnance ordo prescription medicament médicament traitement'),
+    nav('Courriers', 'doc-courrier', '✉️', 'courrier lettre correspondance confrere confrère adressage'),
+    nav('Analyses', 'doc-labo', '🧪', 'analyse labo biologie bio prise de sang resultat résultat bilan'),
+    nav('Imagerie', 'doc-imagerie', '🩻', 'imagerie radio irm scanner echographie échographie'),
+    nav('Assistant IA', 'ia-hub', '✨', 'assistant ia outils intelligence'),
+    nav('Paramètres', 'parametres', '⚙️', 'parametres paramètres reglages réglages profil preferences préférences compte'),
   ];
+}
+function cmdkMatch(item, tokens) {
+  const hay = (item.title + ' ' + (item.keywords || '') + ' ' + (item.sub || '')).toLowerCase();
+  return tokens.every((t) => hay.includes(t));
+}
 
+async function runCommandPaletteSearch() {
+  const raw = document.getElementById('cmdkInput').value.trim();
+  const query = raw.toLowerCase();
+  const resultsEl = document.getElementById('cmdkResults');
+  const tokens = query.split(/\s+/).filter(Boolean);
+
+  // Sans requête : création + navigation principale.
   if (!query) {
-    cmdkCurrentItems = quickActions;
-    renderCmdkResults([{ label:'Actions rapides', items:quickActions }]);
+    const cmds = cmdkCommands();
+    const quick = cmds.slice(0, 2);
+    const navItems = cmds.slice(2, 8);
+    cmdkCurrentItems = [...quick, ...navItems];
+    renderCmdkResults([{ label:'Actions rapides', items:quick }, { label:'Aller à', items:navItems }]);
     return;
   }
 
-  // Patients — instantané depuis le cache déjà chargé
-  const patientMatches = patientsCache
-    .filter(p => `${p.prenom} ${p.nom}`.toLowerCase().includes(query))
-    .slice(0, 5)
-    .map(p => ({
-      type:'patient', icon:'👤', title:`${p.prenom} ${p.nom}`,
-      sub:`${p.events_count || 0} événement(s)`,
-      action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(p.id); }
-    }));
+  const commandMatches = cmdkCommands().filter((c) => cmdkMatch(c, tokens)).slice(0, 6);
 
-  // Documents — depuis le cache d'evenements (deja charge ou charge a la volee)
+  // Patients — instantané depuis le cache déjà chargé.
+  const patientMatches = patientsCache
+    .filter((p) => `${p.prenom} ${p.nom}`.toLowerCase().includes(query))
+    .slice(0, 5)
+    .map((p) => ({ kind:'patient', icon:'👤', title:`${p.prenom} ${p.nom}`, sub:`${p.events_count || 0} événement(s)`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(p.id); } }));
+
+  // Documents — depuis le cache d'événements.
   let docMatches = [];
   try {
     const events = await fetchAllEvents();
     docMatches = events
-      .filter(e => e.title.toLowerCase().includes(query) || `${e.patientPrenom} ${e.patientNom}`.toLowerCase().includes(query))
+      .filter((e) => e.title.toLowerCase().includes(query) || `${e.patientPrenom} ${e.patientNom}`.toLowerCase().includes(query))
       .slice(0, 6)
-      .map(e => ({
-        type:'document', icon: CMDK_TYPE_ICONS[e.type] || '📄',
-        title: e.title,
-        sub:`${CMDK_TYPE_LABELS[e.type] || ''} · ${e.patientPrenom} ${e.patientNom}`,
-        action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(e.patientId); }
-      }));
+      .map((e) => ({ kind:'document', icon: CMDK_TYPE_ICONS[e.type] || '📄', title: e.title, sub:`${CMDK_TYPE_LABELS[e.type] || ''} · ${e.patientPrenom} ${e.patientNom}`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(e.patientId); } }));
   } catch {}
 
-  // Ne re-affiche que si la requete n'a pas change entre-temps (recherche asynchrone)
+  // Ne re-affiche que si la requête n'a pas changé entre-temps (asynchrone).
   if (document.getElementById('cmdkInput').value.trim().toLowerCase() !== query) return;
 
   const groups = [];
+  if (commandMatches.length) groups.push({ label:'Actions', items:commandMatches });
   if (patientMatches.length) groups.push({ label:'Patients', items:patientMatches });
   if (docMatches.length) groups.push({ label:'Documents', items:docMatches });
-
-  cmdkCurrentItems = [...patientMatches, ...docMatches];
+  cmdkCurrentItems = [...commandMatches, ...patientMatches, ...docMatches];
 
   if (groups.length === 0) {
-    resultsEl.innerHTML = `<div class="cmdk-empty">Aucun résultat pour "${query}"</div>`;
+    resultsEl.innerHTML = `<div class="cmdk-empty">Aucun résultat pour « ${raw} »</div>`;
   } else {
     renderCmdkResults(groups);
   }
 }
 
 function renderCmdkResults(groups) {
+  ensureCmdkStyles();
   const resultsEl = document.getElementById('cmdkResults');
+  const kbdFor = { command:'Action', patient:'Patient', document:'Document' };
   let flatIndex = 0;
   resultsEl.innerHTML = groups.map(g => `
     <div class="cmdk-group-label">${g.label}</div>
     ${g.items.map(item => {
       const idx = flatIndex++;
-      return `<div class="cmdk-item" data-idx="${idx}" onclick="cmdkCurrentItems[${idx}].action()">
+      return `<div class="cmdk-item" data-idx="${idx}" onclick="cmdkCurrentItems[${idx}].action()" onmousemove="cmdkSelectedIndex=${idx};document.querySelectorAll('.cmdk-item').forEach((el,i)=>el.classList.toggle('selected',i===${idx}))">
         <div class="cmdk-item-icon">${item.icon}</div>
         <div class="cmdk-item-body"><div class="cmdk-item-title">${item.title}</div><div class="cmdk-item-sub">${item.sub}</div></div>
+        ${item.kind ? `<span class="cmdk-item-kbd">${kbdFor[item.kind] || ''}</span>` : ''}
       </div>`;
     }).join('')}
   `).join('');
+  // Présélectionne le premier résultat : Entrée agit immédiatement.
+  const items = resultsEl.querySelectorAll('.cmdk-item');
+  cmdkSelectedIndex = items.length ? 0 : -1;
+  updateCmdkSelection(items);
 }
 
 function handleCommandPaletteKey(event) {
