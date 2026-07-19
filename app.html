@@ -2901,8 +2901,9 @@ document.addEventListener('click', (e) => {
 function logout() {
   clearToken();
   currentUser = null;
-  renderAccountZone();
-  renderUsageBar();
+  // Retour à la page d'accueil officielle de MediAI (la landing).
+  // Évite la page vide : l'ancien site marketing intégré n'existe plus.
+  window.location.href = '/';
 }
 
 function renderUsageBar() {
