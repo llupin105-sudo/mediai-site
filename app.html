@@ -1016,29 +1016,9 @@
   <div class="app-content-inner">
 
     <div id="view-dashboard" class="app-view visible">
-      <!-- ══ COCKPIT (Sprint 6) — la Home devient le cerveau de MediAI ══ -->
-      <div class="ckpt-topbar">
-        <div class="ckpt-topbar-hd">
-          <div class="dash-greeting" id="dashGreeting">Bonjour</div>
-          <div class="dash-date" id="dashDate"></div>
-        </div>
-        <div class="ckpt-topbar-actions">
-          <button class="dash-action-btn ghost" onclick="openNewPatientModal()">+ Patient</button>
-          <button class="dash-action-btn primary" onclick="dashboardNewConsultation()">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Consultation
-          </button>
-        </div>
-      </div>
-
-      <!-- Briefing IA du matin (rempli async, marqué « à vérifier ») -->
-      <div id="cockpitBar"></div>
-
-      <!-- Sélecteur de mode + personnalisation -->
-      <div id="cockpitControls"></div>
-
-      <!-- Grille de widgets (agenda, priorités, tâches, résultats…) -->
-      <div id="cockpitGrid" class="ckpt-grid"></div>
+      <!-- ══ DASHBOARD « AURORA » — bandeau navy + 4 cartes ══ -->
+      <div id="dashBand"></div>
+      <div id="dashCards" class="aur-grid"></div>
     </div>
 
     <section class="patients-section app-view" id="patientsSection">
@@ -2199,23 +2179,20 @@ const COCKPIT_MODE_LABELS = { cockpit: '🧭 Cockpit', consultation: '🩺 Consu
 
 async function renderDashboard() {
   if (!currentUser) return;
-  renderDashGreeting();
-  ensureCockpitStyles();
+  ensureAuroraStyles();
   updateNotifBadge();
-  renderCockpitControls();
-  const grid = document.getElementById('cockpitGrid');
-  if (grid) grid.innerHTML = cockpitSkeleton();
-  const bar = document.getElementById('cockpitBar');
-  if (bar) bar.innerHTML = `<div class="ckpt-bar"><div class="skel skel-line w-40"></div><div class="skel skel-line w-60" style="margin-top:8px;"></div></div>`;
-
+  const band = document.getElementById('dashBand');
+  const cards = document.getElementById('dashCards');
+  if (band) band.innerHTML = `<div class="aur-band"><div class="skel skel-line w-40" style="background:rgba(255,255,255,.16)"></div><div class="skel skel-line w-60" style="height:28px;margin-top:16px;background:rgba(255,255,255,.16)"></div></div>`;
+  if (cards) cards.innerHTML = auroraCardsSkeleton();
   try {
     cockpitState.data = await fetchCockpit();
-    renderCockpitBar(null);   // barre déterministe immédiate
-    renderCockpitGrid();
   } catch (err) {
-    if (grid) grid.innerHTML = `<div class="ckpt-card"><div class="ckpt-empty">Impossible de charger le cockpit pour le moment.</div></div>`;
+    cockpitState.data = null;
   }
-  loadCockpitBriefing(); // récit IA en tâche de fond (non bloquant)
+  renderAuroraBand();
+  renderAuroraCards();
+  loadCockpitBriefing(); // phrase IA + reco en tâche de fond (non bloquant)
 }
 
 async function fetchCockpit() {
@@ -2231,11 +2208,186 @@ async function loadCockpitBriefing() {
     if (!res.ok) throw new Error('briefing');
     const d = await res.json();
     cockpitState.briefing = d.briefing;
-    renderCockpitBar(d.briefing);
-    renderCockpitGrid(); // remplit le widget « Recommandations IA »
   } catch (e) {
-    renderCockpitBar(null); // repli sur la barre déterministe
+    cockpitState.briefing = null;
   }
+  renderAuroraBand();   // met à jour la phrase IA du bandeau
+  renderAuroraCards();  // met à jour la carte « Recommandation IA »
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DASHBOARD « AURORA » — bandeau navy (priorité unique + phrase IA +
+// 2 actions) puis 4 cartes (Agenda · Prioritaires · Alertes · Reco IA).
+// Réutilise le pipeline /api/cockpit (cockpitState) et les helpers
+// ckptTime / ckptSevDot / ckptOpenPatient / escapeHtml.
+// ══════════════════════════════════════════════════════════════════
+function auroraGreeting() {
+  const h = new Date().getHours();
+  const g = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const name = currentUser?.profile?.nom || currentUser?.email?.split('@')[0] || '';
+  return `${g}${name ? ', ' + name : ''}`;
+}
+function auroraDateLine() {
+  const c = (cockpitState.data && cockpitState.data.compteurs) || {};
+  let d = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  d = d.charAt(0).toUpperCase() + d.slice(1);
+  return c.rdv_aujourdhui ? `${d} · ${c.rdv_aujourdhui} rendez-vous` : d;
+}
+function renderAuroraBand() {
+  const el = document.getElementById('dashBand');
+  if (!el) return;
+  const d = cockpitState.data || {};
+  const prio = (d.priorites && d.priorites[0]) || null;
+  const b = cockpitState.briefing;
+
+  let big, click = '';
+  if (prio) {
+    click = ` class="aur-big click" onclick="ckptOpenPatient('${prio.patient_id}')"`;
+    big = `Une priorité ce matin : <b>${escapeHtml((prio.prenom || '') + ' ' + (prio.nom || '')).trim()}</b> — ${escapeHtml(prio.signals[0].titre.toLowerCase())}.<span class="aur-go">Ouvrir le dossier →</span>`;
+  } else {
+    big = `Rien d'urgent aujourd'hui. Belle journée, Docteur.`;
+  }
+  const ai = (b && b.recit)
+    ? `<div class="aur-ai"><span class="aur-ia">✦ IA · à vérifier</span>${escapeHtml(b.recit)}</div>`
+    : `<div class="aur-ai"><span class="aur-ia">✦ IA</span>Analyse de votre journée…</div>`;
+
+  el.innerHTML = `<div class="aur-band">
+    <div class="aur-dt">${auroraDateLine()}</div>
+    <h1 class="aur-hi">${escapeHtml(auroraGreeting())}.</h1>
+    <div${click || ' class="aur-big"'}>${big}</div>
+    ${ai}
+    <div class="aur-acts">
+      <button class="aur-btn aur-btn-primary" onclick="dashboardNewConsultation()">＋ Nouvelle consultation</button>
+      <button class="aur-btn aur-btn-ghost" onclick="openNewPatientModal()">Nouveau patient</button>
+    </div>
+  </div>`;
+}
+
+function auroraCard(icon, title, bodyHtml, headRight) {
+  return `<section class="aur-card">
+    <div class="aur-card-h"><span class="aur-ct">${icon} ${title}</span>${headRight || ''}</div>
+    ${bodyHtml}
+  </section>`;
+}
+function auroraEmpty(t) { return `<div class="aur-empty">${t}</div>`; }
+function auroraCardsSkeleton() {
+  return Array.from({ length: 4 }).map(() => `<section class="aur-card"><div class="skel skel-line w-40"></div><div class="skel skel-line" style="margin-top:14px"></div><div class="skel skel-line w-60" style="margin-top:8px"></div></section>`).join('');
+}
+function renderAuroraCards() {
+  const el = document.getElementById('dashCards');
+  if (!el) return;
+  const d = cockpitState.data;
+  if (!d) { el.innerHTML = auroraCard('📅', 'Agenda', auroraEmpty('Données indisponibles pour le moment.')); return; }
+
+  // Agenda
+  const ag = (d.agenda || []);
+  const agenda = ag.length
+    ? `<div class="aur-list">${ag.slice(0, 4).map((a) => `
+        <div class="aur-row"><span class="aur-tm">${ckptTime(a.start_at)}</span>
+          <div class="aur-bd"><div class="aur-rt">${escapeHtml(a.patient_nom || 'Sans dossier')}</div><div class="aur-rm">${escapeHtml(a.motif || 'Consultation')}</div></div>
+          ${a.a_preparer ? `<button class="aur-mini" onclick="ckptOpenPatient('${a.patient_id}')">Préparer</button>` : ''}
+        </div>`).join('')}</div>`
+    : auroraEmpty("Aucun rendez-vous aujourd'hui.");
+
+  // Patients prioritaires
+  const pr = (d.priorites || []);
+  const prio = pr.length
+    ? `<div class="aur-list">${pr.slice(0, 4).map((p) => `
+        <div class="aur-row is-click" onclick="ckptOpenPatient('${p.patient_id}')"><span class="aur-dot">${ckptSevDot(p.severite)}</span>
+          <div class="aur-bd"><div class="aur-rt">${escapeHtml((p.prenom || '') + ' ' + (p.nom || '')).trim()}</div><div class="aur-rm">${escapeHtml(p.signals[0].titre)}${p.signals.length > 1 ? ' · +' + (p.signals.length - 1) : ''}</div></div>
+          <span class="aur-arw">→</span>
+        </div>`).join('')}</div>`
+    : auroraEmpty('Aucun signal — tout est à jour.');
+
+  // Alertes (renouvellements + résultats à revoir)
+  const al = [];
+  (d.ordonnances_a_renouveler || []).forEach((r) => al.push({ tone: (r.jours_restants <= 0 ? 'red' : 'amber'), name: `${(r.prenom || '')} ${(r.nom || '')}`.trim(), m: 'Ordonnance à renouveler', pid: r.patient_id }));
+  (d.resultats_recents || []).forEach((r) => al.push({ tone: 'blue', name: `${(r.prenom || '')} ${(r.nom || '')}`.trim(), m: 'Résultat à revoir', pid: r.patient_id }));
+  const alertes = al.length
+    ? `<div class="aur-list">${al.slice(0, 4).map((a) => `
+        <div class="aur-row is-click" onclick="ckptOpenPatient('${a.pid}')"><span class="aur-dot aur-${a.tone}"></span>
+          <div class="aur-bd"><div class="aur-rt">${escapeHtml(a.name)}</div><div class="aur-rm">${a.m}</div></div>
+          <span class="aur-arw">→</span>
+        </div>`).join('')}</div>`
+    : auroraEmpty('Aucune alerte à traiter.');
+
+  // Recommandation IA
+  const b = cockpitState.briefing;
+  let reco;
+  if (!b) reco = `<div class="aur-loading">Analyse de votre journée…</div>`;
+  else {
+    const rs = (b.recommandations || []);
+    reco = rs.length
+      ? `<div class="aur-list">${rs.slice(0, 3).map((r) => `
+          <div class="aur-row"><span class="aur-dot aur-ia-dot">✦</span>
+            <div class="aur-bd"><div class="aur-rt aur-wrap">${escapeHtml(r.texte)}</div></div>
+            ${r.patient_id ? `<button class="aur-mini" onclick="ckptOpenPatient('${r.patient_id}')">Ouvrir</button>` : ''}
+          </div>`).join('')}</div>`
+      : auroraEmpty("Aucune suggestion particulière aujourd'hui.");
+  }
+
+  el.innerHTML =
+    auroraCard('📅', 'Agenda du jour', agenda, ag.length ? `<span class="aur-see">${ag.length}</span>` : '')
+    + auroraCard('🛎️', 'Patients à regarder', prio, pr.length ? `<span class="aur-see">${pr.length}</span>` : '')
+    + auroraCard('⚠️', 'Alertes', alertes)
+    + auroraCard('✦', 'Recommandation IA', reco, `<span class="aur-ia-tag">à vérifier</span>`);
+}
+
+function ensureAuroraStyles() {
+  if (document.getElementById('auroraStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'auroraStyles';
+  st.textContent = `
+  @keyframes aurIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  #view-dashboard{max-width:1120px}
+  .aur-band{background:radial-gradient(120% 150% at 84% -20%,rgba(20,96,255,.5),transparent 55%),linear-gradient(180deg,#0A1128,#0D1836);color:#fff;border-radius:22px;padding:38px 40px 34px;margin-bottom:20px;animation:aurIn .5s var(--ease-out,ease) both}
+  .aur-dt{font-size:13px;color:#93A4C8;font-weight:500}
+  .aur-hi{font-size:30px;font-weight:600;letter-spacing:-.02em;margin:12px 0 10px;color:#fff}
+  .aur-big{font-size:22px;font-weight:500;line-height:1.32;color:#C7D3EA;max-width:660px}
+  .aur-big b{color:#fff;font-weight:600}
+  .aur-big.click{cursor:pointer;transition:color .16s}
+  .aur-big.click:hover{color:#E8EEFA}
+  .aur-go{display:inline-block;margin-left:10px;font-size:14px;font-weight:600;color:#7FA9FF;white-space:nowrap}
+  .aur-ai{font-size:14.5px;color:#A9B7D6;margin-top:16px;max-width:580px;line-height:1.55}
+  .aur-ia{font-size:11px;font-weight:600;color:#BCD0F5;background:rgba(127,169,255,.16);padding:2px 9px;border-radius:999px;margin-right:8px;white-space:nowrap;vertical-align:1px}
+  .aur-acts{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
+  .aur-btn{height:46px;padding:0 22px;border-radius:12px;font-family:inherit;font-size:14.5px;font-weight:600;border:1px solid transparent;cursor:pointer;transition:transform .12s var(--ease-out,ease),background .2s,border-color .2s}
+  .aur-btn:hover{transform:translateY(-1px)}
+  .aur-btn-primary{background:var(--blue);color:#fff}
+  .aur-btn-primary:hover{background:#2b72ff}
+  .aur-btn-ghost{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#fff}
+  .aur-btn-ghost:hover{background:rgba(255,255,255,.15)}
+  .aur-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .aur-card{background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:20px 22px;animation:aurIn .5s var(--ease-out,ease) both}
+  .aur-card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .aur-ct{font-size:14px;font-weight:600;color:var(--ink)}
+  .aur-see{font-size:12.5px;color:var(--sage-deep);font-weight:500;cursor:pointer}
+  .aur-ia-tag{font-size:10.5px;font-weight:600;color:var(--violet-deep,#6D28D9);background:var(--violet-tint,#F1EDFF);padding:2px 9px;border-radius:999px}
+  .aur-list{display:flex;flex-direction:column}
+  .aur-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--paper-line)}
+  .aur-list .aur-row:first-child{border-top:0}
+  .aur-row.is-click{cursor:pointer;transition:opacity .16s}
+  .aur-row.is-click:hover{opacity:.6}
+  .aur-tm{font-size:13px;font-weight:600;color:var(--sage-deep);min-width:42px;font-variant-numeric:tabular-nums}
+  .aur-dot{width:9px;height:9px;border-radius:50%;flex:none;font-size:13px;line-height:1;color:var(--sage-deep)}
+  .aur-red{background:var(--rose)} .aur-amber{background:var(--amber)} .aur-blue{background:var(--blue)}
+  .aur-ia-dot{color:var(--violet-deep,#6D28D9)}
+  .aur-bd{flex:1;min-width:0}
+  .aur-rt{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .aur-rt.aur-wrap{white-space:normal;font-weight:500;line-height:1.5}
+  .aur-rm{font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .aur-arw{color:var(--ink-faint)}
+  .aur-mini{height:30px;padding:0 12px;border-radius:9px;border:1px solid var(--paper-line);background:var(--paper);color:var(--ink-soft);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .16s,color .16s;white-space:nowrap}
+  .aur-mini:hover{border-color:var(--sage);color:var(--sage-deep)}
+  .aur-empty{font-size:13px;color:var(--ink-faint);padding:10px 0;line-height:1.5}
+  .aur-loading{font-size:13px;color:var(--ink-faint);padding:10px 0}
+  /* Sidebar — polish premium */
+  #appSidebar .sidebar-link{border-radius:11px}
+  #appSidebar .sidebar-link.active{background:var(--blue-tint);color:var(--sage-deep)}
+  #appSidebar .sidebar-link.active .icon,#appSidebar .sidebar-link.active .icon svg{color:var(--blue)}
+  @media (max-width:820px){.aur-grid{grid-template-columns:1fr}.aur-band{padding:30px 24px}}
+  @media (prefers-reduced-motion:reduce){.aur-band,.aur-card{animation:none}.aur-btn:hover{transform:none}}`;
+  document.head.appendChild(st);
 }
 
 // ── Barre de cockpit : « Bonjour Docteur, voici votre journée » ────
@@ -2786,7 +2938,7 @@ function initGoogleButton() {
   const container = document.getElementById('googleBtnContainer');
   if (container) {
     container.innerHTML = '';
-    google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', width: 280, text: 'continue_with' });
+    google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', width: 340, text: 'continue_with', shape: 'pill' });
   }
 }
 
