@@ -6,14 +6,15 @@ Dépôt du frontend MediAI, déployé sur **Vercel**. Aucun build : fichiers sta
 
 | URL | Fichier | Rôle |
 |---|---|---|
-| `/` | `index.html` | **Landing page** premium (page d'accueil officielle) |
-| `/app` | `app.html` | **Application médecin** (connexion + produit) |
+| `/` | `index.html` | **Landing page** premium (seule page d'accueil officielle) |
+| `/app` | `app.html` | **Écran de connexion médecin** (déconnecté) → **application** (connecté) |
+| `/app?mode=signup` | `app.html` | Idem, onglet **Création de compte** (bouton « Demander une démo ») |
 | `/patient` | `patient.html` | **Portail patient** |
 | `/assets/*` | `assets/` | Logos & visuels officiels de la landing |
 
 Les URLs propres (`/app` au lieu de `/app.html`) sont assurées par [`vercel.json`](vercel.json) (`cleanUrls: true`).
 
-Les boutons **« Se connecter »** et **« Demander une démo »** de la landing pointent vers `/app` en **liens relatifs** — donc indépendants du domaine.
+**Porte d'entrée du produit** : la landing (`/`) est la seule vitrine. L'ancien mini-site marketing intégré à `app.html` (« Racontez la consultation… ») a été retiré ; `/app` ouvre **directement l'écran de connexion** (ou l'application si un jeton valide est présent). Les boutons **« Se connecter »** (`/app?mode=login`) et **« Demander une démo »** (`/app?mode=signup`) de la landing pointent en **liens relatifs** — indépendants du domaine.
 
 ## Backend
 
