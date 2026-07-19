@@ -2930,7 +2930,15 @@ function renderUsageBar() {
 const GOOGLE_CLIENT_ID = '441087731705-7qoiskqn60727hkahdrln9cdr28pud94.apps.googleusercontent.com';
 
 function initGoogleButton() {
-  if (!window.google || !GOOGLE_CLIENT_ID) return;
+  if (!GOOGLE_CLIENT_ID) return;
+  // Le script GSI est chargé en async : quand l'écran de connexion s'ouvre
+  // à l'ouverture de /app, il n'est pas toujours prêt. On réessaie jusqu'à
+  // ~6 s pour que « Continuer avec Google » se rende de façon fiable.
+  if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+    initGoogleButton._tries = (initGoogleButton._tries || 0) + 1;
+    if (initGoogleButton._tries <= 40) setTimeout(initGoogleButton, 150);
+    return;
+  }
   google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
     callback: handleGoogleCredential,
