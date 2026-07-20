@@ -1039,6 +1039,7 @@
     <div id="patientSnapshotCard" style="display:none; margin-top:16px;"></div>
     <div class="patient-actions-row">
       <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation</button>
+      <button class="btn-export" onclick="openOrdonnanceEditor(null)">💊 Ordonnance</button>
       <button class="btn-export" onclick="openEventModal()">＋ Événement</button>
       <button class="btn-export" onclick="openLabModal()">🧪 Résultat de labo</button>
       <button class="btn-export" onclick="openImagingModal()">🩻 Imagerie</button>
@@ -4872,7 +4873,7 @@ function viewTimelineEvent(event) {
   if (event.type === 'consultation') {
     openDetailViewerModal(`${meta.icon} Consultation`, renderConsultationDetailHtml(event));
   } else if (event.type === 'ordonnance') {
-    openDetailViewerModal(`${meta.icon} Ordonnance`, renderOrdonnanceDetailHtml(event.data));
+    openOrdonnanceEditor(event); // Sprint 8 : module Ordonnance (éditer / renouveler / signer)
   } else if (event.type === 'courrier') {
     openDetailViewerModal(`${meta.icon} ${event.data?.objet || 'Courrier'}`, renderCourrierDetailHtml(event.data));
   } else if (event.type === 'analyse_labo') {
@@ -4880,6 +4881,249 @@ function viewTimelineEvent(event) {
   } else if (event.type === 'imagerie') {
     openDetailViewerModal(`🩻 ${event.data?.type_examen || 'Imagerie'}`, renderImagingDetailHtml(event.data));
   }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODULE ORDONNANCE (Sprint 8) — éditeur complet, renouvellement, historique.
+// « Signer » = valider + verrouiller + horodater (pas une signature légale).
+// ══════════════════════════════════════════════════════════════════
+let ordEditor = { eventId: null, status: 'brouillon', lines: [], data: null, patient: null };
+function escapeAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+const ORD_BADGE = { brouillon: ['b-draft', 'Brouillon'], active: ['b-signed', 'Signée'], archivee: ['b-arch', 'Archivée'], arretee: ['b-arch', 'Arrêtée'] };
+const ORD_HIST = { cree: 'Créée', modifie: 'Modifiée', signe: 'Signée', renouvele: 'Renouvelée', arrete: 'Arrêtée' };
+
+function openOrdonnanceEditor(event) {
+  if (!currentDetailPatientId) return;
+  ensureOrdStyles();
+  const isNew = !event;
+  const data = isNew ? null : (event.data || {});
+  ordEditor = {
+    eventId: isNew ? null : event.id,
+    status: isNew ? 'brouillon' : (data.status || 'active'),
+    lines: isNew ? [{ medicament: '', posologie: '', duree: '', voie: '' }] : JSON.parse(JSON.stringify(data.prescriptions || [])),
+    data: data,
+    patient: isNew ? (currentPatientInfo || {}) : (data.patient || currentPatientInfo || {}),
+  };
+  if (!ordEditor.lines.length) ordEditor.lines = [{ medicament: '', posologie: '', duree: '', voie: '' }];
+  renderOrdEditor();
+}
+function closeOrdEditor() { const ov = document.getElementById('ordOverlay'); if (ov) ov.remove(); }
+function ordAddLine() { ordEditor.lines.push({ medicament: '', posologie: '', duree: '', voie: '' }); renderOrdEditor(); }
+function ordRemoveLine(i) { ordEditor.lines.splice(i, 1); if (!ordEditor.lines.length) ordEditor.lines.push({ medicament: '', posologie: '', duree: '', voie: '' }); renderOrdEditor(); }
+function ordCollectLines() {
+  return ordEditor.lines.map((l) => ({ medicament: (l.medicament || '').trim(), posologie: (l.posologie || '').trim(), duree: (l.duree || '').trim(), voie: (l.voie || '').trim() })).filter((l) => l.medicament);
+}
+
+function renderOrdEditor() {
+  let ov = document.getElementById('ordOverlay');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'ordOverlay'; ov.className = 'ord-ov';
+    ov.addEventListener('click', (e) => { if (e.target === ov) closeOrdEditor(); });
+    document.body.appendChild(ov);
+  }
+  const e = ordEditor, locked = e.status !== 'brouillon';
+  const badge = ORD_BADGE[e.status] || ['b-arch', e.status];
+  const p = e.patient || {};
+  const lines = e.lines.map((l, i) => `<div class="ol-row">
+    <input class="ol-in med" data-i="${i}" data-f="medicament" value="${escapeAttr(l.medicament)}" placeholder="Médicament" ${locked ? 'disabled' : ''}>
+    <input class="ol-in" data-i="${i}" data-f="posologie" value="${escapeAttr(l.posologie)}" placeholder="Posologie" ${locked ? 'disabled' : ''}>
+    <input class="ol-in" data-i="${i}" data-f="duree" value="${escapeAttr(l.duree)}" placeholder="Durée" ${locked ? 'disabled' : ''}>
+    ${locked ? '' : `<button class="ol-x" title="Retirer" onclick="ordRemoveLine(${i})">✕</button>`}
+  </div>`).join('');
+
+  let acts;
+  if (e.status === 'brouillon') {
+    acts = `<button class="ord-btn ord-p" onclick="ordSign()">✓ Signer</button>
+      <button class="ord-btn ord-g" onclick="ordSaveDraft()">Enregistrer le brouillon</button>
+      ${e.eventId ? `<button class="ord-btn ord-g" onclick="ordDuplicate()">⧉ Dupliquer</button>` : ''}
+      <button class="ord-btn ord-g" onclick="ordExportPdf()">⭳ PDF</button>
+      ${e.eventId ? `<button class="ord-btn ord-w" onclick="ordDelete()">Supprimer</button>` : ''}`;
+  } else if (e.status === 'active') {
+    acts = `<button class="ord-btn ord-p" onclick="ordRenew()">↻ Renouveler</button>
+      <button class="ord-btn ord-g" onclick="ordDuplicate()">⧉ Dupliquer</button>
+      <button class="ord-btn ord-g" onclick="ordExportPdf()">⭳ PDF</button>
+      <button class="ord-btn ord-w" onclick="ordStop()">Arrêter</button>`;
+  } else {
+    acts = `<button class="ord-btn ord-g" onclick="ordDuplicate()">⧉ Dupliquer</button>
+      <button class="ord-btn ord-g" onclick="ordExportPdf()">⭳ PDF</button>`;
+  }
+
+  const hist = (e.data && e.data.history) || [];
+  const histHtml = hist.length
+    ? hist.slice().reverse().map((h) => `<div class="oh"><span class="oh-dot"></span><div><div class="oh-t">${ORD_HIST[h.action] || h.action}</div><div class="oh-m">${new Date(h.at).toLocaleDateString('fr-FR')} · ${escapeHtml(h.by || '')}${h.note ? ' · ' + escapeHtml(h.note) : ''}</div></div></div>`).join('')
+    : '<div class="oh-empty">Nouveau brouillon — non encore enregistré.</div>';
+  const dates = e.data && e.data.date_debut
+    ? `Créée le ${new Date(e.data.date_debut).toLocaleDateString('fr-FR')}${e.data.date_fin ? ` · valable jusqu'au ${new Date(e.data.date_fin).toLocaleDateString('fr-FR')}` : ''}`
+    : 'Nouvelle ordonnance';
+
+  ov.innerHTML = `<div class="ord-modal">
+    <div class="ord-m-main">
+      <div class="ord-m-head">
+        <div><div class="ord-m-title">Ordonnance — ${escapeHtml(((p.prenom || '') + ' ' + (p.nom || '')).trim() || 'patient')}</div>
+        <div class="ord-m-sub">${dates}</div></div>
+        <span class="ord-badge ${badge[0]}">${badge[1]}</span>
+      </div>
+      ${locked ? '<div class="ord-lock">🔒 Ordonnance verrouillée — dupliquez ou renouvelez pour la modifier.</div>' : ''}
+      <div class="ol">
+        <div class="ol-head"><span>Médicament</span><span>Posologie</span><span>Durée</span><span></span></div>
+        ${lines}
+        ${locked ? '' : `<div class="ol-add" onclick="ordAddLine()">＋ Ajouter un médicament</div>`}
+      </div>
+      <div class="ord-m-acts">${acts}<button class="ord-btn ord-g" onclick="closeOrdEditor()">Fermer</button></div>
+      <div class="ord-note">« Signer » valide et verrouille l'ordonnance avec votre nom, votre RPPS et la date — ce n'est pas une signature électronique légale.</div>
+    </div>
+    <aside class="ord-m-side"><h4>Historique</h4><div class="ohist">${histHtml}</div></aside>
+  </div>`;
+  ov.querySelectorAll('.ol-in').forEach((inp) => inp.addEventListener('input', function () { ordEditor.lines[+this.dataset.i][this.dataset.f] = this.value; }));
+}
+
+async function ordReloadAndRefresh(openId) {
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId, { headers: authHeaders() });
+    const data = await res.json();
+    if (res.ok) { currentPatientEvents = data.events || []; refreshTimeline(); renderKeyFacts(currentDetailPatientId); }
+  } catch (e) {}
+  const id = openId || ordEditor.eventId;
+  const evt = id ? currentPatientEvents.find((x) => x.id === id) : null;
+  if (evt) openOrdonnanceEditor(evt); else closeOrdEditor();
+}
+const ordJson = () => ({ 'Content-Type': 'application/json', ...authHeaders() });
+async function ordSaveDraft() {
+  const lines = ordCollectLines();
+  if (!lines.length) { showToast('Au moins un médicament.', 'error'); return; }
+  try {
+    if (ordEditor.eventId) {
+      const r = await fetch(API_BASE + '/api/ordonnances/' + ordEditor.eventId, { method: 'PUT', headers: ordJson(), body: JSON.stringify({ prescriptions: lines }) });
+      if (!r.ok) throw new Error();
+    } else {
+      const r = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/ordonnances', { method: 'POST', headers: ordJson(), body: JSON.stringify({ prescriptions: lines, status: 'brouillon' }) });
+      const d = await r.json(); if (!r.ok) throw new Error(); ordEditor.eventId = d.id;
+    }
+    showToast('Brouillon enregistré.', 'success');
+    await ordReloadAndRefresh(ordEditor.eventId);
+  } catch (e) { showToast("Impossible d'enregistrer.", 'error'); }
+}
+async function ordSign() {
+  const lines = ordCollectLines();
+  if (!lines.length) { showToast('Au moins un médicament.', 'error'); return; }
+  try {
+    let id = ordEditor.eventId;
+    if (!id) {
+      const r = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/ordonnances', { method: 'POST', headers: ordJson(), body: JSON.stringify({ prescriptions: lines, status: 'brouillon' }) });
+      const d = await r.json(); if (!r.ok) throw new Error(); id = d.id;
+    } else {
+      const ru = await fetch(API_BASE + '/api/ordonnances/' + id, { method: 'PUT', headers: ordJson(), body: JSON.stringify({ prescriptions: lines }) });
+      if (!ru.ok) throw new Error();
+    }
+    const rs = await fetch(API_BASE + '/api/ordonnances/' + id + '/sign', { method: 'POST', headers: authHeaders() });
+    if (!rs.ok) throw new Error();
+    showToast('Ordonnance validée et signée.', 'success');
+    await ordReloadAndRefresh(id);
+  } catch (e) { showToast('Impossible de signer.', 'error'); }
+}
+async function ordRenew() {
+  try {
+    const r = await fetch(API_BASE + '/api/ordonnances/' + ordEditor.eventId + '/renew', { method: 'POST', headers: authHeaders() });
+    const d = await r.json(); if (!r.ok) throw new Error();
+    showToast('Ordonnance renouvelée.', 'success');
+    await ordReloadAndRefresh(d.id);
+  } catch (e) { showToast('Impossible de renouveler.', 'error'); }
+}
+async function ordStop() {
+  try {
+    const r = await fetch(API_BASE + '/api/ordonnances/' + ordEditor.eventId + '/stop', { method: 'POST', headers: authHeaders() });
+    if (!r.ok) throw new Error();
+    showToast('Traitement arrêté.', 'success');
+    await ordReloadAndRefresh(ordEditor.eventId);
+  } catch (e) { showToast("Impossible d'arrêter.", 'error'); }
+}
+async function ordDuplicate() {
+  try {
+    const r = await fetch(API_BASE + '/api/ordonnances/' + ordEditor.eventId + '/duplicate', { method: 'POST', headers: authHeaders() });
+    const d = await r.json(); if (!r.ok) throw new Error();
+    showToast('Ordonnance dupliquée (brouillon).', 'success');
+    await ordReloadAndRefresh(d.id);
+  } catch (e) { showToast('Impossible de dupliquer.', 'error'); }
+}
+async function ordDelete() {
+  try {
+    const r = await fetch(API_BASE + '/api/ordonnances/' + ordEditor.eventId, { method: 'DELETE', headers: authHeaders() });
+    if (!r.ok) throw new Error();
+    showToast('Brouillon supprimé.', 'success');
+    ordEditor.eventId = null;
+    await ordReloadAndRefresh(null);
+  } catch (e) { showToast('Impossible de supprimer.', 'error'); }
+}
+function ordExportPdf() {
+  const lines = ordCollectLines();
+  if (!lines.length) { showToast('Aucun médicament à exporter.', 'error'); return; }
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const m = (ordEditor.data && ordEditor.data.medecin) || {};
+    const p = ordEditor.patient || {};
+    let y = 22;
+    doc.setFontSize(15); doc.text(m.nom || 'Médecin', 20, y); y += 6;
+    doc.setFontSize(10); doc.setTextColor(120);
+    if (m.rpps) { doc.text('RPPS ' + m.rpps, 20, y); y += 5; }
+    if (m.cabinet) { doc.text(m.cabinet, 20, y); y += 5; }
+    doc.setTextColor(0); doc.setFontSize(11);
+    doc.text(`Patient : ${(p.prenom || '') + ' ' + (p.nom || '')}`, 20, y + 4); y += 10;
+    doc.text(`Le ${new Date().toLocaleDateString('fr-FR')}`, 20, y); y += 12;
+    doc.setFontSize(13); doc.text('Ordonnance', 20, y); y += 8;
+    doc.setFontSize(11);
+    lines.forEach((l, i) => {
+      doc.text(`${i + 1}. ${l.medicament}`, 22, y); y += 6;
+      const sub = [l.posologie, l.duree].filter(Boolean).join(' — ');
+      if (sub) { doc.setTextColor(90); doc.text('   ' + sub, 22, y); doc.setTextColor(0); y += 7; } else y += 1;
+    });
+    doc.save('ordonnance-mediai.pdf');
+  } catch (e) { showToast('Export PDF indisponible.', 'error'); }
+}
+
+function ensureOrdStyles() {
+  if (document.getElementById('ordStyles8')) return;
+  const st = document.createElement('style');
+  st.id = 'ordStyles8';
+  st.textContent = `
+  .ord-ov{position:fixed;inset:0;z-index:600;background:rgba(10,17,40,.5);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .18s ease}
+  .ord-modal{width:860px;max-width:96%;max-height:90vh;overflow:auto;background:var(--card);border-radius:20px;box-shadow:var(--shadow-lg);display:grid;grid-template-columns:1fr 250px;animation:ordPop .28s var(--ease-out,ease)}
+  @keyframes ordPop{from{opacity:0;transform:scale(.97) translateY(8px)}to{opacity:1;transform:none}}
+  .ord-m-main{padding:26px 28px}
+  .ord-m-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px}
+  .ord-m-title{font-size:19px;font-weight:600;letter-spacing:-.01em}
+  .ord-m-sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px}
+  .ord-badge{font-size:11px;font-weight:600;padding:4px 11px;border-radius:999px;align-self:center;white-space:nowrap}
+  .ord-badge.b-draft{background:#FBF0DD;color:#9A5B00}.ord-badge.b-signed{background:var(--green-tint);color:var(--green-deep)}.ord-badge.b-arch{background:var(--paper);color:var(--ink-faint);border:1px solid var(--paper-line)}
+  .ord-lock{background:var(--paper);border:1px solid var(--paper-line);border-radius:10px;padding:9px 13px;font-size:12.5px;color:var(--ink-soft);margin-bottom:14px}
+  .ol{border:1px solid var(--paper-line);border-radius:14px;overflow:hidden}
+  .ol-head{display:grid;grid-template-columns:1.6fr 1fr .8fr 28px;gap:12px;padding:10px 16px;background:var(--paper);font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+  .ol-row{display:grid;grid-template-columns:1.6fr 1fr .8fr 28px;gap:12px;padding:9px 16px;align-items:center;border-top:1px solid var(--paper-line)}
+  .ol-in{height:38px;border:1px solid transparent;border-radius:9px;padding:0 11px;font-family:var(--sans);font-size:13.5px;color:var(--ink);background:var(--paper);transition:border-color .15s}
+  .ol-in:focus{outline:none;border-color:var(--sage);background:var(--card)}
+  .ol-in.med{font-weight:600}
+  .ol-in:disabled{background:transparent;color:var(--ink)}
+  .ol-x{width:28px;height:28px;border-radius:8px;border:1px solid var(--paper-line);background:var(--card);color:var(--ink-faint);cursor:pointer;font-size:12px}
+  .ol-x:hover{border-color:var(--rose);color:var(--rose)}
+  .ol-add{padding:12px 16px;border-top:1px dashed var(--paper-line);color:var(--sage-deep);font-size:13.5px;font-weight:500;cursor:pointer}
+  .ol-add:hover{background:var(--sage-tint)}
+  .ord-m-acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
+  .ord-btn{height:42px;padding:0 17px;border-radius:11px;font-family:inherit;font-size:13.5px;font-weight:600;border:1px solid transparent;cursor:pointer;transition:transform .12s var(--ease-out,ease),background .18s,border-color .18s}
+  .ord-btn:hover{transform:translateY(-1px)}
+  .ord-p{background:var(--blue);color:#fff}.ord-p:hover{background:var(--sage-deep)}
+  .ord-g{background:var(--card);border-color:var(--paper-line);color:var(--ink)}.ord-g:hover{border-color:#CDD8E6}
+  .ord-w{background:var(--card);border-color:#F1D2D2;color:#B4322F}
+  .ord-note{font-size:11.5px;color:var(--ink-faint);margin-top:14px;line-height:1.5}
+  .ord-m-side{background:var(--paper);border-left:1px solid var(--paper-line);padding:24px 20px}
+  .ord-m-side h4{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 16px}
+  .ohist{position:relative}
+  .oh{display:flex;gap:11px;margin-bottom:15px}
+  .oh-dot{width:9px;height:9px;border-radius:50%;background:var(--card);border:2px solid var(--blue);margin-top:4px;flex:none}
+  .oh-t{font-size:12.5px;font-weight:600}
+  .oh-m{font-size:11px;color:var(--ink-faint);margin-top:1px}
+  .oh-empty{font-size:12.5px;color:var(--ink-faint)}
+  @media(max-width:720px){.ord-modal{grid-template-columns:1fr}.ord-m-side{border-left:0;border-top:1px solid var(--paper-line)}}`;
+  document.head.appendChild(st);
 }
 
 // Ouvre le compte-rendu complet (vue éditable plein écran) depuis le modal.
