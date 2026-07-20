@@ -5126,6 +5126,119 @@ function ensureOrdStyles() {
   document.head.appendChild(st);
 }
 
+// ══════════════════════════════════════════════════════════════════
+// SPRINT 8 Lot 2 — Action Bar flottante + Quick Create + raccourcis clavier.
+// Route vers les flux de création existants (réutilisation). Contexte
+// patient requis pour les actions liées au dossier.
+// ══════════════════════════════════════════════════════════════════
+function withPatient(fn) {
+  if (currentDetailPatientId) { fn(); }
+  else { showToast('Ouvrez d\'abord un dossier patient.', 'info'); if (typeof openPatientPicker === 'function') openPatientPicker(); }
+}
+function openQuickCreate(type) {
+  switch (type) {
+    case 'patient': openNewPatientModal(); break;
+    case 'consultation': dashboardNewConsultation(); break;
+    case 'ordonnance': withPatient(function () { openOrdonnanceEditor(null); }); break;
+    case 'analyse': withPatient(openLabModal); break;
+    case 'imagerie': withPatient(openImagingModal); break;
+    case 'document': withPatient(openEventModal); break;
+    case 'note': withPatient(openQuickNote); break;
+    case 'courrier': withPatient(function () { showToast('Le courrier se génère depuis une consultation du dossier.', 'info'); }); break;
+    case 'pdf': quickExportPdf(); break;
+    case 'partager': showToast('Le partage se fait depuis un document : Exporter puis Envoyer.', 'info'); break;
+    default: break;
+  }
+}
+function openQuickNote() {
+  const ov = recOverlay(`<h3 style="text-align:center;">Nouvelle note</h3>
+    <div class="auth-field"><label>Note libre</label><textarea id="qnBody" rows="4" style="width:100%;padding:11px 13px;border:1px solid var(--paper-line);border-radius:9px;font-family:var(--sans);font-size:13.5px;background:var(--card);color:var(--ink);resize:vertical;"></textarea></div>
+    <button class="auth-submit" onclick="submitQuickNote(this)">Ajouter au dossier</button>
+    <button class="modal-close" onclick="this.closest('.rec-ov').remove()">Annuler</button>`);
+  setTimeout(function () { const el = ov.querySelector('#qnBody'); if (el) el.focus(); }, 50);
+}
+async function submitQuickNote(btn) {
+  const ov = btn.closest('.rec-ov');
+  const body = (ov.querySelector('#qnBody').value || '').trim();
+  if (!body) { showToast('Note vide.', 'error'); return; }
+  const title = '📝 ' + (body.length > 60 ? body.slice(0, 60) + '…' : body);
+  try {
+    const r = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/events', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ type: 'document', title, note: body }) });
+    if (!r.ok) throw new Error();
+    ov.remove(); showToast('Note ajoutée au dossier.', 'success');
+    openPatientDetail(currentDetailPatientId);
+  } catch (e) { showToast("Impossible d'ajouter la note.", 'error'); }
+}
+function quickExportPdf() {
+  if (document.getElementById('ordOverlay')) { ordExportPdf(); return; }
+  showToast("Ouvrez une ordonnance ou un compte-rendu pour l'exporter.", 'info');
+}
+
+const ACTION_BAR = [
+  { k: 'consultation', ic: '🩺', l: 'Consult.', pri: true },
+  { k: 'ordonnance', ic: '💊', l: 'Ordonnance' },
+  { k: 'analyse', ic: '📈', l: 'Analyse' },
+  { k: 'imagerie', ic: '📷', l: 'Imagerie' },
+  { k: 'courrier', ic: '✉️', l: 'Courrier' },
+  { k: 'note', ic: '📝', l: 'Note' },
+  { k: 'document', ic: '📄', l: 'Document' },
+  { sep: true },
+  { k: 'pdf', ic: '⭳', l: 'PDF' },
+  { k: 'partager', ic: '↗', l: 'Partager' },
+];
+function ensureActionBar() {
+  ensureActionBarStyles();
+  if (document.getElementById('actionBar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'actionBar'; bar.className = 'abar';
+  bar.innerHTML = ACTION_BAR.map((a) => a.sep ? '<span class="abar-sep"></span>' : `<button class="abar-b ${a.pri ? 'pri' : ''}" onclick="openQuickCreate('${a.k}')" title="${a.l}"><span class="ic">${a.ic}</span><span class="lbl">${a.l}</span></button>`).join('');
+  document.body.appendChild(bar);
+}
+function ensureActionBarStyles() {
+  if (document.getElementById('actionBarStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'actionBarStyles';
+  st.textContent = `
+  #actionBar{display:none}
+  body.app-mode #actionBar{display:flex}
+  body.focus-mode #actionBar{display:none}
+  body.app-mode #appContentArea{padding-bottom:96px}
+  .abar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:400;align-items:center;gap:3px;background:rgba(10,17,40,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:8px;box-shadow:0 24px 60px -18px rgba(10,17,40,.6);animation:abarIn .4s var(--ease-out,ease)}
+  @keyframes abarIn{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+  .abar-b{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 11px;border:0;background:transparent;border-radius:11px;color:#C7D3EA;font-family:inherit;font-size:10px;font-weight:500;cursor:pointer;transition:background .15s,color .15s,transform .1s;min-width:56px}
+  .abar-b:hover{background:rgba(255,255,255,.1);color:#fff}
+  .abar-b:active{transform:scale(.94)}
+  .abar-b.pri{background:var(--blue);color:#fff}
+  .abar-b.pri:hover{background:#2b72ff}
+  .abar-b .ic{font-size:16px;line-height:1}
+  .abar-sep{width:1px;height:26px;background:rgba(255,255,255,.12);margin:0 3px}
+  @media(max-width:720px){.abar{gap:0;padding:6px;overflow-x:auto;max-width:94vw}.abar-b{min-width:50px;font-size:9px}}
+  @media(prefers-reduced-motion:reduce){.abar{animation:none}}`;
+  document.head.appendChild(st);
+}
+
+// ── Raccourcis clavier (N/C/O/A/D · ⌘K · Esc) ────────────────────
+function closeTopOverlay() {
+  const dyn = document.getElementById('ordOverlay') || document.querySelector('.rec-ov');
+  if (dyn) { dyn.remove(); return; }
+  const vis = [].slice.call(document.querySelectorAll('.modal-overlay.visible')).pop();
+  if (vis) { if (vis.id === 'authModal' && !currentUser) return; vis.classList.remove('visible'); return; }
+  try { if (typeof closeCommandPalette === 'function') closeCommandPalette(); } catch (e) {}
+}
+const SHORTCUTS = { n: 'patient', c: 'consultation', o: 'ordonnance', a: 'analyse', d: 'document' };
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') { closeTopOverlay(); return; }
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); if (typeof openCommandPalette === 'function') openCommandPalette(); return; }
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  if (!document.body.classList.contains('app-mode')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (document.getElementById('ordOverlay') || document.querySelector('.rec-ov') || document.querySelector('.modal-overlay.visible')) return; // une modale est ouverte
+  const k = (e.key || '').toLowerCase();
+  if (SHORTCUTS[k]) { e.preventDefault(); openQuickCreate(SHORTCUTS[k]); }
+});
+ensureActionBar(); // crée la barre (masquée hors app-mode par CSS)
+
 // Ouvre le compte-rendu complet (vue éditable plein écran) depuis le modal.
 function openConsultationFull(eventId) {
   const e = currentPatientEvents.find(x => x.id === eventId);
