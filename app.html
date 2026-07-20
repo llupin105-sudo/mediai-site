@@ -1039,6 +1039,7 @@
     <div id="patientSnapshotCard" style="display:none; margin-top:16px;"></div>
     <div class="patient-actions-row">
       <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation</button>
+      <button class="btn-export" onclick="openEventModal()">＋ Événement</button>
       <button class="btn-export" onclick="openLabModal()">🧪 Résultat de labo</button>
       <button class="btn-export" onclick="openImagingModal()">🩻 Imagerie</button>
       <button class="btn-export" onclick="openPatientPortalModal()">🔑 Accès patient</button>
@@ -1050,6 +1051,9 @@
 
     <div id="keyDocuments"></div>
 
+    <div id="recordViewToggle"></div>
+
+    <div id="recordTimelineWrap">
     <div class="tl-toolbar">
       <div class="tl-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1082,8 +1086,11 @@
     </div>
 
     <div class="tl tl-anim" id="patientTimeline"></div>
+    </div><!-- /recordTimelineWrap -->
+
+    <div id="evolutionView" style="display:none;"></div>
     </div>
-    <aside class="piw-rail"><div id="patientInsights"></div></aside>
+    <aside class="piw-rail"><div id="keyFactsRail"></div><div id="patientInsights"></div></aside>
     </div>
   </div>
 </section>
@@ -4306,6 +4313,10 @@ async function openPatientDetail(patientId) {
     renderCockpit(data.patient, currentPatientEvents); // Sprint 2 : briefing en tête de dossier (instantané)
     renderKeyDocuments(currentPatientEvents); // Sprint 2.2 : documents importants auto-remontés
     renderPatientInsights(data.patient, currentPatientEvents); // Colonne Insights latérale (instantané)
+    renderKeyFacts(patientId); // Sprint 7 : rail « À retenir » (structuré + dérivé)
+    recordView = 'timeline'; renderRecordViewToggle(); // Sprint 7 : bascule Chronologie / Évolution
+    document.getElementById('recordTimelineWrap').style.display = '';
+    document.getElementById('evolutionView').style.display = 'none';
     fetchPatientSnapshot(patientId); // Phase 5 : synthèse intelligente + récit du briefing (IA, cachée)
     timelineFilter = 'all';
     timelineQuery = '';
@@ -4328,11 +4339,22 @@ async function openPatientDetail(patientId) {
 let timelineFilter = 'all';
 let timelineQuery = '';
 const TL_TYPES = {
-  consultation: { label: 'Consultation', icon: '📄', dot: 'sage' },
-  ordonnance:   { label: 'Ordonnance',   icon: '💊', dot: 'violet' },
-  courrier:     { label: 'Courrier',     icon: '✉️', dot: 'amber' },
-  analyse_labo: { label: 'Analyse',      icon: '🧪', dot: 'green-deep' },
-  imagerie:     { label: 'Imagerie',     icon: '🩻', dot: 'pink' },
+  consultation:    { label: 'Consultation',    icon: '🩺', dot: 'sage' },
+  ordonnance:      { label: 'Ordonnance',      icon: '💊', dot: 'violet' },
+  courrier:        { label: 'Courrier',        icon: '✉️', dot: 'amber' },
+  analyse_labo:    { label: 'Analyse',         icon: '📈', dot: 'green-deep' },
+  imagerie:        { label: 'Imagerie',        icon: '📷', dot: 'pink' },
+  hospitalisation: { label: 'Hospitalisation', icon: '🏥', dot: 'rose', imp: true },
+  urgences:        { label: 'Urgences',        icon: '🚑', dot: 'rose', imp: true },
+  vaccination:     { label: 'Vaccin',          icon: '💉', dot: 'green' },
+  teleconsultation:{ label: 'Téléconsult.',    icon: '📞', dot: 'blue' },
+  document:        { label: 'Document',        icon: '📄', dot: 'gray' },
+  analyse_ia:      { label: 'Analyse IA',      icon: '🧬', dot: 'clinical' },
+};
+// Types ajoutables manuellement depuis « ＋ Événement » (les autres naissent d'un flux dédié).
+const MANUAL_EVENT_TYPES = {
+  hospitalisation: 'Hospitalisation', urgences: 'Passage aux urgences', vaccination: 'Vaccination',
+  teleconsultation: 'Téléconsultation', document: 'Document ajouté',
 };
 
 // Extrait un aperçu textuel du contenu d'un événement (pour la carte).
@@ -4427,6 +4449,237 @@ function onTimelineSearch() {
   timelineQuery = document.getElementById('patientSearchInput').value;
   document.getElementById('searchResultsBanner').style.display = 'none'; // quitte l'éventuel mode recherche IA
   refreshTimeline();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DOSSIER MÉDICAL INTELLIGENT (Sprint 7) — vues, « À retenir », Évolution,
+// ajout d'événement. Réutilise la timeline instantanée + le récit IA.
+// ══════════════════════════════════════════════════════════════════
+let recordView = 'timeline';
+
+function renderRecordViewToggle() {
+  const el = document.getElementById('recordViewToggle');
+  if (!el) return;
+  ensureRecordStyles();
+  el.innerHTML = `<div class="rec-toggle">
+    <button class="rec-seg ${recordView === 'timeline' ? 'on' : ''}" onclick="setRecordView('timeline')">Chronologie</button>
+    <button class="rec-seg ${recordView === 'evolution' ? 'on' : ''}" onclick="setRecordView('evolution')">Évolution</button>
+  </div>`;
+}
+function setRecordView(v) {
+  recordView = v;
+  const tl = document.getElementById('recordTimelineWrap');
+  const evo = document.getElementById('evolutionView');
+  if (tl) tl.style.display = v === 'timeline' ? '' : 'none';
+  if (evo) evo.style.display = v === 'evolution' ? '' : 'none';
+  renderRecordViewToggle();
+  if (v === 'evolution') fetchEvolution(currentDetailPatientId);
+}
+
+// ── Vue Évolution (IA descriptive, cachée) ────────────────────────
+function evoTrendMeta(t) {
+  if (t === 'aggravation') return { c: 'up', l: 'Aggravation' };
+  if (t === 'amelioration') return { c: 'down', l: 'Amélioration' };
+  return { c: 'flat', l: 'Stable' };
+}
+async function fetchEvolution(patientId) {
+  const el = document.getElementById('evolutionView');
+  if (!el) return;
+  ensureRecordStyles();
+  el.innerHTML = `<div class="evo-wrap">${skeletonRows(3)}</div>`;
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + patientId + '/evolution', { headers: authHeaders() });
+    const d = await res.json();
+    if (currentDetailPatientId !== patientId) return;
+    if (!res.ok) throw new Error();
+    renderEvolution(d.themes, d.empty);
+  } catch (e) { el.innerHTML = `<div class="evo-empty">Évolution indisponible pour le moment.</div>`; }
+}
+function renderEvolution(themes, empty) {
+  const el = document.getElementById('evolutionView');
+  if (!el) return;
+  if (empty || !themes || !themes.length) {
+    el.innerHTML = `<div class="evo-empty">Pas encore assez d'événements pour décrire une évolution.</div>`;
+    return;
+  }
+  let vitals = '';
+  try { vitals = renderVitalsEvolutionHtml(currentPatientEvents) || ''; } catch (e) {}
+  el.innerHTML = `<div class="evo-wrap">
+    ${themes.map((t) => { const m = evoTrendMeta(t.tendance); return `<div class="evo-card">
+      <div class="evo-h">${escapeHtml(t.titre || '')} <span class="evo-trend t-${m.c}">${m.l}</span></div>
+      <div class="evo-p">${escapeHtml(t.resume || '')}</div></div>`; }).join('')}
+    ${vitals ? `<div class="evo-vitals">${vitals}</div>` : ''}
+    <div class="evo-foot">✦ Tendances décrites par l'IA à partir des seules données du dossier — descriptif, jamais un diagnostic. À vérifier.</div>
+  </div>`;
+}
+
+// ── Rail « À retenir » (structuré + éditable, complété par du dérivé) ──
+const KF_CATS = { allergie: 'Allergies', maladie_chronique: 'Maladies chroniques', antecedent: 'Antécédents majeurs', vaccin: 'Vaccins', note: 'À noter' };
+const KF_ORDER = ['allergie', 'maladie_chronique', 'antecedent', 'vaccin', 'note'];
+let keyFactsById = {};
+
+function buildDerivedFacts(events) {
+  const list = (events || []).slice().sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+  const lastOrd = list.find((e) => e.type === 'ordonnance');
+  const traitements = lastOrd && Array.isArray(lastOrd.data && lastOrd.data.prescriptions)
+    ? lastOrd.data.prescriptions.filter((p) => p && p.medicament).map((p) => ({ medicament: p.medicament, posologie: p.posologie || '' }))
+    : [];
+  const lastHospit = list.find((e) => e.type === 'hospitalisation');
+  const derniereHospit = lastHospit ? `${lastHospit.title} · ${new Date(lastHospit.event_date).toLocaleDateString('fr-FR')}` : null;
+  return { traitements, derniereHospit };
+}
+async function renderKeyFacts(patientId) {
+  const el = document.getElementById('keyFactsRail');
+  if (!el) return;
+  ensureRecordStyles();
+  el.innerHTML = `<div class="kf"><div class="kf-h">À retenir</div><div class="kf-s">${skeletonRows(2)}</div></div>`;
+  let facts = [];
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + patientId + '/key-facts', { headers: authHeaders() });
+    const d = await res.json();
+    if (currentDetailPatientId !== patientId) return;
+    facts = d.items || [];
+  } catch (e) {}
+  keyFactsById = {};
+  const byCat = {};
+  facts.forEach((f) => { keyFactsById[f.id] = f; (byCat[f.category] = byCat[f.category] || []).push(f); });
+  const derived = buildDerivedFacts(currentPatientEvents);
+
+  let html = `<div class="kf"><div class="kf-h">À retenir <span class="kf-ed" onclick="openKeyFactModal()">＋ Ajouter</span></div>`;
+  KF_ORDER.forEach((cat) => {
+    const items = byCat[cat] || [];
+    if (!items.length && cat !== 'allergie') return; // les allergies restent toujours visibles
+    html += `<div class="kf-s"><div class="kf-l">${cat === 'allergie' ? '⚠︎ ' : ''}${KF_CATS[cat]}</div><div class="kf-v">`;
+    html += items.length
+      ? items.map((f) => `<span class="kf-pill ${cat === 'allergie' ? 'al' : ''}" onclick="editKeyFact('${f.id}')" title="Modifier">${escapeHtml(f.label)}</span>`).join('')
+      : `<span class="kf-empty">Aucune renseignée</span>`;
+    html += `</div></div>`;
+  });
+  if (derived.traitements.length) {
+    html += `<div class="kf-s"><div class="kf-l">Traitements actifs</div><div class="kf-v">${derived.traitements.map((t) => `<div class="kf-med">${escapeHtml(t.medicament)} <span>${escapeHtml(t.posologie || '')}</span></div>`).join('')}</div></div>`;
+  }
+  html += `<div class="kf-s"><div class="kf-l">Dernière hospitalisation</div><div class="kf-v">${derived.derniereHospit ? escapeHtml(derived.derniereHospit) : '<span class="kf-empty">Aucune enregistrée</span>'}</div></div>`;
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+// ── Modales (réutilisent .modal-box / .auth-field, overlay .rec-ov) ──
+function recOverlay(innerHtml) {
+  const ov = document.createElement('div');
+  ov.className = 'rec-ov';
+  ov.innerHTML = `<div class="modal-box" style="max-width:420px; text-align:left;">${innerHtml}</div>`;
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  return ov;
+}
+function openEventModal() {
+  if (!currentDetailPatientId) return;
+  const opts = Object.entries(MANUAL_EVENT_TYPES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  const today = new Date().toISOString().slice(0, 10);
+  recOverlay(`
+    <h3 style="text-align:center;">Ajouter un événement</h3>
+    <div class="auth-field"><label>Type</label><select id="evType">${opts}</select></div>
+    <div class="auth-field"><label>Titre</label><input id="evTitle" placeholder="Ex. Hospitalisation — pneumopathie"></div>
+    <div class="auth-field"><label>Date</label><input type="date" id="evDate" value="${today}"></div>
+    <div class="auth-field"><label>Note (optionnel)</label><textarea id="evNote" rows="3" style="width:100%; padding:10px 12px; border:1px solid var(--paper-line); border-radius:8px; font-family:var(--sans); font-size:13.5px; background:var(--card); color:var(--ink); resize:vertical;"></textarea></div>
+    <button class="auth-submit" onclick="submitEvent(this)">Ajouter à la chronologie</button>
+    <button class="modal-close" onclick="this.closest('.rec-ov').remove()">Annuler</button>`);
+}
+async function submitEvent(btn) {
+  const ov = btn.closest('.rec-ov');
+  const type = ov.querySelector('#evType').value;
+  const title = ov.querySelector('#evTitle').value.trim();
+  const date = ov.querySelector('#evDate').value;
+  const note = ov.querySelector('#evNote').value.trim();
+  if (!title) { showToast('Titre requis.', 'error'); return; }
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/events', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ type, title, date, note }),
+    });
+    if (!res.ok) throw new Error();
+    ov.remove();
+    showToast('Événement ajouté au dossier.', 'success');
+    openPatientDetail(currentDetailPatientId);
+  } catch (e) { showToast("Impossible d'ajouter l'événement.", 'error'); }
+}
+function openKeyFactModal() { keyFactModal(null); }
+function editKeyFact(id) { keyFactModal(keyFactsById[id] || null); }
+function keyFactModal(fact) {
+  if (!currentDetailPatientId) return;
+  const cats = { allergie: 'Allergie', maladie_chronique: 'Maladie chronique', antecedent: 'Antécédent', vaccin: 'Vaccin', note: 'À noter' };
+  const opts = Object.entries(cats).map(([k, v]) => `<option value="${k}" ${fact && fact.category === k ? 'selected' : ''}>${v}</option>`).join('');
+  const ov = recOverlay(`
+    <h3 style="text-align:center;">${fact ? 'Modifier' : 'Ajouter'} — À retenir</h3>
+    <div class="auth-field"><label>Catégorie</label><select id="kfCat">${opts}</select></div>
+    <div class="auth-field"><label>Libellé</label><input id="kfLabel" placeholder="Ex. Pénicilline"></div>
+    <button class="auth-submit" onclick="submitKeyFact(this,'${fact ? fact.id : ''}')">${fact ? 'Enregistrer' : 'Ajouter'}</button>
+    ${fact ? `<button class="modal-close" style="color:var(--rose);" onclick="removeKeyFact('${fact.id}',this)">Supprimer</button>` : ''}
+    <button class="modal-close" onclick="this.closest('.rec-ov').remove()">Annuler</button>`);
+  if (fact) ov.querySelector('#kfLabel').value = fact.label; // évite les soucis d'échappement d'attribut
+}
+async function submitKeyFact(btn, id) {
+  const ov = btn.closest('.rec-ov');
+  const category = ov.querySelector('#kfCat').value;
+  const label = ov.querySelector('#kfLabel').value.trim();
+  if (!label) { showToast('Libellé requis.', 'error'); return; }
+  const severity = category === 'allergie' ? 'important' : 'info';
+  try {
+    const base = API_BASE + '/api/patients/' + currentDetailPatientId + '/key-facts';
+    const res = id
+      ? await fetch(base + '/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ category, label, severity }) })
+      : await fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ category, label, severity }) });
+    if (!res.ok) throw new Error();
+    ov.remove();
+    showToast('« À retenir » mis à jour.', 'success');
+    renderKeyFacts(currentDetailPatientId);
+  } catch (e) { showToast("Impossible d'enregistrer.", 'error'); }
+}
+async function removeKeyFact(id, btn) {
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/key-facts/' + id, { method: 'DELETE', headers: authHeaders() });
+    if (!res.ok) throw new Error();
+    btn.closest('.rec-ov').remove();
+    showToast('Supprimé.', 'success');
+    renderKeyFacts(currentDetailPatientId);
+  } catch (e) { showToast('Impossible de supprimer.', 'error'); }
+}
+
+function ensureRecordStyles() {
+  if (document.getElementById('recordStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'recordStyles';
+  st.textContent = `
+  .rec-toggle{display:inline-flex;background:var(--paper);border:1px solid var(--paper-line);border-radius:999px;padding:4px;gap:2px;margin-bottom:18px}
+  .rec-seg{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:500;color:var(--ink-soft);padding:8px 18px;border-radius:999px;cursor:pointer;transition:background .18s,color .18s}
+  .rec-seg.on{background:var(--navy);color:#fff}
+  .evo-wrap{animation:snapFadeUp var(--dur-3,.24s) var(--ease-out,ease)}
+  .evo-card{background:var(--card);border:1px solid var(--paper-line);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+  .evo-h{font-size:15px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+  .evo-trend{font-size:11px;font-weight:600;padding:2px 10px;border-radius:999px}
+  .evo-trend.t-up{background:var(--rose-tint);color:#B4322F}
+  .evo-trend.t-flat{background:var(--paper);color:var(--ink-soft);border:1px solid var(--paper-line)}
+  .evo-trend.t-down{background:var(--green-tint);color:var(--green-deep)}
+  .evo-p{font-size:14px;line-height:1.6;color:var(--ink-soft)}
+  .evo-vitals{margin-top:4px}
+  .evo-foot{font-size:11.5px;color:var(--ink-faint);margin-top:6px;line-height:1.5}
+  .evo-empty,.evo-load{font-size:13.5px;color:var(--ink-faint);padding:14px 0}
+  .kf{background:var(--card);border:1px solid var(--paper-line);border-radius:16px;overflow:hidden;margin-bottom:16px}
+  .kf-h{padding:15px 18px;border-bottom:1px solid var(--paper-line);font-size:13.5px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+  .kf-ed{font-size:12px;color:var(--sage-deep);font-weight:500;cursor:pointer}
+  .kf-s{padding:13px 18px;border-bottom:1px solid var(--paper-line)}
+  .kf-s:last-child{border-bottom:0}
+  .kf-l{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px}
+  .kf-v{font-size:13.5px;color:var(--ink);line-height:1.5}
+  .kf-pill{display:inline-block;font-size:12px;font-weight:500;padding:4px 10px;border-radius:8px;margin:0 5px 5px 0;background:var(--paper);border:1px solid var(--paper-line);cursor:pointer;transition:border-color .15s}
+  .kf-pill:hover{border-color:var(--sage)}
+  .kf-pill.al{background:var(--rose-tint);border-color:#F3CFCF;color:#B4322F}
+  .kf-med{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+  .kf-med span{color:var(--ink-faint);font-size:12px}
+  .kf-empty{font-size:12.5px;color:var(--ink-faint)}
+  .rec-ov{position:fixed;inset:0;z-index:500;background:rgba(10,17,40,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .16s ease}
+  @media (prefers-reduced-motion:reduce){.evo-wrap{animation:none}}`;
+  document.head.appendChild(st);
 }
 
 function renderTimeline(events, raisons) {
