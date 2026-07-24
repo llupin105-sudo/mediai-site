@@ -955,6 +955,10 @@
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
       <span class="label">Consultations</span>
     </button>
+    <button class="sidebar-link" data-view="documents" data-tooltip="Documents" onclick="switchAppView('documents')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+      <span class="label">Documents</span>
+    </button>
 
     <div class="sidebar-divider"></div>
     <button class="sidebar-link" data-view="doc-consultation" data-tooltip="Comptes-rendus" onclick="switchAppView('doc-consultation')">
@@ -1044,6 +1048,7 @@
       <button class="btn-export" onclick="openLabModal()">🧪 Résultat de labo</button>
       <button class="btn-export" onclick="openImagingModal()">🩻 Imagerie</button>
       <button class="btn-export" onclick="openPatientPortalModal()">🔑 Accès patient</button>
+      <button class="btn-export" id="pinPatientBtn" onclick="togglePatientFavorite()">☆ Épingler</button>
     </div>
     <div class="patient-notes">
       <div class="field-label" style="margin-bottom:8px;">Notes générales</div>
@@ -1222,6 +1227,7 @@
     <div id="view-doc-courrier" class="app-view doc-view" data-doc-type="courrier" data-doc-title="Courriers"></div>
     <div id="view-doc-labo" class="app-view doc-view" data-doc-type="analyse_labo" data-doc-title="Analyses de laboratoire"></div>
     <div id="view-doc-imagerie" class="app-view doc-view" data-doc-type="imagerie" data-doc-title="Imagerie médicale"></div>
+    <div id="view-documents" class="app-view"></div>
 
     <!-- Hub Assistant IA — regroupe les outils IA deja disponibles par patient -->
     <div id="view-ia-hub" class="app-view">
@@ -1758,7 +1764,7 @@ const APP_VIEW_IDS = {
   dashboard: 'view-dashboard', patients: 'patientsSection', consultation: 'view-consultation',
   'doc-consultation': 'view-doc-consultation', 'doc-ordonnance': 'view-doc-ordonnance',
   'doc-courrier': 'view-doc-courrier', 'doc-labo': 'view-doc-labo', 'doc-imagerie': 'view-doc-imagerie',
-  'ia-hub': 'view-ia-hub', 'parametres': 'view-parametres',
+  'ia-hub': 'view-ia-hub', 'parametres': 'view-parametres', documents: 'view-documents',
 };
 
 function switchAppView(viewName) {
@@ -1778,6 +1784,9 @@ function switchAppView(viewName) {
   }
   if (viewName.startsWith('doc-') && el) {
     renderDocView(el);
+  }
+  if (viewName === 'documents') {
+    renderDocumentCenter();
   }
   if (viewName === 'parametres') {
     const emailEl = document.getElementById('settingsEmailSub');
@@ -4315,6 +4324,7 @@ async function openPatientDetail(patientId) {
     renderKeyDocuments(currentPatientEvents); // Sprint 2.2 : documents importants auto-remontés
     renderPatientInsights(data.patient, currentPatientEvents); // Colonne Insights latérale (instantané)
     renderKeyFacts(patientId); // Sprint 7 : rail « À retenir » (structuré + dérivé)
+    fetchFavorites().then(updatePinPatientBtn); // Sprint 8 Lot 3 : état de l'épingle patient
     recordView = 'timeline'; renderRecordViewToggle(); // Sprint 7 : bascule Chronologie / Évolution
     document.getElementById('recordTimelineWrap').style.display = '';
     document.getElementById('evolutionView').style.display = 'none';
@@ -5238,6 +5248,132 @@ document.addEventListener('keydown', function (e) {
   if (SHORTCUTS[k]) { e.preventDefault(); openQuickCreate(SHORTCUTS[k]); }
 });
 ensureActionBar(); // crée la barre (masquée hors app-mode par CSS)
+
+// ══════════════════════════════════════════════════════════════════
+// SPRINT 8 Lot 3 — Centre documentaire + Favoris.
+// Le centre lit les événements (fetchAllEvents) : onglets + recherche
+// instantanés + épingle. Favoris = table serveur (patients + documents).
+// ══════════════════════════════════════════════════════════════════
+const DOC_CENTER_TABS = [
+  { k: 'all', l: 'Tout' }, { k: 'ordonnance', l: 'Ordonnances' }, { k: 'analyse_labo', l: 'Analyses' },
+  { k: 'imagerie', l: 'Imagerie' }, { k: 'courrier', l: 'Courriers' }, { k: 'consultation', l: 'Comptes-rendus' },
+  { k: 'vaccination', l: 'Vaccins' }, { k: 'document', l: 'Documents' },
+];
+let favoriteIds = new Set();
+let docCenterState = { tab: 'all', q: '', events: [], favorites: { patients: [], events: [] } };
+
+async function fetchFavorites() {
+  try {
+    const r = await fetch(API_BASE + '/api/favorites', { headers: authHeaders() });
+    const d = await r.json();
+    if (r.ok) { favoriteIds = new Set(d.ids || []); docCenterState.favorites = { patients: d.patients || [], events: d.events || [] }; }
+  } catch (e) {}
+}
+async function toggleFavoriteItem(itemType, itemId) {
+  try {
+    const r = await fetch(API_BASE + '/api/favorites', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ itemType, itemId }) });
+    const d = await r.json(); if (!r.ok) throw new Error();
+    if (d.favorited) favoriteIds.add(itemId); else favoriteIds.delete(itemId);
+    showToast(d.favorited ? 'Ajouté aux favoris.' : 'Retiré des favoris.', 'success');
+    return d.favorited;
+  } catch (e) { showToast('Impossible de mettre à jour le favori.', 'error'); return favoriteIds.has(itemId); }
+}
+async function togglePatientFavorite() {
+  if (!currentDetailPatientId) return;
+  await toggleFavoriteItem('patient', currentDetailPatientId);
+  updatePinPatientBtn();
+}
+function updatePinPatientBtn() {
+  const b = document.getElementById('pinPatientBtn'); if (!b) return;
+  b.textContent = favoriteIds.has(currentDetailPatientId) ? '★ Épinglé' : '☆ Épingler';
+}
+async function toggleDocFavorite(eventId) {
+  await toggleFavoriteItem('event', eventId);
+  await fetchFavorites();
+  renderDocFavorites(); renderDocList();
+}
+
+async function renderDocumentCenter() {
+  const el = document.getElementById('view-documents'); if (!el) return;
+  ensureDocCenterStyles();
+  el.innerHTML = `<div class="dash-header"><div class="dash-greeting">Documents</div><div class="dash-date">Tous vos documents, regroupés</div></div>
+    <div id="dcFav"></div>
+    <div class="dc-tabs" id="dcTabs"></div>
+    <div class="dc-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="dcSearch" placeholder="Rechercher un document — instantané" oninput="onDocSearch()"></div>
+    <div id="dcList">${skeletonRows(4)}</div>`;
+  await fetchFavorites();
+  try { docCenterState.events = await fetchAllEvents(); } catch (e) { docCenterState.events = []; }
+  renderDocFavorites(); renderDocTabs(); renderDocList();
+}
+function renderDocTabs() {
+  const el = document.getElementById('dcTabs'); if (!el) return;
+  const counts = {}; docCenterState.events.forEach((e) => { counts[e.type] = (counts[e.type] || 0) + 1; });
+  el.innerHTML = DOC_CENTER_TABS.map((t) => {
+    const n = t.k === 'all' ? docCenterState.events.length : (counts[t.k] || 0);
+    if (t.k !== 'all' && n === 0) return '';
+    return `<button class="dc-tab ${docCenterState.tab === t.k ? 'on' : ''}" onclick="setDocTab('${t.k}')">${t.l}<span class="dc-n">${n}</span></button>`;
+  }).join('');
+}
+function setDocTab(k) { docCenterState.tab = k; renderDocTabs(); renderDocList(); }
+function onDocSearch() { docCenterState.q = (document.getElementById('dcSearch').value || '').toLowerCase(); renderDocList(); }
+function renderDocList() {
+  const el = document.getElementById('dcList'); if (!el) return;
+  const q = docCenterState.q.trim();
+  const list = docCenterState.events.filter((e) => {
+    if (docCenterState.tab !== 'all' && e.type !== docCenterState.tab) return false;
+    if (q && !(`${e.title} ${e.patientPrenom || ''} ${e.patientNom || ''} ${TL_TYPES[e.type] ? TL_TYPES[e.type].label : e.type}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+  if (!list.length) { el.innerHTML = `<div class="dc-empty">Aucun document ${docCenterState.tab === 'all' ? '' : 'de ce type '}${q ? 'pour cette recherche' : ''}.</div>`; return; }
+  el.innerHTML = list.slice(0, 200).map((e) => {
+    const meta = TL_TYPES[e.type] || { icon: '📄', label: e.type }; const fav = favoriteIds.has(e.id);
+    return `<div class="dc-row" onclick="switchAppView('patients'); openPatientDetail('${e.patientId}');">
+      <span class="dc-ic">${meta.icon}</span>
+      <div class="dc-bd"><div class="dc-t">${escapeHtml(e.title)}</div><div class="dc-m">${escapeHtml(((e.patientPrenom || '') + ' ' + (e.patientNom || '')).trim())} · ${new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</div></div>
+      <button class="dc-pin ${fav ? 'on' : ''}" title="${fav ? 'Retirer des favoris' : 'Épingler'}" onclick="event.stopPropagation();toggleDocFavorite('${e.id}')">${fav ? '★' : '☆'}</button>
+    </div>`;
+  }).join('');
+}
+function renderDocFavorites() {
+  const el = document.getElementById('dcFav'); if (!el) return;
+  const f = docCenterState.favorites; const items = [];
+  (f.patients || []).forEach((p) => { items.push(`<button class="fav-chip" onclick="switchAppView('patients'); openPatientDetail('${p.id}');"><span class="fav-av">${escapeHtml((((p.prenom || ' ')[0] || '') + ((p.nom || ' ')[0] || '')).toUpperCase())}</span>${escapeHtml(((p.prenom || '') + ' ' + (p.nom || '')).trim())}</button>`); });
+  (f.events || []).forEach((e) => { const meta = TL_TYPES[e.type] || { icon: '📄' }; items.push(`<button class="fav-chip" onclick="switchAppView('patients'); openPatientDetail('${e.patient_id}');">${meta.icon} ${escapeHtml(e.title)}</button>`); });
+  el.innerHTML = items.length ? `<div class="dc-fav"><div class="dc-fav-h">★ Favoris</div><div class="dc-fav-row">${items.join('')}</div></div>` : '';
+}
+function ensureDocCenterStyles() {
+  if (document.getElementById('dcStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'dcStyles';
+  st.textContent = `
+  .dc-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:18px 0 4px}
+  .dc-tab{font-size:12.5px;font-weight:500;padding:8px 14px;border-radius:999px;border:1px solid var(--paper-line);background:var(--card);color:var(--ink-soft);cursor:pointer;transition:border-color .15s,color .15s,background .15s;display:inline-flex;align-items:center;gap:7px}
+  .dc-tab:hover{border-color:#CDD8E6;color:var(--ink)}
+  .dc-tab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .dc-n{font-size:11px;opacity:.7}
+  .dc-search{position:relative;margin:14px 0 4px;max-width:520px}
+  .dc-search input{width:100%;height:42px;border:1px solid var(--paper-line);border-radius:12px;padding:0 14px 0 40px;font-family:var(--sans);font-size:13.5px;background:var(--paper);color:var(--ink)}
+  .dc-search input:focus{outline:none;border-color:var(--sage)}
+  .dc-search svg{position:absolute;left:14px;top:13px;width:16px;height:16px;color:var(--ink-faint)}
+  #dcList{margin-top:10px}
+  .dc-row{display:flex;align-items:center;gap:14px;padding:12px 8px;border-top:1px solid var(--paper-line);cursor:pointer;transition:background .15s;border-radius:8px}
+  .dc-row:hover{background:var(--paper)}
+  .dc-ic{font-size:20px;width:28px;text-align:center}
+  .dc-bd{flex:1;min-width:0}
+  .dc-t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dc-m{font-size:12px;color:var(--ink-soft)}
+  .dc-pin{width:34px;height:34px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--ink-faint);font-size:16px;cursor:pointer;transition:background .15s,color .15s}
+  .dc-pin:hover{background:var(--sage-tint);color:var(--sage-deep)}
+  .dc-pin.on{color:var(--amber)}
+  .dc-empty{font-size:13.5px;color:var(--ink-faint);padding:24px 8px}
+  .dc-fav{background:var(--card);border:1px solid var(--paper-line);border-radius:14px;padding:15px 18px;margin-bottom:8px}
+  .dc-fav-h{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px}
+  .dc-fav-row{display:flex;gap:9px;flex-wrap:wrap}
+  .fav-chip{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;padding:8px 13px;border-radius:11px;background:var(--paper);border:1px solid var(--paper-line);color:var(--ink);cursor:pointer;transition:border-color .15s,box-shadow .15s;font-family:inherit}
+  .fav-chip:hover{border-color:var(--sage);box-shadow:var(--shadow-sm)}
+  .fav-av{width:22px;height:22px;border-radius:6px;background:var(--navy);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}`;
+  document.head.appendChild(st);
+}
 
 // Ouvre le compte-rendu complet (vue éditable plein écran) depuis le modal.
 function openConsultationFull(eventId) {
