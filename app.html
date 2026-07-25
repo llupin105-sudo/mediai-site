@@ -5301,6 +5301,7 @@ async function renderDocumentCenter() {
     <div class="dc-tabs" id="dcTabs"></div>
     <div class="dc-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="dcSearch" placeholder="Rechercher un document — instantané" oninput="onDocSearch()"></div>
     <div id="dcList">${skeletonRows(4)}</div>`;
+  docCenterState.page = 1;
   await fetchFavorites();
   try { docCenterState.events = await fetchAllEvents(); } catch (e) { docCenterState.events = []; }
   renderDocFavorites(); renderDocTabs(); renderDocList();
@@ -5314,8 +5315,8 @@ function renderDocTabs() {
     return `<button class="dc-tab ${docCenterState.tab === t.k ? 'on' : ''}" onclick="setDocTab('${t.k}')">${t.l}<span class="dc-n">${n}</span></button>`;
   }).join('');
 }
-function setDocTab(k) { docCenterState.tab = k; renderDocTabs(); renderDocList(); }
-function onDocSearch() { docCenterState.q = (document.getElementById('dcSearch').value || '').toLowerCase(); renderDocList(); }
+function setDocTab(k) { docCenterState.tab = k; docCenterState.page = 1; renderDocTabs(); renderDocList(); }
+function onDocSearch() { docCenterState.q = (document.getElementById('dcSearch').value || '').toLowerCase(); docCenterState.page = 1; renderDocList(); }
 function renderDocList() {
   const el = document.getElementById('dcList'); if (!el) return;
   const q = docCenterState.q.trim();
@@ -5325,7 +5326,12 @@ function renderDocList() {
     return true;
   });
   if (!list.length) { el.innerHTML = `<div class="dc-empty">Aucun document ${docCenterState.tab === 'all' ? '' : 'de ce type '}${q ? 'pour cette recherche' : ''}.</div>`; return; }
-  el.innerHTML = list.slice(0, 200).map((e) => {
+  // Performance : pagination « Voir plus » (rendu par pages de 40).
+  const PAGE = 40;
+  const page = docCenterState.page || 1;
+  const shown = list.slice(0, page * PAGE);
+  el.className = page === 1 ? 'mi-stagger' : ''; // animation d'entrée à la 1re page uniquement
+  const rows = shown.map((e) => {
     const meta = TL_TYPES[e.type] || { icon: '📄', label: e.type }; const fav = favoriteIds.has(e.id);
     return `<div class="dc-row" onclick="switchAppView('patients'); openPatientDetail('${e.patientId}');">
       <span class="dc-ic">${meta.icon}</span>
@@ -5333,6 +5339,10 @@ function renderDocList() {
       <button class="dc-pin ${fav ? 'on' : ''}" title="${fav ? 'Retirer des favoris' : 'Épingler'}" onclick="event.stopPropagation();toggleDocFavorite('${e.id}')">${fav ? '★' : '☆'}</button>
     </div>`;
   }).join('');
+  const more = list.length > shown.length
+    ? `<button class="dc-more" onclick="docCenterState.page=(docCenterState.page||1)+1;renderDocList();">Voir plus · ${list.length - shown.length} restant${list.length - shown.length > 1 ? 's' : ''}</button>`
+    : '';
+  el.innerHTML = rows + more;
 }
 function renderDocFavorites() {
   const el = document.getElementById('dcFav'); if (!el) return;
@@ -5374,6 +5384,39 @@ function ensureDocCenterStyles() {
   .fav-av{width:22px;height:22px;border-radius:6px;background:var(--navy);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}`;
   document.head.appendChild(st);
 }
+
+// ══════════════════════════════════════════════════════════════════
+// SPRINT 8 Lot 4 — micro-interactions & performance (polish transversal).
+// Additif et à faible risque : focus-visible, press, entrées échelonnées,
+// scroll fluide — tout neutralisé sous prefers-reduced-motion.
+// ══════════════════════════════════════════════════════════════════
+function ensureMicroStyles() {
+  if (document.getElementById('microStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'microStyles';
+  let stagger = '';
+  for (let i = 1; i <= 12; i++) stagger += `.mi-stagger>*:nth-child(${i}){animation-delay:${(i * 0.028).toFixed(3)}s}`;
+  st.textContent = `
+  html{scroll-behavior:smooth}
+  body.app-mode :is(button,a,[role=button],input,select,textarea):focus-visible{outline:2px solid var(--sage);outline-offset:2px;border-radius:8px}
+  body.app-mode button{transition:transform .12s var(--ease-out,cubic-bezier(.22,.61,.36,1)),background .16s,border-color .16s,color .16s,box-shadow .16s}
+  body.app-mode button:active{transform:scale(.975)}
+  .btn-export:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+  .patient-card,.dc-row,.fav-chip{will-change:transform}
+  @keyframes miUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .mi-stagger>*{animation:miUp .34s var(--ease-out,cubic-bezier(.22,.61,.36,1)) both}
+  ${stagger}
+  .dc-more{display:block;width:100%;margin-top:14px;height:42px;border-radius:11px;border:1px solid var(--paper-line);background:var(--card);color:var(--ink-soft);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:border-color .16s,color .16s}
+  .dc-more:hover{border-color:var(--sage);color:var(--sage-deep)}
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    body.app-mode button:active{transform:none}
+    .btn-export:hover{transform:none}
+    .mi-stagger>*{animation:none}
+  }`;
+  document.head.appendChild(st);
+}
+ensureMicroStyles();
 
 // Ouvre le compte-rendu complet (vue éditable plein écran) depuis le modal.
 function openConsultationFull(eventId) {
