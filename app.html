@@ -46,6 +46,10 @@
     --mono:  var(--sans);  /* labels en Inter (majuscules/tracking), plus de monospace */
 
     --r-xs: 4px; --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-full: 9999px;
+    /* Sprint 9 — échelle d'espacement 4px (source unique). Utiliser --space-* plutôt que des valeurs magiques. */
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+    /* Alias sémantiques (l'accent principal ; --sage* conservé par compat) */
+    --accent: var(--blue); --accent-deep: var(--sage-deep); --accent-tint: var(--sage-tint);
     --btn-h: 42px;          /* hauteur unifiee de tous les boutons */
     --btn-radius: var(--r-md);
     --btn-transition: background .16s ease, border-color .16s ease, color .16s ease, transform .1s ease, box-shadow .16s ease;
@@ -453,6 +457,24 @@
   .diag-code{ font-family:var(--mono); font-size:12px; color:var(--ink-soft); }
   .export-row{ display:flex; gap:10px; margin-top:28px; flex-wrap:wrap; max-width:900px; margin-left:auto; margin-right:auto; }
   .btn-export{ flex:1; min-width:160px; height:var(--btn-h); padding:0 16px; text-align:center; border:1px solid var(--paper-line); border-radius:var(--btn-radius); background:var(--card); font-size:13.5px; font-weight:500; color:var(--ink-soft); cursor:pointer; transition:var(--btn-transition); font-family:var(--sans); display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+  /* ── Sprint 9 — bouton CANONIQUE .btn (composant réutilisable du design system) ── */
+  .btn{ height:var(--btn-h); padding:0 var(--space-4); border-radius:var(--btn-radius); border:1px solid transparent; font-family:var(--sans); font-size:13.5px; font-weight:600; cursor:pointer; transition:var(--btn-transition); display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2); white-space:nowrap; }
+  .btn:active{ transform:scale(.98); }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-primary:hover{ background:var(--accent-deep); }
+  .btn-ghost{ background:var(--card); border-color:var(--paper-line); color:var(--ink); }
+  .btn-ghost:hover{ border-color:#CDD8E6; }
+  .btn-danger{ background:var(--card); border-color:var(--rose-tint); color:var(--rose); }
+  .btn-sm{ height:34px; padding:0 var(--space-3); font-size:12.5px; }
+  @media(prefers-reduced-motion:reduce){ .btn:active{ transform:none; } }
+  /* ── Sprint 9 2c — normalisation transversale (spécificité élevée pour primer
+     sur les styles injectés au runtime, sans renommer ni toucher au JS) ── */
+  body.app-mode .ckpt-card, body.app-mode .evo-card, body.app-mode .kf,
+  body.app-mode .dc-fav, body.app-mode .vit-card, body.app-mode .tn-card,
+  body.app-mode .ih { border-radius: var(--r-lg); }
+  body.app-mode input:focus-visible, body.app-mode textarea:focus-visible,
+  body.app-mode select:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+  body.app-mode .rec-ov, body.app-mode .ord-ov, body.app-mode .qc-ov { background: rgba(10,17,40,.5); }
   .btn-export:hover{ border-color:var(--sage); background:var(--sage-tint); color:var(--sage-deep); }
   .btn-export:active{ transform:scale(.97); }
   .anon-strip{ font-family:var(--mono); font-size:11px; color:var(--ink-faint); display:flex; align-items:center; gap:8px; margin-top:12px; justify-content:center; }
