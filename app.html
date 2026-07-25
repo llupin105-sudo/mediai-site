@@ -2229,6 +2229,9 @@ async function renderDashboard() {
     cockpitState.data = await fetchCockpit();
   } catch (err) {
     cockpitState.data = null;
+    renderAuroraBand();
+    if (cards) cards.innerHTML = `<div style="grid-column:1/-1;background:var(--card);border:1px solid var(--paper-line);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);text-align:center;padding:30px 18px;"><div style="font-size:30px;margin-bottom:8px;">📡</div><div style="font-size:14px;color:var(--ink-soft);margin-bottom:14px;">Impossible de charger votre journée pour le moment.</div><button class="btn btn-ghost btn-sm" onclick="renderDashboard()">Réessayer</button></div>`;
+    return;
   }
   renderAuroraBand();
   renderAuroraCards();
@@ -2236,7 +2239,7 @@ async function renderDashboard() {
 }
 
 async function fetchCockpit() {
-  const res = await fetch(API_BASE + '/api/cockpit', { headers: authHeaders() });
+  const res = await apiFetch(API_BASE + '/api/cockpit', { headers: authHeaders() });
   if (!res.ok) throw new Error('cockpit indisponible');
   const d = await res.json();
   return d.cockpit;
@@ -4334,8 +4337,9 @@ async function openPatientDetail(patientId) {
   document.getElementById('searchResultsBanner').style.display = 'none';
   document.getElementById('patientSearchInput').value = '';
   try {
-    const res = await fetch(API_BASE + '/api/patients/' + patientId, { headers: authHeaders() });
+    const res = await apiFetch(API_BASE + '/api/patients/' + patientId, { headers: authHeaders() });
     const data = await res.json();
+    if (res.status === 404) { showErrorModal({ icon: '🔍', title: 'Patient introuvable', text: "Ce dossier n'existe plus ou n'est pas accessible.", retry: function () { switchAppView('patients'); } }); return; }
     if (!res.ok) throw new Error(data.error);
 
     document.getElementById('patientNotesText').value = data.patient.notes || '';
@@ -4362,7 +4366,7 @@ async function openPatientDetail(patientId) {
     document.getElementById('patientsListView').style.display = 'none';
     document.getElementById('patientDetailView').classList.add('visible');
   } catch (err) {
-    alert(err.message || 'Impossible de charger ce dossier patient');
+    showErrorModal({ icon: '📄', title: 'Dossier indisponible', text: 'Impossible de charger ce dossier pour le moment. Vérifiez votre connexion et réessayez.', retry: function () { openPatientDetail(patientId); } });
   }
 }
 
@@ -6021,6 +6025,65 @@ async function submitReset(btn, token) {
     btn.disabled = false; btn.textContent = 'Réinitialiser et se connecter';
   }
 }
+
+// ══════════════════════════════════════════════════════════════════
+// SPRINT 9 Étape 3 — états chargement / vide / erreur + connexion perdue.
+// apiFetch : wrapper ciblé qui trace la connectivité (bandeau global) sans
+// changer le contrat d'appel (renvoie la Response comme fetch).
+// ══════════════════════════════════════════════════════════════════
+async function apiFetch(url, opts) {
+  try { const res = await fetch(url, opts); markOnline(); return res; }
+  catch (e) { markOffline(); throw e; }
+}
+let _connOffline = false, _connTimer = null;
+function ensureConnBanner() {
+  if (document.getElementById('connBanner')) return;
+  const st = document.createElement('style'); st.id = 'connBannerStyles';
+  st.textContent = '#connBanner{position:fixed;top:0;left:0;right:0;z-index:900;transform:translateY(-100%);transition:transform .3s var(--ease-out,ease);background:var(--navy);color:#fff;text-align:center;font-size:13px;font-weight:500;padding:9px 16px;box-shadow:0 6px 20px -8px rgba(10,17,40,.5);display:flex;align-items:center;justify-content:center;gap:9px}'
+    + '#connBanner.show{transform:translateY(0)}'
+    + '#connBanner .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);animation:connPulse 1s infinite}'
+    + '@keyframes connPulse{0%,100%{opacity:1}50%{opacity:.3}}';
+  document.head.appendChild(st);
+  const b = document.createElement('div'); b.id = 'connBanner';
+  b.innerHTML = '<span class="dot"></span><span>Connexion perdue — reconnexion en cours…</span>';
+  document.body.appendChild(b);
+}
+function markOffline() {
+  if (_connOffline) return;
+  _connOffline = true; ensureConnBanner();
+  document.getElementById('connBanner').classList.add('show');
+  if (!_connTimer) _connTimer = setInterval(pingHealth, 5000);
+}
+function markOnline() {
+  if (!_connOffline) return;
+  _connOffline = false;
+  const b = document.getElementById('connBanner'); if (b) b.classList.remove('show');
+  if (_connTimer) { clearInterval(_connTimer); _connTimer = null; }
+}
+async function pingHealth() { try { const r = await fetch(API_BASE + '/health', { cache: 'no-store' }); if (r.ok) markOnline(); } catch (e) {} }
+window.addEventListener('offline', markOffline);
+window.addEventListener('online', pingHealth);
+
+// Modale d'erreur réutilisable (réseau, introuvable, serveur…) avec Réessayer.
+// Réutilise le bouton canonique .btn (Étape 2).
+function showErrorModal(opts) {
+  const o = opts || {};
+  const ov = document.createElement('div'); ov.className = 'err-ov';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:750;background:rgba(10,17,40,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML = '<div style="background:#fff;border-radius:18px;box-shadow:0 30px 70px -30px rgba(10,17,40,.45);max-width:380px;width:100%;padding:26px;text-align:center;">'
+    + '<div style="font-size:34px;margin-bottom:10px;">' + (o.icon || '⚠️') + '</div>'
+    + '<h3 style="margin:0 0 6px;font-size:18px;font-weight:700;">' + (o.title || 'Une erreur est survenue') + '</h3>'
+    + '<p style="margin:0 0 18px;font-size:13.5px;color:#48566E;line-height:1.5;">' + (o.text || '') + '</p>'
+    + '<div style="display:flex;gap:9px;justify-content:center;">'
+    + (o.retry ? '<button class="btn btn-primary" id="errRetry">Réessayer</button>' : '')
+    + '<button class="btn btn-ghost" id="errClose">Fermer</button></div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#errClose').onclick = function () { ov.remove(); };
+  if (o.retry) ov.querySelector('#errRetry').onclick = function () { ov.remove(); o.retry(); };
+  ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+  return ov;
+}
+ensureConnBanner();
 function switchAuthTab(btn) {
   authMode = btn.dataset.mode;
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
