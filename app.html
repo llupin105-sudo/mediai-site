@@ -1949,14 +1949,24 @@ async function runCommandPaletteSearch() {
     .slice(0, 5)
     .map((p) => ({ kind:'patient', icon:'👤', title:`${p.prenom} ${p.nom}`, sub:`${p.events_count || 0} événement(s)`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(p.id); } }));
 
-  // Documents — depuis le cache d'événements.
+  // Documents — depuis le cache d'événements (tous types via TL_TYPES).
   let docMatches = [];
   try {
     const events = await fetchAllEvents();
     docMatches = events
       .filter((e) => e.title.toLowerCase().includes(query) || `${e.patientPrenom} ${e.patientNom}`.toLowerCase().includes(query))
       .slice(0, 6)
-      .map((e) => ({ kind:'document', icon: CMDK_TYPE_ICONS[e.type] || '📄', title: e.title, sub:`${CMDK_TYPE_LABELS[e.type] || ''} · ${e.patientPrenom} ${e.patientNom}`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(e.patientId); } }));
+      .map((e) => { const meta = TL_TYPES[e.type] || { icon: '📄', label: e.type }; return { kind:'document', icon: meta.icon, title: e.title, sub:`${meta.label} · ${e.patientPrenom} ${e.patientNom}`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(e.patientId); } }; });
+  } catch {}
+
+  // Rendez-vous — source réelle (table appointments).
+  let rdvMatches = [];
+  try {
+    const appts = await fetchUpcomingAppointments();
+    rdvMatches = appts
+      .filter((a) => `${a.patient_nom || ''} ${a.patient_label || ''} ${a.motif || ''}`.toLowerCase().includes(query))
+      .slice(0, 5)
+      .map((a) => ({ kind:'rdv', icon:'📅', title: (a.patient_nom || a.patient_label || 'Rendez-vous'), sub:`Rendez-vous · ${apptWhen(a) || new Date(a.start_at).toLocaleDateString('fr-FR')}${a.motif ? ' · ' + a.motif : ''}`, action:() => { closeCommandPalette(); if (a.patient_id) { switchAppView('patients'); openPatientDetail(a.patient_id); } } }));
   } catch {}
 
   // Ne re-affiche que si la requête n'a pas changé entre-temps (asynchrone).
@@ -1966,7 +1976,8 @@ async function runCommandPaletteSearch() {
   if (commandMatches.length) groups.push({ label:'Actions', items:commandMatches });
   if (patientMatches.length) groups.push({ label:'Patients', items:patientMatches });
   if (docMatches.length) groups.push({ label:'Documents', items:docMatches });
-  cmdkCurrentItems = [...commandMatches, ...patientMatches, ...docMatches];
+  if (rdvMatches.length) groups.push({ label:'Rendez-vous', items:rdvMatches });
+  cmdkCurrentItems = [...commandMatches, ...patientMatches, ...docMatches, ...rdvMatches];
 
   if (groups.length === 0) {
     resultsEl.innerHTML = `<div class="cmdk-empty">Aucun résultat pour « ${raw} »</div>`;
@@ -1978,7 +1989,7 @@ async function runCommandPaletteSearch() {
 function renderCmdkResults(groups) {
   ensureCmdkStyles();
   const resultsEl = document.getElementById('cmdkResults');
-  const kbdFor = { command:'Action', patient:'Patient', document:'Document' };
+  const kbdFor = { command:'Action', patient:'Patient', document:'Document', rdv:'RDV' };
   let flatIndex = 0;
   resultsEl.innerHTML = groups.map(g => `
     <div class="cmdk-group-label">${g.label}</div>
@@ -2035,12 +2046,54 @@ document.addEventListener('keydown', (e) => {
 // non-lus mis en avant. 100% déterministe (événements réels du dossier),
 // nouveauté détectée via created_at vs dernière visite (localStorage).
 const NOTIF_META = {
-  consultation: { icon: '🩺', label: 'Consultation', bg: 'var(--sage-tint)', fg: 'var(--sage-deep)' },
-  ordonnance:   { icon: '💊', label: 'Ordonnance', bg: 'var(--violet-tint)', fg: 'var(--violet-deep)' },
-  courrier:     { icon: '✉️', label: 'Courrier', bg: 'var(--amber-tint)', fg: '#B45309' },
-  analyse_labo: { icon: '🧪', label: 'Résultat de laboratoire', bg: 'var(--green-tint)', fg: 'var(--green-deep)' },
-  imagerie:     { icon: '🩻', label: 'Imagerie', bg: 'var(--pink-tint)', fg: '#BE185D' },
+  consultation:     { icon: '🩺', label: 'Consultation', bg: 'var(--sage-tint)', fg: 'var(--sage-deep)' },
+  ordonnance:       { icon: '💊', label: 'Ordonnance', bg: 'var(--violet-tint)', fg: 'var(--violet-deep)' },
+  courrier:         { icon: '✉️', label: 'Courrier', bg: 'var(--amber-tint)', fg: '#B45309' },
+  analyse_labo:     { icon: '📈', label: 'Résultat de laboratoire', bg: 'var(--green-tint)', fg: 'var(--green-deep)' },
+  imagerie:         { icon: '📷', label: 'Imagerie', bg: 'var(--pink-tint)', fg: '#BE185D' },
+  hospitalisation:  { icon: '🏥', label: 'Hospitalisation', bg: 'var(--rose-tint)', fg: '#B4322F' },
+  urgences:         { icon: '🚑', label: 'Passage aux urgences', bg: 'var(--rose-tint)', fg: '#B4322F' },
+  vaccination:      { icon: '💉', label: 'Vaccination', bg: 'var(--green-tint)', fg: 'var(--green-deep)' },
+  teleconsultation: { icon: '📞', label: 'Téléconsultation', bg: 'var(--blue-tint)', fg: 'var(--sage-deep)' },
+  document:         { icon: '📄', label: 'Document ajouté', bg: 'var(--paper)', fg: 'var(--ink-soft)' },
+  analyse_ia:       { icon: '🧬', label: 'Analyse IA', bg: 'var(--violet-tint)', fg: 'var(--violet-deep)' },
 };
+// Rendez-vous à venir — source réelle (table appointments). Cache 60 s.
+let _apptNotifCache = null, _apptNotifAt = 0;
+async function fetchUpcomingAppointments(force) {
+  const now = Date.now();
+  if (!force && _apptNotifCache && (now - _apptNotifAt) < 60000) return _apptNotifCache;
+  const from = new Date(); from.setHours(0, 0, 0, 0);
+  const to = new Date(); to.setDate(to.getDate() + 7); to.setHours(23, 59, 59, 999);
+  try {
+    const r = await apiFetch(API_BASE + '/api/appointments?from=' + from.toISOString() + '&to=' + to.toISOString(), { headers: authHeaders() });
+    const d = await r.json();
+    _apptNotifCache = (d.items || []).filter((a) => a.status !== 'annule' && new Date(a.start_at).getTime() > now);
+    _apptNotifAt = now;
+    return _apptNotifCache;
+  } catch (e) { return _apptNotifCache || []; }
+}
+function apptWhen(a) {
+  const mins = Math.round((new Date(a.start_at).getTime() - Date.now()) / 60000);
+  if (mins < 0) return null;
+  if (mins < 60) return 'dans ' + mins + ' min';
+  if (mins < 1440) return 'dans ' + Math.round(mins / 60) + ' h';
+  return new Date(a.start_at).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function apptNotifHtml(a) {
+  const when = apptWhen(a);
+  const name = a.patient_nom || a.patient_label || 'Sans dossier';
+  const open = a.patient_id ? `closeNotifCenter(); switchAppView('patients'); openPatientDetail('${a.patient_id}');` : 'closeNotifCenter();';
+  return `<div class="notif-item" onclick="${open}">
+    <span style="width:7px; flex-shrink:0;"></span>
+    <div class="notif-ic" style="background:var(--blue-tint); color:var(--sage-deep);">📅</div>
+    <div style="flex:1; min-width:0;">
+      <div style="font-size:13px; color:var(--ink); font-weight:500;">Rendez-vous${when ? ' · ' + when : ''}</div>
+      <div style="font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}${a.motif ? ' · ' + escapeHtml(a.motif) : ''}</div>
+    </div>
+    <div style="font-size:11px; color:var(--ink-faint); flex-shrink:0;">${new Date(a.start_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
+  </div>`;
+}
 function notifTime(e) { return new Date(e.created_at || e.event_date).getTime(); }
 function getNotifLastSeen() { const v = localStorage.getItem('mediai_notif_seen'); return v ? parseInt(v, 10) : null; }
 function setNotifLastSeen(t) { localStorage.setItem('mediai_notif_seen', String(t)); }
@@ -2079,7 +2132,8 @@ async function updateNotifBadge() {
   if (last === null) { setNotifLastSeen(Date.now()); badge.classList.remove('show'); return; }
   try {
     const events = await fetchAllEvents();
-    const n = events.filter((e) => notifTime(e) > last).length;
+    const appts = await fetchUpcomingAppointments();
+    const n = events.filter((e) => notifTime(e) > last).length + appts.length;
     if (n > 0) { badge.textContent = n > 9 ? '9+' : String(n); badge.classList.add('show'); }
     else badge.classList.remove('show');
   } catch { badge.classList.remove('show'); }
@@ -2115,13 +2169,19 @@ async function renderNotifCenter() {
   catch { body.innerHTML = '<div class="dash-empty" style="padding:20px;">Impossible de charger les notifications.</div>'; return; }
   const last = getNotifLastSeen() || 0;
   const sorted = events.slice().sort((a, b) => notifTime(b) - notifTime(a)).slice(0, 40);
-  if (sorted.length === 0) {
-    body.innerHTML = emptyState({ icon: '🔔', title: 'Aucune notification', text: 'Les nouveaux documents et résultats apparaîtront ici.' });
+  const appts = await fetchUpcomingAppointments();
+  if (sorted.length === 0 && appts.length === 0) {
+    body.innerHTML = emptyState({ icon: '🔔', title: 'Aucune notification', text: 'Rendez-vous, nouveaux documents et résultats apparaîtront ici.' });
     return;
   }
   const nouveau = sorted.filter((e) => notifTime(e) > last);
   const plusTot = sorted.filter((e) => notifTime(e) <= last);
   let html = '';
+  // Rendez-vous à venir (source réelle : table appointments) — en tête.
+  if (appts.length) {
+    html += `<div class="notif-group" style="color:var(--sage-deep);">Rendez-vous à venir · ${appts.length}</div>`;
+    html += appts.slice(0, 6).map(apptNotifHtml).join('');
+  }
   if (nouveau.length) {
     html += `<div class="notif-group" style="color:var(--sage-deep);">Depuis votre dernière visite · ${nouveau.length}</div>`;
     html += nouveau.map((e) => notifItemHtml(e, true)).join('');
