@@ -955,7 +955,7 @@
 </head>
 <body>
 
-<div id="toastContainer"></div>
+<div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
 
 <aside id="appSidebar">
@@ -1027,7 +1027,7 @@
   </button>
   <div class="topbar-search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="topbarSearchInput" placeholder="Rechercher un patient, un document ou une consultation…" readonly onclick="openCommandPalette()" style="cursor:pointer;">
+    <input type="text" id="topbarSearchInput" placeholder="Rechercher un patient, un document ou une consultation…" aria-label="Recherche universelle (⌘K)" readonly onclick="openCommandPalette()" style="cursor:pointer;">
     <span class="topbar-search-badge">⌘K</span>
   </div>
   <div class="topbar-right">
@@ -4665,6 +4665,7 @@ async function renderKeyFacts(patientId) {
 function recOverlay(innerHtml) {
   const ov = document.createElement('div');
   ov.className = 'rec-ov';
+  ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
   ov.innerHTML = `<div class="modal-box" style="max-width:420px; text-align:left;">${innerHtml}</div>`;
   ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
@@ -5015,6 +5016,7 @@ function renderOrdEditor() {
   let ov = document.getElementById('ordOverlay');
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'ordOverlay'; ov.className = 'ord-ov';
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
     ov.addEventListener('click', (e) => { if (e.target === ov) closeOrdEditor(); });
     document.body.appendChild(ov);
   }
@@ -5351,7 +5353,7 @@ let docCenterState = { tab: 'all', q: '', events: [], favorites: { patients: [],
 
 async function fetchFavorites() {
   try {
-    const r = await fetch(API_BASE + '/api/favorites', { headers: authHeaders() });
+    const r = await apiFetch(API_BASE + '/api/favorites', { headers: authHeaders() });
     const d = await r.json();
     if (r.ok) { favoriteIds = new Set(d.ids || []); docCenterState.favorites = { patients: d.patients || [], events: d.events || [] }; }
   } catch (e) {}
@@ -6028,6 +6030,7 @@ function closeAuthModal() {
 function authOverlay(inner) {
   const ov = document.createElement('div');
   ov.className = 'auth-ov';
+  ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
   ov.style.cssText = 'position:fixed;inset:0;z-index:700;background:rgba(10,17,40,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;';
   ov.innerHTML = '<div style="background:#fff;border-radius:18px;box-shadow:0 30px 70px -30px rgba(10,17,40,.45);width:100%;max-width:400px;padding:26px 26px 20px;text-align:left;">' + inner + '</div>';
   document.body.appendChild(ov);
@@ -6129,6 +6132,7 @@ window.addEventListener('online', pingHealth);
 function showErrorModal(opts) {
   const o = opts || {};
   const ov = document.createElement('div'); ov.className = 'err-ov';
+  ov.setAttribute('role', 'alertdialog'); ov.setAttribute('aria-modal', 'true');
   ov.style.cssText = 'position:fixed;inset:0;z-index:750;background:rgba(10,17,40,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;';
   ov.innerHTML = '<div style="background:#fff;border-radius:18px;box-shadow:0 30px 70px -30px rgba(10,17,40,.45);max-width:380px;width:100%;padding:26px;text-align:center;">'
     + '<div style="font-size:34px;margin-bottom:10px;">' + (o.icon || '⚠️') + '</div>'
