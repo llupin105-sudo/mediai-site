@@ -1054,9 +1054,9 @@
   <div class="app-content-inner">
 
     <div id="view-dashboard" class="app-view visible">
-      <!-- ══ DASHBOARD « AURORA » — bandeau navy + 4 cartes ══ -->
+      <!-- ══ DASHBOARD (Sprint 11) — hero léger + 5 modules ══ -->
       <div id="dashBand"></div>
-      <div id="dashCards" class="aur-grid"></div>
+      <div id="dashCards"></div>
     </div>
 
     <section class="patients-section app-view" id="patientsSection">
@@ -2289,7 +2289,7 @@ async function renderDashboard() {
   updateNotifBadge();
   const band = document.getElementById('dashBand');
   const cards = document.getElementById('dashCards');
-  if (band) band.innerHTML = `<div class="aur-band"><div class="skel skel-line w-40" style="background:rgba(255,255,255,.16)"></div><div class="skel skel-line w-60" style="height:28px;margin-top:16px;background:rgba(255,255,255,.16)"></div></div>`;
+  if (band) band.innerHTML = `<div class="dsh-hero"><div class="skel skel-line w-40"></div><div class="skel skel-line w-60" style="height:30px;margin-top:12px"></div><div class="skel skel-line" style="margin-top:18px;max-width:520px"></div></div>`;
   if (cards) cards.innerHTML = auroraCardsSkeleton();
   try {
     cockpitState.data = await fetchCockpit();
@@ -2349,97 +2349,131 @@ function renderAuroraBand() {
   const prio = (d.priorites && d.priorites[0]) || null;
   const b = cockpitState.briefing;
 
-  let big, click = '';
+  // Une seule phrase IA : la priorité du jour si elle existe, sinon le récit.
+  let aiTxt;
   if (prio) {
-    click = ` class="aur-big click" onclick="ckptOpenPatient('${prio.patient_id}')"`;
-    big = `Une priorité ce matin : <b>${escapeHtml((prio.prenom || '') + ' ' + (prio.nom || '')).trim()}</b> — ${escapeHtml(prio.signals[0].titre.toLowerCase())}.<span class="aur-go">Ouvrir le dossier →</span>`;
+    aiTxt = `Une priorité aujourd'hui : <b>${escapeHtml((prio.prenom || '') + ' ' + (prio.nom || '')).trim()}</b> — ${escapeHtml(prio.signals[0].titre.toLowerCase())}. <span class="go" onclick="ckptOpenPatient('${prio.patient_id}')">Ouvrir le dossier →</span>`;
+  } else if (b && b.recit) {
+    aiTxt = escapeHtml(b.recit);
   } else {
-    big = `Rien d'urgent aujourd'hui. Belle journée, Docteur.`;
+    aiTxt = 'Rien ne requiert votre attention immédiate. Belle journée.';
   }
-  const ai = (b && b.recit)
-    ? `<div class="aur-ai"><span class="aur-ia">✦ IA · à vérifier</span>${escapeHtml(b.recit)}</div>`
-    : `<div class="aur-ai"><span class="aur-ia">✦ IA</span>Analyse de votre journée…</div>`;
 
-  el.innerHTML = `<div class="aur-band">
-    <div class="aur-dt">${auroraDateLine()}</div>
-    <h1 class="aur-hi">${escapeHtml(auroraGreeting())}.</h1>
-    <div${click || ' class="aur-big"'}>${big}</div>
-    ${ai}
-    <div class="aur-acts">
-      <button class="aur-btn aur-btn-primary" onclick="dashboardNewConsultation()">＋ Nouvelle consultation</button>
-      <button class="aur-btn aur-btn-ghost" onclick="openNewPatientModal()">Nouveau patient</button>
+  el.innerHTML = `<div class="dsh-hero">
+    <div class="dsh-dt">${auroraDateLine()}</div>
+    <h1 class="dsh-hi">${escapeHtml(auroraGreeting())}.</h1>
+    <div class="dsh-ai"><span class="tag">✦ IA · à vérifier</span><span class="txt">${aiTxt}</span></div>
+    <div class="dsh-cta">
+      <button class="dsh-btn dsh-btn-primary" onclick="dashboardNewConsultation()">＋ Nouvelle consultation</button>
+      <button class="dsh-btn dsh-btn-ghost" onclick="openNewPatientModal()">Nouveau patient</button>
     </div>
   </div>`;
 }
 
-function auroraCard(icon, title, bodyHtml, headRight) {
-  return `<section class="aur-card">
-    <div class="aur-card-h"><span class="aur-ct">${icon} ${title}</span>${headRight || ''}</div>
+function dshMod(icon, title, bodyHtml, headRight) {
+  return `<section class="dsh-mod">
+    <div class="dsh-mh"><span class="t"><span class="ico">${icon}</span> ${title}</span>${headRight || ''}</div>
     ${bodyHtml}
   </section>`;
 }
-function auroraEmpty(t) { return `<div class="aur-empty">${t}</div>`; }
+function dshEmpty(t) { return `<div class="dsh-empty">${t}</div>`; }
 function auroraCardsSkeleton() {
-  return Array.from({ length: 4 }).map(() => `<section class="aur-card"><div class="skel skel-line w-40"></div><div class="skel skel-line" style="margin-top:14px"></div><div class="skel skel-line w-60" style="margin-top:8px"></div></section>`).join('');
+  const mod = () => `<section class="dsh-mod"><div class="skel skel-line w-40"></div><div class="skel skel-line" style="margin-top:16px"></div><div class="skel skel-line w-60" style="margin-top:8px"></div></section>`;
+  return `<div class="dsh-grid"><div class="dsh-col">${mod()}${mod()}</div><div class="dsh-col">${mod()}${mod()}${mod()}</div></div>`;
+}
+// Avatar coloré compact pour les lignes de module.
+function dshAvatar(prenom, nom, seed) {
+  return `<span class="dsh-av" style="background:${patientAvatarColor(seed || ((prenom || '') + (nom || '')))}">${patientInitials(prenom, nom) || '👤'}</span>`;
 }
 function renderAuroraCards() {
   const el = document.getElementById('dashCards');
   if (!el) return;
   const d = cockpitState.data;
-  if (!d) { el.innerHTML = auroraCard('📅', 'Agenda', auroraEmpty('Données indisponibles pour le moment.')); return; }
+  if (!d) { el.innerHTML = `<div class="dsh-grid"><div class="dsh-col">${dshMod('📅', 'Agenda du jour', dshEmpty('Données indisponibles pour le moment.'))}</div></div>`; return; }
 
-  // Agenda
+  // ── Agenda du jour ──
   const ag = (d.agenda || []);
   const agenda = ag.length
-    ? `<div class="aur-list">${ag.slice(0, 4).map((a) => `
-        <div class="aur-row"><span class="aur-tm">${ckptTime(a.start_at)}</span>
-          <div class="aur-bd"><div class="aur-rt">${escapeHtml(a.patient_nom || 'Sans dossier')}</div><div class="aur-rm">${escapeHtml(a.motif || 'Consultation')}</div></div>
-          ${a.a_preparer ? `<button class="aur-mini" onclick="ckptOpenPatient('${a.patient_id}')">Préparer</button>` : ''}
-        </div>`).join('')}</div>`
-    : auroraEmpty("Aucun rendez-vous aujourd'hui.");
+    ? ag.slice(0, 5).map((a) => `
+        <div class="dsh-row${a.patient_id ? ' click' : ''}"${a.patient_id ? ` onclick="ckptOpenPatient('${a.patient_id}')"` : ''}><span class="dsh-tm">${ckptTime(a.start_at)}</span>
+          <div class="dsh-bd"><div class="n">${escapeHtml(a.patient_nom || 'Sans dossier')}</div><div class="m">${escapeHtml(a.motif || 'Consultation')}</div></div>
+          ${a.a_preparer && a.patient_id ? `<button class="dsh-mini" onclick="event.stopPropagation();ckptOpenPatient('${a.patient_id}')">Préparer</button>` : '<span class="dsh-arw">→</span>'}
+        </div>`).join('')
+    : dshEmpty("Aucun rendez-vous aujourd'hui.");
 
-  // Patients prioritaires
+  // ── Dernières consultations (rempli en asynchrone, voir fillRecentConsults) ──
+  const recent = `<div id="dashRecent"><div class="dsh-loading">Chargement…</div></div>`;
+
+  // ── Patients à voir ──
   const pr = (d.priorites || []);
   const prio = pr.length
-    ? `<div class="aur-list">${pr.slice(0, 4).map((p) => `
-        <div class="aur-row is-click" onclick="ckptOpenPatient('${p.patient_id}')"><span class="aur-dot">${ckptSevDot(p.severite)}</span>
-          <div class="aur-bd"><div class="aur-rt">${escapeHtml((p.prenom || '') + ' ' + (p.nom || '')).trim()}</div><div class="aur-rm">${escapeHtml(p.signals[0].titre)}${p.signals.length > 1 ? ' · +' + (p.signals.length - 1) : ''}</div></div>
-          <span class="aur-arw">→</span>
-        </div>`).join('')}</div>`
-    : auroraEmpty('Aucun signal — tout est à jour.');
+    ? pr.slice(0, 4).map((p) => `
+        <div class="dsh-row click" onclick="ckptOpenPatient('${p.patient_id}')"><span class="dsh-dot ${p.severite === 'important' ? 'red' : p.severite === 'attention' ? 'amber' : 'blue'}"></span>
+          <div class="dsh-bd"><div class="n">${escapeHtml((p.prenom || '') + ' ' + (p.nom || '')).trim()}</div><div class="m">${escapeHtml(p.signals[0].titre)}${p.signals.length > 1 ? ' · +' + (p.signals.length - 1) : ''}</div></div>
+          <span class="dsh-arw">→</span>
+        </div>`).join('')
+    : dshEmpty('Aucun signal — tout est à jour.');
 
-  // Alertes (renouvellements + résultats à revoir)
+  // ── Alertes (renouvellements + résultats à revoir) ──
   const al = [];
   (d.ordonnances_a_renouveler || []).forEach((r) => al.push({ tone: (r.jours_restants <= 0 ? 'red' : 'amber'), name: `${(r.prenom || '')} ${(r.nom || '')}`.trim(), m: 'Ordonnance à renouveler', pid: r.patient_id }));
   (d.resultats_recents || []).forEach((r) => al.push({ tone: 'blue', name: `${(r.prenom || '')} ${(r.nom || '')}`.trim(), m: 'Résultat à revoir', pid: r.patient_id }));
   const alertes = al.length
-    ? `<div class="aur-list">${al.slice(0, 4).map((a) => `
-        <div class="aur-row is-click" onclick="ckptOpenPatient('${a.pid}')"><span class="aur-dot aur-${a.tone}"></span>
-          <div class="aur-bd"><div class="aur-rt">${escapeHtml(a.name)}</div><div class="aur-rm">${a.m}</div></div>
-          <span class="aur-arw">→</span>
-        </div>`).join('')}</div>`
-    : auroraEmpty('Aucune alerte à traiter.');
+    ? al.slice(0, 4).map((a) => `
+        <div class="dsh-row click" onclick="ckptOpenPatient('${a.pid}')"><span class="dsh-dot ${a.tone}"></span>
+          <div class="dsh-bd"><div class="n">${escapeHtml(a.name)}</div><div class="m">${a.m}</div></div>
+          <span class="dsh-arw">→</span>
+        </div>`).join('')
+    : dshEmpty('Aucune alerte à traiter.');
 
-  // Recommandation IA
-  const b = cockpitState.briefing;
-  let reco;
-  if (!b) reco = `<div class="aur-loading">Analyse de votre journée…</div>`;
-  else {
-    const rs = (b.recommandations || []);
-    reco = rs.length
-      ? `<div class="aur-list">${rs.slice(0, 3).map((r) => `
-          <div class="aur-row"><span class="aur-dot aur-ia-dot">✦</span>
-            <div class="aur-bd"><div class="aur-rt aur-wrap">${escapeHtml(r.texte)}</div></div>
-            ${r.patient_id ? `<button class="aur-mini" onclick="ckptOpenPatient('${r.patient_id}')">Ouvrir</button>` : ''}
-          </div>`).join('')}</div>`
-      : auroraEmpty("Aucune suggestion particulière aujourd'hui.");
+  // ── Raccourcis ──
+  const raccourcis = `<div class="dsh-qk">
+    <button onclick="dashboardNewConsultation()"><span class="qi">🩺</span><span class="ql">Consultation</span></button>
+    <button onclick="openOrdonnanceEditor(null)"><span class="qi">💊</span><span class="ql">Ordonnance</span></button>
+    <button onclick="openLabModal()"><span class="qi">📈</span><span class="ql">Analyse</span></button>
+    <button onclick="openEventModal()"><span class="qi">📄</span><span class="ql">Document</span></button>
+  </div>`;
+
+  el.innerHTML = `<div class="dsh-grid">
+    <div class="dsh-col">
+      ${dshMod('📅', 'Agenda du jour', agenda, ag.length ? `<span class="dsh-pill">${ag.length} RDV</span>` : '')}
+      ${dshMod('🗂️', 'Dernières consultations', recent, `<button class="dsh-see" onclick="switchAppView('doc-consultation')">Tout voir</button>`)}
+    </div>
+    <div class="dsh-col">
+      ${dshMod('🛎️', 'Patients à voir', prio, pr.length ? `<span class="dsh-pill">${pr.length}</span>` : '')}
+      ${dshMod('⚠️', 'Alertes', alertes, `<span class="dsh-pill ia">à vérifier</span>`)}
+      ${dshMod('⚡', 'Raccourcis', raccourcis)}
+    </div>
+  </div>`;
+
+  fillRecentConsults();
+}
+
+// Dernières consultations — lues sur le cache d'événements (non bloquant).
+async function fillRecentConsults() {
+  const host = document.getElementById('dashRecent');
+  if (!host) return;
+  try {
+    const events = await fetchAllEvents();
+    const consults = (events || [])
+      .filter((e) => e.type === 'consultation')
+      .sort((a, b) => new Date(b.event_date) - new Date(a.event_date))
+      .slice(0, 3);
+    const host2 = document.getElementById('dashRecent'); // le médecin peut avoir changé de vue
+    if (!host2) return;
+    if (!consults.length) { host2.innerHTML = dshEmpty('Aucune consultation enregistrée pour le moment.'); return; }
+    host2.innerHTML = consults.map((e) => {
+      const nom = `${e.patientPrenom || ''} ${e.patientNom || ''}`.trim();
+      return `<div class="dsh-row click" onclick="ckptOpenPatient('${e.patientId}')">
+        <span class="dsh-av" style="background:${patientAvatarColor(e.patientId || nom)}">${patientInitials(e.patientPrenom, e.patientNom) || '👤'}</span>
+        <div class="dsh-bd"><div class="n">${escapeHtml(nom || 'Patient')}${e.title ? ' — ' + escapeHtml(e.title) : ''}</div><div class="m">${humanizeElapsed ? humanizeElapsed(e.event_date) : new Date(e.event_date).toLocaleDateString('fr-FR')}</div></div>
+        <span class="dsh-arw">→</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    const host2 = document.getElementById('dashRecent');
+    if (host2) host2.innerHTML = dshEmpty('Consultations indisponibles pour le moment.');
   }
-
-  el.innerHTML =
-    auroraCard('📅', 'Agenda du jour', agenda, ag.length ? `<span class="aur-see">${ag.length}</span>` : '')
-    + auroraCard('🛎️', 'Patients à regarder', prio, pr.length ? `<span class="aur-see">${pr.length}</span>` : '')
-    + auroraCard('⚠️', 'Alertes', alertes)
-    + auroraCard('✦', 'Recommandation IA', reco, `<span class="aur-ia-tag">à vérifier</span>`);
 }
 
 function ensureAuroraStyles() {
@@ -2447,55 +2481,69 @@ function ensureAuroraStyles() {
   const st = document.createElement('style');
   st.id = 'auroraStyles';
   st.textContent = `
-  @keyframes aurIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  #view-dashboard{max-width:1120px}
-  .aur-band{background:radial-gradient(120% 150% at 84% -20%,rgba(20,96,255,.5),transparent 55%),linear-gradient(180deg,#0A1128,#0D1836);color:#fff;border-radius:22px;padding:38px 40px 34px;margin-bottom:20px;animation:aurIn .5s var(--ease-out,ease) both}
-  .aur-dt{font-size:13px;color:#93A4C8;font-weight:500}
-  .aur-hi{font-size:30px;font-weight:600;letter-spacing:-.02em;margin:12px 0 10px;color:#fff}
-  .aur-big{font-size:22px;font-weight:500;line-height:1.32;color:#C7D3EA;max-width:660px}
-  .aur-big b{color:#fff;font-weight:600}
-  .aur-big.click{cursor:pointer;transition:color .16s}
-  .aur-big.click:hover{color:#E8EEFA}
-  .aur-go{display:inline-block;margin-left:10px;font-size:14px;font-weight:600;color:#7FA9FF;white-space:nowrap}
-  .aur-ai{font-size:14.5px;color:#A9B7D6;margin-top:16px;max-width:580px;line-height:1.55}
-  .aur-ia{font-size:11px;font-weight:600;color:#BCD0F5;background:rgba(127,169,255,.16);padding:2px 9px;border-radius:999px;margin-right:8px;white-space:nowrap;vertical-align:1px}
-  .aur-acts{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
-  .aur-btn{height:46px;padding:0 22px;border-radius:12px;font-family:inherit;font-size:14.5px;font-weight:600;border:1px solid transparent;cursor:pointer;transition:transform .12s var(--ease-out,ease),background .2s,border-color .2s}
-  .aur-btn:hover{transform:translateY(-1px)}
-  .aur-btn-primary{background:var(--blue);color:#fff}
-  .aur-btn-primary:hover{background:#2b72ff}
-  .aur-btn-ghost{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#fff}
-  .aur-btn-ghost:hover{background:rgba(255,255,255,.15)}
-  .aur-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  .aur-card{background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:20px 22px;animation:aurIn .5s var(--ease-out,ease) both}
-  .aur-card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-  .aur-ct{font-size:14px;font-weight:600;color:var(--ink)}
-  .aur-see{font-size:12.5px;color:var(--sage-deep);font-weight:500;cursor:pointer}
-  .aur-ia-tag{font-size:10.5px;font-weight:600;color:var(--violet-deep,#6D28D9);background:var(--violet-tint,#F1EDFF);padding:2px 9px;border-radius:999px}
-  .aur-list{display:flex;flex-direction:column}
-  .aur-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--paper-line)}
-  .aur-list .aur-row:first-child{border-top:0}
-  .aur-row.is-click{cursor:pointer;transition:opacity .16s}
-  .aur-row.is-click:hover{opacity:.6}
-  .aur-tm{font-size:13px;font-weight:600;color:var(--sage-deep);min-width:42px;font-variant-numeric:tabular-nums}
-  .aur-dot{width:9px;height:9px;border-radius:50%;flex:none;font-size:13px;line-height:1;color:var(--sage-deep)}
-  .aur-red{background:var(--rose)} .aur-amber{background:var(--amber)} .aur-blue{background:var(--blue)}
-  .aur-ia-dot{color:var(--violet-deep,#6D28D9)}
-  .aur-bd{flex:1;min-width:0}
-  .aur-rt{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .aur-rt.aur-wrap{white-space:normal;font-weight:500;line-height:1.5}
-  .aur-rm{font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .aur-arw{color:var(--ink-faint)}
-  .aur-mini{height:30px;padding:0 12px;border-radius:9px;border:1px solid var(--paper-line);background:var(--paper);color:var(--ink-soft);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .16s,color .16s;white-space:nowrap}
-  .aur-mini:hover{border-color:var(--sage);color:var(--sage-deep)}
-  .aur-empty{font-size:13px;color:var(--ink-faint);padding:10px 0;line-height:1.5}
-  .aur-loading{font-size:13px;color:var(--ink-faint);padding:10px 0}
+  @keyframes dshIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  #view-dashboard{max-width:1180px;padding-bottom:104px}
+  /* Hero léger sur fond papier (Sprint 11) */
+  .dsh-hero{margin-bottom:34px;animation:dshIn .5s var(--ease-out,ease) both}
+  .dsh-dt{font-size:13px;color:var(--ink-faint);font-weight:500;text-transform:capitalize}
+  .dsh-hi{font-size:30px;font-weight:700;letter-spacing:-.025em;margin:7px 0 0;color:var(--ink)}
+  .dsh-ai{display:flex;align-items:flex-start;gap:11px;margin-top:18px;max-width:660px}
+  .dsh-ai .tag{font-size:10.5px;font-weight:700;letter-spacing:.03em;color:var(--violet-deep,#6D28D9);background:var(--violet-tint,#F1EDFF);padding:3px 9px;border-radius:999px;white-space:nowrap;margin-top:2px}
+  .dsh-ai .txt{font-size:15.5px;color:var(--ink-soft);line-height:1.5}
+  .dsh-ai .txt b{color:var(--ink);font-weight:600}
+  .dsh-ai .txt .go{color:var(--blue);font-weight:600;cursor:pointer;white-space:nowrap}
+  .dsh-ai .txt .go:hover{text-decoration:underline}
+  .dsh-cta{display:flex;gap:11px;margin-top:22px;flex-wrap:wrap}
+  .dsh-btn{height:44px;padding:0 20px;border-radius:12px;font-family:inherit;font-size:14px;font-weight:600;border:1px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:transform .12s var(--ease-out,ease),background .18s,border-color .18s,box-shadow .18s}
+  .dsh-btn:active{transform:scale(.98)}
+  .dsh-btn-primary{background:var(--blue);color:#fff;box-shadow:0 8px 20px rgba(20,96,255,.26)}
+  .dsh-btn-primary:hover{background:#2b72ff;box-shadow:0 12px 26px rgba(20,96,255,.32)}
+  .dsh-btn-ghost{background:var(--card);color:var(--ink-soft);border-color:var(--paper-line)}
+  .dsh-btn-ghost:hover{border-color:var(--blue);color:var(--blue)}
+  /* Grille 2 colonnes asymétriques */
+  .dsh-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:20px;align-items:start}
+  .dsh-col{display:flex;flex-direction:column;gap:20px;min-width:0}
+  .dsh-mod{background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:20px 22px;box-shadow:var(--shadow-xs,0 1px 2px rgba(10,17,40,.05));animation:dshIn .5s var(--ease-out,ease) both}
+  .dsh-col:first-child .dsh-mod:nth-child(2){animation-delay:.05s}
+  .dsh-col:last-child .dsh-mod:nth-child(2){animation-delay:.05s}
+  .dsh-col:last-child .dsh-mod:nth-child(3){animation-delay:.1s}
+  .dsh-mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+  .dsh-mh .t{font-size:14.5px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:9px;color:var(--ink)}
+  .dsh-mh .t .ico{font-size:15px}
+  .dsh-see{font-size:12.5px;color:var(--sage-deep);font-weight:500;cursor:pointer;background:none;border:none;font-family:inherit}
+  .dsh-see:hover{text-decoration:underline}
+  .dsh-pill{font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:999px;background:var(--blue-tint);color:var(--sage-deep)}
+  .dsh-pill.ia{background:var(--violet-tint,#F1EDFF);color:var(--violet-deep,#6D28D9)}
+  .dsh-row{display:flex;align-items:center;gap:13px;padding:12px 0;border-top:1px solid var(--paper-line);transition:padding-left .16s var(--ease-out,ease)}
+  .dsh-row:first-of-type{border-top:0}
+  .dsh-row.click{cursor:pointer}
+  .dsh-row.click:hover{padding-left:5px}
+  .dsh-tm{font-size:13.5px;font-weight:700;color:var(--sage-deep);min-width:46px;font-variant-numeric:tabular-nums}
+  .dsh-av{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;flex:none}
+  .dsh-bd{flex:1;min-width:0}
+  .dsh-bd .n{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dsh-bd .m{font-size:12.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dsh-bd .n.wrap{white-space:normal;line-height:1.45}
+  .dsh-dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .dsh-dot.red{background:var(--rose)} .dsh-dot.amber{background:var(--amber)} .dsh-dot.blue{background:var(--blue)}
+  .dsh-dot.ia{background:none;color:var(--violet-deep,#6D28D9);font-size:13px;line-height:1;width:auto;height:auto}
+  .dsh-mini{height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--paper-line);background:var(--paper);font-family:inherit;font-size:12px;font-weight:600;color:var(--sage-deep);cursor:pointer;flex:none;transition:background .16s,border-color .16s;white-space:nowrap}
+  .dsh-mini:hover{background:var(--blue-tint);border-color:var(--blue)}
+  .dsh-arw{color:var(--ink-faint);font-size:15px;flex:none}
+  .dsh-tl{font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:6px;flex:none}
+  .dsh-qk{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+  .dsh-qk button{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:14px;border:1px solid var(--paper-line);border-radius:14px;background:var(--card);cursor:pointer;font-family:inherit;text-align:left;transition:border-color .16s,transform .12s var(--ease-out,ease),box-shadow .16s}
+  .dsh-qk button:hover{border-color:var(--blue);transform:translateY(-2px);box-shadow:var(--shadow-sm)}
+  .dsh-qk .qi{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:var(--blue-tint)}
+  .dsh-qk .ql{font-size:13px;font-weight:600;color:var(--ink)}
+  .dsh-empty{font-size:13px;color:var(--ink-faint);padding:12px 0 2px;line-height:1.5}
+  .dsh-loading{font-size:13px;color:var(--ink-faint);padding:10px 0}
   /* Sidebar — polish premium */
   #appSidebar .sidebar-link{border-radius:11px}
   #appSidebar .sidebar-link.active{background:var(--blue-tint);color:var(--sage-deep)}
   #appSidebar .sidebar-link.active .icon,#appSidebar .sidebar-link.active .icon svg{color:var(--blue)}
-  @media (max-width:820px){.aur-grid{grid-template-columns:1fr}.aur-band{padding:30px 24px}}
-  @media (prefers-reduced-motion:reduce){.aur-band,.aur-card{animation:none}.aur-btn:hover{transform:none}}`;
+  @media (max-width:900px){.dsh-grid{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion:reduce){.dsh-hero,.dsh-mod{animation:none}.dsh-btn:active,.dsh-qk button:hover{transform:none}}`;
   document.head.appendChild(st);
 }
 
