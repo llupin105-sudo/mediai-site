@@ -293,6 +293,26 @@
     .rcard{min-width:100%}.hero-cta .btn{flex:1}.iphone{width:120px;right:-2px;bottom:-26px}
   }
   @media(prefers-reduced-motion:reduce){*{animation:none!important}.reveal{opacity:1;transform:none;transition:none}}
+
+  /* Sélecteur de connexion médecin / patient */
+  .login-choice{position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;padding:24px}
+  .login-choice.open{display:flex}
+  .lc-backdrop{position:absolute;inset:0;background:rgba(10,17,40,.55);backdrop-filter:blur(4px)}
+  .lc-panel{position:relative;background:var(--paper);border-radius:var(--r-lg);max-width:580px;width:100%;padding:38px 36px 34px;box-shadow:var(--shadow-lg);animation:lcIn .22s var(--ease)}
+  @keyframes lcIn{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+  .lc-x{position:absolute;top:15px;right:17px;background:none;border:none;font-size:27px;line-height:1;color:var(--ink-faint);cursor:pointer;padding:4px}
+  .lc-x:hover{color:var(--ink)}
+  .lc-eyebrow{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue)}
+  .lc-title{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:6px 0 4px;color:var(--navy)}
+  .lc-sub{font-size:14.5px;color:var(--ink-soft);margin-bottom:24px}
+  .lc-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .lc-card{display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:22px 20px;border:1.5px solid var(--line);border-radius:var(--r-md);background:var(--paper);transition:border-color .18s var(--ease),transform .12s var(--ease),box-shadow .18s var(--ease)}
+  .lc-card:hover{border-color:var(--blue);transform:translateY(-3px);box-shadow:0 16px 36px rgba(20,96,255,.16)}
+  .lc-ic{width:48px;height:48px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--blue-tint);margin-bottom:8px}
+  .lc-h{font-size:16px;font-weight:700;color:var(--navy)}
+  .lc-d{font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+  .lc-go{font-size:13px;font-weight:700;color:var(--blue);margin-top:9px}
+  @media(max-width:560px){.lc-grid{grid-template-columns:1fr}.lc-panel{padding:30px 22px}}
 </style>
 </head>
 <body>
@@ -310,7 +330,7 @@
       <a href="#footer">À propos</a>
     </nav>
     <div class="nav-right">
-      <a href="/app?mode=login" class="nav-login">Se connecter</a>
+      <a href="/app?mode=login" class="nav-login" data-login-choice>Se connecter</a>
       <a href="/app?mode=signup" class="btn btn-primary btn-sm">Demander une démo</a>
     </div>
     <button class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></button>
@@ -318,8 +338,33 @@
 </header>
 <div class="mobile-menu" id="mobileMenu">
   <a href="#features">Fonctionnalités</a><a href="#ecosystems">Solutions</a><a href="#demo">Ressources</a><a href="#pricing">Tarifs</a><a href="#footer">À propos</a>
-  <a href="/app?mode=login" style="color:var(--blue-light)">Se connecter</a>
+  <a href="/app?mode=login" data-login-choice style="color:var(--blue-light)">Se connecter</a>
   <a href="/app?mode=signup" class="btn btn-primary" style="margin-top:12px;justify-content:center">Demander une démo</a>
+</div>
+
+<!-- Sélecteur de connexion médecin / patient -->
+<div class="login-choice" id="loginChoice" aria-hidden="true">
+  <div class="lc-backdrop" data-close></div>
+  <div class="lc-panel" role="dialog" aria-modal="true" aria-label="Choisir votre espace">
+    <button class="lc-x" data-close aria-label="Fermer">&times;</button>
+    <div class="lc-eyebrow">Connexion</div>
+    <h3 class="lc-title">Bienvenue sur MediAI</h3>
+    <p class="lc-sub">Sélectionnez votre espace pour continuer.</p>
+    <div class="lc-grid">
+      <a href="/app?mode=login" class="lc-card">
+        <span class="lc-ic">🩺</span>
+        <span class="lc-h">Professionnel de santé</span>
+        <span class="lc-d">Accédez à votre cabinet, vos patients et vos outils IA.</span>
+        <span class="lc-go">Se connecter →</span>
+      </a>
+      <a href="/patient" class="lc-card">
+        <span class="lc-ic">👤</span>
+        <span class="lc-h">Patient</span>
+        <span class="lc-d">Consultez vos documents et suivez votre parcours de soin.</span>
+        <span class="lc-go">Accéder à mon espace →</span>
+      </a>
+    </div>
+  </div>
 </div>
 
 <!-- 2. HERO -->
@@ -616,6 +661,14 @@
   const tgl = document.getElementById('navToggle'), mm = document.getElementById('mobileMenu');
   tgl.addEventListener('click', () => mm.classList.toggle('open'));
   mm.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mm.classList.remove('open')));
+
+  // Sélecteur de connexion médecin / patient.
+  const lc = document.getElementById('loginChoice');
+  const openLoginChoice = (e) => { if (e) e.preventDefault(); mm.classList.remove('open'); lc.classList.add('open'); document.body.style.overflow = 'hidden'; };
+  const closeLoginChoice = () => { lc.classList.remove('open'); document.body.style.overflow = ''; };
+  document.querySelectorAll('[data-login-choice]').forEach(a => a.addEventListener('click', openLoginChoice));
+  lc.addEventListener('click', (e) => { if (e.target.hasAttribute('data-close')) closeLoginChoice(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && lc.classList.contains('open')) closeLoginChoice(); });
 
   const io = new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold:.12, rootMargin:'0px 0px -40px 0px' });
   document.querySelectorAll('.reveal').forEach(el => io.observe(el));
