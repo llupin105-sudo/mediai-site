@@ -1074,6 +1074,7 @@
     <div class="piw-layout">
     <div class="piw-main">
     <div id="patientAI"></div>
+    <div id="patientHealth"></div>
     <div id="consultationCockpit"></div>
     <div id="patientHero" style="display:none;"></div>
     <div id="patientSnapshotCard" style="display:none; margin-top:16px;"></div>
@@ -4192,6 +4193,97 @@ function renderVitalsEvolutionHtml(events) {
   </div>`;
 }
 
+// ── Sprint 10d — Mini-dashboard santé (tuiles compactes façon Apple Health) ──
+// Vue « coup d'œil » : dernière valeur + micro-courbe + tendance neutre, par
+// constante. 100 % déterministe (mêmes données que l'évolution ci-dessus).
+// L'IMC est calculé (poids/taille²) uniquement si les deux sont renseignés.
+function ensureHealthStyles() {
+  if (document.getElementById('phStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'phStyles';
+  st.textContent = '.ph-wrap{margin-bottom:24px}'
+    + '.ph-title{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 11px;display:flex;align-items:center;gap:8px}'
+    + '.ph-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}'
+    + '.ph-tile{background:var(--card);border:1px solid var(--paper-line);border-radius:16px;padding:13px 15px;box-shadow:var(--shadow-sm)}'
+    + '.ph-top{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-bottom:9px}'
+    + '.ph-ic{font-size:14px;line-height:1}'
+    + '.ph-val{font-size:23px;font-weight:600;color:var(--ink);letter-spacing:-.02em;line-height:1}'
+    + '.ph-unit{font-size:12px;color:var(--ink-faint);font-weight:500;margin-left:3px}'
+    + '.ph-spark{margin-top:10px;height:26px}'
+    + '.ph-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:10.5px;color:var(--ink-faint)}'
+    + '.ph-muted .ph-val{color:var(--ink-faint);font-weight:500}';
+  document.head.appendChild(st);
+}
+function phSpark(nums, color) {
+  if (!nums || nums.length < 2) return '<div style="height:26px;"></div>';
+  const w = 130, h = 26, min = Math.min(...nums), max = Math.max(...nums), range = (max - min) || 1, step = w / (nums.length - 1);
+  const y = (n) => (h - ((n - min) / range) * (h - 6) - 3).toFixed(1);
+  const pts = nums.map((n, i) => `${(i * step).toFixed(1)},${y(n)}`).join(' ');
+  const lx = ((nums.length - 1) * step).toFixed(1), ly = y(nums[nums.length - 1]);
+  const gid = 'phg' + Math.random().toString(36).slice(2, 7);
+  return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block;overflow:visible;">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.18"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <polygon points="0,${h} ${pts} ${lx},${h}" fill="url(#${gid})"/>
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${lx}" cy="${ly}" r="2.4" fill="${color}"/></svg>`;
+}
+function phTile(icon, label, valStr, unit, nums, color, muted, footLeft) {
+  return `<div class="ph-tile${muted ? ' ph-muted' : ''}">
+    <div class="ph-top"><span class="ph-ic">${icon}</span>${label}</div>
+    <div><span class="ph-val">${escapeHtml(valStr)}</span>${unit ? `<span class="ph-unit">${unit}</span>` : ''}</div>
+    <div class="ph-spark">${phSpark(nums, color)}</div>
+    <div class="ph-foot"><span>${footLeft != null ? footLeft : (nums && nums.length ? nums.length + ' relevé' + (nums.length > 1 ? 's' : '') : '—')}</span>${nums && nums.length >= 2 ? vitalsTrend(nums) : '<span></span>'}</div>
+  </div>`;
+}
+function renderPatientHealth(patient, events) {
+  const el = document.getElementById('patientHealth');
+  if (!el) return;
+  const consults = (events || [])
+    .filter((e) => e.type === 'consultation' && e.data && e.data.sections && e.data.sections.objectif && e.data.sections.objectif.constantes)
+    .slice().reverse(); // chronologique croissant
+  if (consults.length === 0) { el.innerHTML = ''; return; }
+  ensureHealthStyles();
+  const getRaw = (c, k) => c.data.sections.objectif.constantes[k];
+  const tiles = [];
+
+  // Tension : micro-courbe de la systolique, valeur affichée « sys/dia ».
+  const ta = [];
+  for (const c of consults) { const m = String(getRaw(c, 'tension') || '').match(/(\d+)\D+(\d+)/); if (m) ta.push({ sys: +m[1], raw: String(getRaw(c, 'tension')) }); }
+  if (ta.length) tiles.push(phTile('🫀', 'Tension', ta[ta.length - 1].raw, 'mmHg', ta.map((p) => p.sys), '#1460FF'));
+
+  // Constantes simples : poids, FC (pouls), SpO₂.
+  const single = [
+    { key: 'poids', icon: '⚖️', label: 'Poids', unit: 'kg', color: '#1460FF' },
+    { key: 'pouls', icon: '💓', label: 'FC', unit: 'bpm', color: '#8B5CF6' },
+    { key: 'saturation', icon: '🫁', label: 'SpO₂', unit: '%', color: '#22C55E' },
+  ];
+  const poidsNums = [];
+  for (const m of single) {
+    const nums = []; let lastRaw = '';
+    for (const c of consults) { const n = firstNum(getRaw(c, m.key)); if (n != null) { nums.push(n); lastRaw = String(getRaw(c, m.key)); } }
+    if (m.key === 'poids') poidsNums.push(...nums);
+    if (!nums.length) continue;
+    tiles.push(phTile(m.icon, m.label, String(firstNum(lastRaw)), m.unit, nums, m.color));
+  }
+
+  // IMC : calculé uniquement si poids ET taille renseignés (jamais inventé).
+  let taille = null;
+  for (const c of consults) { const t = firstNum(getRaw(c, 'taille')); if (t) taille = t; }
+  if (taille == null && patient && patient.taille) taille = firstNum(patient.taille);
+  if (taille != null && poidsNums.length) {
+    const m = taille > 3 ? taille / 100 : taille; // cm → m
+    const imcNums = poidsNums.map((p) => +(p / (m * m)).toFixed(1));
+    tiles.push(phTile('📊', 'IMC', imcNums[imcNums.length - 1].toFixed(1), 'kg/m²', imcNums, '#F59E0B'));
+  } else {
+    tiles.push(phTile('📊', 'IMC', '—', '', null, '#F59E0B', true, 'Taille non renseignée'));
+  }
+
+  el.innerHTML = `<div class="ph-wrap">
+    <div class="ph-title"><span>Signes vitaux</span><span style="color:var(--ink-faint);font-weight:400;letter-spacing:0;text-transform:none;">· dernier relevé ${new Date(consults[consults.length - 1].event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span></div>
+    <div class="ph-grid">${tiles.join('')}</div>
+  </div>`;
+}
+
 // ══ Patient Workspace — Colonne « Insights » latérale (sticky) ═════
 // Panneau permanent : reste visible pendant qu'on parcourt le dossier.
 // Consolide vigilance, signaux, documents clés, à préparer, constantes.
@@ -4588,6 +4680,7 @@ async function openPatientDetail(patientId) {
     currentPatientSnapshot = null;
     renderPatientHeader(data.patient, currentPatientEvents); // Sprint 10 : header premium + actions groupées
     renderPatientAI(data.patient, currentPatientEvents, null); // Sprint 10b : 3 blocs IA (rendu instantané déterministe, enrichi au snapshot)
+    renderPatientHealth(data.patient, currentPatientEvents); // Sprint 10d : mini-dashboard santé (constantes, 100 % déterministe)
     renderCockpit(data.patient, currentPatientEvents); // Sprint 2 : briefing en tête de dossier (instantané)
     renderKeyDocuments(currentPatientEvents); // Sprint 2.2 : documents importants auto-remontés
     renderPatientInsights(data.patient, currentPatientEvents); // Colonne Insights latérale (instantané)
