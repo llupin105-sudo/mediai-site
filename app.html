@@ -351,6 +351,18 @@
   .tl-item[data-type="imagerie"] .tl-node{ color:var(--pink); background:var(--pink-tint); border-color:transparent; }
   .tl-item[data-type="imagerie"] .tl-badge{ color:#BE185D; background:var(--pink-tint); }
 
+  /* Sprint 10c — aperçu au survol (popover flottant, ne bloque pas le clic) */
+  .tl-hovercard{ position:fixed; z-index:200; display:none; max-width:340px; background:var(--card); border:1px solid var(--paper-line); border-radius:14px; box-shadow:var(--shadow-lg); padding:14px 16px; pointer-events:none; }
+  .tl-hovercard.show{ display:block; animation:fadeIn .12s ease; }
+  .tlh-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .tlh-ic{ font-size:15px; }
+  .tlh-badge{ font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; padding:2px 8px; border-radius:var(--r-full); background:var(--paper); color:var(--ink-soft); }
+  .tlh-date{ color:var(--ink-faint); margin-left:auto; font-size:11px; white-space:nowrap; }
+  .tlh-title{ font-size:14px; font-weight:600; color:var(--ink); line-height:1.35; margin-bottom:5px; }
+  .tlh-prev{ font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin-bottom:9px; }
+  .tlh-open{ font-size:11px; color:var(--sage-deep); font-weight:600; }
+  @media (prefers-reduced-motion:reduce){ .tl-hovercard.show{ animation:none; } }
+
   .rx-line{ display:grid; grid-template-columns:1.3fr 1fr 0.8fr auto; gap:8px; align-items:center; }
   .rx-line input{ padding:9px 10px; border:1px solid var(--paper-line); border-radius:6px; font-family:var(--sans); font-size:13px; background:var(--paper); color:var(--ink); width:100%; }
   .rx-line input:focus{ outline:none; border-color:var(--sage); }
@@ -1065,12 +1077,6 @@
     <div id="consultationCockpit"></div>
     <div id="patientHero" style="display:none;"></div>
     <div id="patientSnapshotCard" style="display:none; margin-top:16px;"></div>
-    <div class="patient-notes">
-      <div class="field-label" style="margin-bottom:8px;">Notes générales</div>
-      <textarea id="patientNotesText" placeholder="Antécédents, allergies, contexte général..." onblur="savePatientNotes()"></textarea>
-    </div>
-
-    <div id="keyDocuments"></div>
 
     <div id="recordViewToggle"></div>
 
@@ -1110,6 +1116,13 @@
     </div><!-- /recordTimelineWrap -->
 
     <div id="evolutionView" style="display:none;"></div>
+
+    <div id="keyDocuments"></div>
+
+    <div class="patient-notes">
+      <div class="field-label" style="margin-bottom:8px;">Notes générales</div>
+      <textarea id="patientNotesText" placeholder="Antécédents, allergies, contexte général..." onblur="savePatientNotes()"></textarea>
+    </div>
     </div>
     <aside class="piw-rail"><div id="keyFactsRail"></div><div id="patientInsights"></div></aside>
     </div>
@@ -4949,8 +4962,40 @@ function ensureRecordStyles() {
   document.head.appendChild(st);
 }
 
+// Sprint 10c — aperçu au survol : table id→événement pour un rendu instantané.
+let tlEventById = {};
+function tlHoverShow(id, ev) {
+  const e = tlEventById[id];
+  if (!e) return;
+  let c = document.getElementById('tlHoverCard');
+  if (!c) { c = document.createElement('div'); c.id = 'tlHoverCard'; c.className = 'tl-hovercard'; document.body.appendChild(c); }
+  const meta = TL_TYPES[e.type] || { label: e.type, icon: '📄' };
+  const prev = eventPreview(e);
+  const dt = new Date(e.event_date);
+  c.innerHTML = `<div class="tlh-head"><span class="tlh-ic">${meta.icon}</span><span class="tlh-badge">${meta.label}</span><span class="tlh-date">${dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
+    <div class="tlh-title">${escapeHtml(e.title || meta.label)}</div>
+    ${prev ? `<div class="tlh-prev">${escapeHtml(prev)}</div>` : ''}
+    <div class="tlh-open">Cliquer pour ouvrir le document →</div>`;
+  c.classList.add('show');
+  tlHoverMove(ev);
+}
+function tlHoverMove(ev) {
+  const c = document.getElementById('tlHoverCard');
+  if (!c || !c.classList.contains('show')) return;
+  const pad = 14, w = c.offsetWidth, h = c.offsetHeight;
+  let x = ev.clientX + 18, y = ev.clientY + 18;
+  if (x + w + pad > window.innerWidth) x = ev.clientX - w - 18;
+  if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
+  c.style.left = Math.max(pad, x) + 'px';
+  c.style.top = Math.max(pad, y) + 'px';
+}
+function tlHoverHide() { const c = document.getElementById('tlHoverCard'); if (c) c.classList.remove('show'); }
+window.addEventListener('scroll', tlHoverHide, true);
+
 function renderTimeline(events, raisons) {
   const el = document.getElementById('patientTimeline');
+  tlEventById = {};
+  (events || []).forEach((e) => { if (e && e.id != null) tlEventById[e.id] = e; });
   if (!events || events.length === 0) {
     const filtered = timelineQuery || timelineFilter !== 'all' || raisons;
     el.innerHTML = emptyState({
@@ -4978,7 +5023,7 @@ function renderTimeline(events, raisons) {
         const raison = raisons?.get(e.id);
         const dt = new Date(e.event_date);
         return `
-        <div class="tl-item" data-type="${e.type}" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
+        <div class="tl-item" data-type="${e.type}" onmouseenter="tlHoverShow('${e.id}',event)" onmousemove="tlHoverMove(event)" onmouseleave="tlHoverHide()" onclick='tlHoverHide();viewTimelineEvent(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
           <div class="tl-node">${meta.icon}</div>
           <div class="tl-card-wrap">
             <div class="tl-card">
