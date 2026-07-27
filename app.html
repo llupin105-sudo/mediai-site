@@ -1058,20 +1058,13 @@
 
   <div class="patient-detail" id="patientDetailView">
     <button class="modal-close" style="margin-bottom:16px;" onclick="closePatientDetail()">← Retour à la liste</button>
+    <div id="patientHeaderNew"></div>
     <div class="piw-layout">
     <div class="piw-main">
+    <div id="patientAI"></div>
     <div id="consultationCockpit"></div>
     <div id="patientHero" style="display:none;"></div>
     <div id="patientSnapshotCard" style="display:none; margin-top:16px;"></div>
-    <div class="patient-actions-row">
-      <button class="btn-export" onclick="selectPatientForGeneration()">Nouvelle consultation</button>
-      <button class="btn-export" onclick="openOrdonnanceEditor(null)">💊 Ordonnance</button>
-      <button class="btn-export" onclick="openEventModal()">＋ Événement</button>
-      <button class="btn-export" onclick="openLabModal()">🧪 Résultat de labo</button>
-      <button class="btn-export" onclick="openImagingModal()">🩻 Imagerie</button>
-      <button class="btn-export" onclick="openPatientPortalModal()">🔑 Accès patient</button>
-      <button class="btn-export" id="pinPatientBtn" onclick="togglePatientFavorite()">☆ Épingler</button>
-    </div>
     <div class="patient-notes">
       <div class="field-label" style="margin-bottom:8px;">Notes générales</div>
       <textarea id="patientNotesText" placeholder="Antécédents, allergies, contexte général..." onblur="savePatientNotes()"></textarea>
@@ -3745,6 +3738,7 @@ async function fetchPatientSnapshot(patientId, forceRefresh) {
     if (currentDetailPatientId !== patientId) return; // le médecin a changé de dossier entre-temps
     currentPatientSnapshot = data.snapshot || null; // Sprint 2.2 : dispo pour la lecture 30 s
     renderPatientSnapshot(data.snapshot, { cached: data.cached, empty: data.empty, generatedAt: data.generated_at });
+    renderPatientAI(currentPatientInfo, currentPatientEvents, data.snapshot); // Sprint 10b : enrichit les 3 blocs avec le récit + vigilance + suivi du snapshot
     fillCockpitBriefing(data.snapshot); // Sprint 2 : alimente le récit + les rappels du Cockpit
     renderPatientInsights(currentPatientInfo, currentPatientEvents); // enrichit le rail (suivi issu du snapshot)
   } catch (err) {
@@ -4248,6 +4242,178 @@ function renderPatientInsights(patient, events) {
   el.innerHTML = blocks.length ? `<div class="piw-ins-title">Insights</div>${blocks.join('')}` : '';
 }
 
+// ══════════════════════════════════════════════════════════════════
+// SPRINT 10 — Patient Workspace : header premium + actions groupées.
+// Remplace le hero du cockpit (masqué) et la grille d'actions dispersée.
+// ══════════════════════════════════════════════════════════════════
+function ensurePwStyles() {
+  if (document.getElementById('pwHeaderStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'pwHeaderStyles';
+  st.textContent = `
+  #consultationCockpit .ckpt-heropro{display:none}
+  .pwh{display:flex;align-items:center;gap:18px;padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid var(--paper-line)}
+  .pwh-av{width:60px;height:60px;border-radius:18px;display:grid;place-items:center;font-size:21px;font-weight:600;color:#fff;flex:none}
+  .pwh-main{flex:1;min-width:0}
+  .pwh-name{font-size:23px;font-weight:600;letter-spacing:-.02em;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pwh-badge{font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:999px}
+  .pwh-sub{font-size:13px;color:var(--ink-soft);margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .pwh-sub .d{width:3px;height:3px;border-radius:50%;background:var(--ink-faint)}
+  .pwh-chip{font-size:12px;font-weight:500;padding:4px 10px;border-radius:999px;background:var(--paper);border:1px solid var(--paper-line);color:var(--ink-soft)}
+  .pwh-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-left:auto}
+  .pwh-actions .btn-export{flex:0 0 auto;min-width:0}
+  .pw-menu-wrap{position:relative}
+  .pw-menu{position:absolute;top:48px;right:0;background:var(--card);border:1px solid var(--paper-line);border-radius:14px;box-shadow:var(--shadow-lg);padding:6px;width:200px;z-index:30;display:none}
+  .pw-menu.open{display:block;animation:fadeIn .14s ease}
+  .pw-mi{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--ink);cursor:pointer}
+  .pw-mi:hover{background:var(--paper)}
+  .pw-mi .em{font-size:15px;width:20px;text-align:center}
+  @media(max-width:720px){.pwh{flex-wrap:wrap}.pwh-actions{width:100%}}
+  /* Sprint 10b : les 3 blocs IA remplacent les surfaces dupliquées ci-dessous */
+  #consultationCockpit,#patientSnapshotCard,#timelineNarrative,#patientInsights{display:none!important}
+  .pai-row{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:14px;margin-bottom:24px}
+  .pai{background:var(--card);border:1px solid var(--paper-line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow-sm);min-width:0}
+  .pai-h{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:11px;display:flex;align-items:center;gap:7px}
+  .pai-ia{font-size:9px;font-weight:600;color:var(--violet);background:var(--violet-tint);padding:2px 7px;border-radius:999px;text-transform:none;letter-spacing:0}
+  .pai-sum{font-size:13px;line-height:1.6;color:var(--ink)}
+  .pai-li{display:flex;gap:9px;padding:7px 0;font-size:13px;color:var(--ink);line-height:1.45;border-top:1px solid var(--paper-line)}
+  .pai-li:first-of-type{border-top:0;padding-top:0}
+  .pai-dot{margin-top:5px;width:7px;height:7px;border-radius:50%;flex:none}
+  .pai-dot.d-red{background:var(--rose)}.pai-dot.d-amber{background:var(--amber)}
+  .pai-sub{font-size:11.5px;color:var(--ink-faint);margin-top:2px;line-height:1.4}
+  .pai-act{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--paper-line);font-size:13px;color:var(--ink)}
+  .pai-act:first-of-type{border-top:0;padding-top:0}
+  .pai-act button{height:28px;padding:0 12px;border-radius:8px;border:1px solid var(--paper-line);background:var(--paper);font-family:inherit;font-size:12px;font-weight:600;color:var(--sage-deep);cursor:pointer;flex:none;transition:var(--btn-transition,all .15s)}
+  .pai-act button:hover{background:var(--sage-tint);border-color:var(--sage)}
+  .pai-empty{font-size:12.5px;color:var(--ink-faint);padding:2px 0}
+  @media(max-width:900px){.pai-row{grid-template-columns:1fr}}`;
+  document.head.appendChild(st);
+}
+// Sprint 10b — 3 blocs IA distincts (Résumé / Points critiques / Actions).
+// Réutilise les données existantes : synthèse du snapshot + signaux déterministes.
+// Aucune donnée inventée : le récit vient du snapshot (marqué « à vérifier »),
+// les points/actions viennent de computePatientSignals (100 % déterministe).
+function renderPatientAI(patient, events, snapshot) {
+  const el = document.getElementById('patientAI');
+  if (!el) return;
+  ensurePwStyles();
+  const sigs = computePatientSignals(events || []);
+
+  // Points critiques : vigilance (snapshot) + signaux, dédupliqués par libellé.
+  const crit = [];
+  const seen = new Set();
+  const addCrit = (label, detail, sev) => {
+    const k = (label || '').toLowerCase().trim();
+    if (!label || seen.has(k)) return;
+    seen.add(k); crit.push({ label, detail, sev });
+  };
+  if (snapshot && Array.isArray(snapshot.points_de_vigilance)) {
+    snapshot.points_de_vigilance.filter((v) => v && v.libelle && v.severite !== 'info')
+      .forEach((v) => addCrit(v.libelle, v.raison, v.severite));
+  }
+  sigs.filter((s) => s.severite !== 'info').forEach((s) => addCrit(s.titre, s.detail, s.severite));
+
+  // Actions proposées : suivi (snapshot) + actions dérivées des signaux.
+  const actions = [];
+  const seenAct = new Set();
+  const addAct = (label, sub, btn, fn) => {
+    const k = (label || '').toLowerCase().trim();
+    if (!label || seenAct.has(k)) return;
+    seenAct.add(k); actions.push({ label, sub, btn, fn });
+  };
+  if (snapshot && Array.isArray(snapshot.suivi_a_prevoir)) {
+    snapshot.suivi_a_prevoir.filter((x) => x && x.libelle).forEach((x) => addAct(x.libelle, x.echeance || '', null, null));
+  }
+  sigs.forEach((s) => {
+    if (/renouvel/i.test(s.titre)) addAct('Renouveler le traitement', s.detail, 'Créer', 'openOrdonnanceEditor(null)');
+    else if (/résultat/i.test(s.titre)) addAct('Revoir le dernier résultat', s.detail, 'Ouvrir', "document.querySelector('#recordTimelineWrap')&&document.querySelector('#recordTimelineWrap').scrollIntoView({behavior:'smooth'})");
+    else if (/suivi/i.test(s.titre)) addAct('Planifier le suivi', s.detail, 'Consultation', 'selectPatientForGeneration()');
+  });
+
+  const resume = snapshot && snapshot.synthese_narrative ? snapshot.synthese_narrative : null;
+  const sevDot = (s) => (s === 'important' ? 'd-red' : 'd-amber');
+
+  el.innerHTML = `<div class="pai-row">
+    <div class="pai">
+      <div class="pai-h">Résumé <span class="pai-ia">✦ IA · à vérifier</span></div>
+      <div class="pai-sum">${resume ? escapeHtml(resume) : '<span style="color:var(--ink-faint)">Synthèse en cours de génération…</span>'}</div>
+    </div>
+    <div class="pai">
+      <div class="pai-h">Points critiques</div>
+      ${crit.length ? crit.slice(0, 4).map((c) => `<div class="pai-li"><span class="pai-dot ${sevDot(c.sev)}"></span><div style="min-width:0;"><div>${escapeHtml(c.label)}</div>${c.detail ? `<div class="pai-sub">${escapeHtml(c.detail)}</div>` : ''}</div></div>`).join('') : '<div class="pai-empty">Rien de critique à signaler.</div>'}
+    </div>
+    <div class="pai">
+      <div class="pai-h">Actions proposées <span class="pai-ia">✦</span></div>
+      ${actions.length ? actions.slice(0, 4).map((a) => `<div class="pai-act"><div style="min-width:0;"><div>${escapeHtml(a.label)}</div>${a.sub ? `<div class="pai-sub">${escapeHtml(a.sub)}</div>` : ''}</div>${a.btn ? `<button onclick="${a.fn}">${a.btn}</button>` : ''}</div>`).join('') : '<div class="pai-empty">Aucune action en attente.</div>'}
+    </div>
+  </div>`;
+}
+function renderPatientHeader(patient, events) {
+  const el = document.getElementById('patientHeaderNew');
+  if (!el) return;
+  ensurePwStyles();
+  const initials = patientInitials(patient.prenom, patient.nom) || '👤';
+  const color = patientAvatarColor(patient.id || (patient.prenom + patient.nom));
+  const age = computeAge(patient.date_naissance);
+  const doctorName = (currentUser && currentUser.profile && currentUser.profile.nom) ? ('Dr ' + currentUser.profile.nom) : null;
+  const lastConsult = (events || []).find((e) => e.type === 'consultation');
+  const treatments = deriveTreatments(events || []);
+  const sigs = computePatientSignals(events || []);
+  const badge = sigs.some((s) => s.severite === 'important') ? { l: 'Vigilance élevée', bg: 'var(--rose-tint)', fg: '#991B1B' }
+    : sigs.some((s) => s.severite === 'attention') ? { l: 'À surveiller', bg: 'var(--amber-tint)', fg: '#92400E' }
+    : ((events && events.length) ? { l: 'Rien à signaler', bg: 'var(--green-tint)', fg: 'var(--green-deep)' } : null);
+  const fav = favoriteIds && favoriteIds.has(patient.id);
+  el.innerHTML = `<div class="pwh">
+    <div class="pwh-av" style="background:${color};">${initials}</div>
+    <div class="pwh-main">
+      <div class="pwh-name">${escapeHtml(((patient.prenom || '') + ' ' + (patient.nom || '')).trim())}${badge ? `<span class="pwh-badge" style="background:${badge.bg};color:${badge.fg};">${badge.l}</span>` : ''}</div>
+      <div class="pwh-sub">
+        ${age !== null ? `<span>${age} ans</span><span class="d"></span>` : ''}
+        ${doctorName ? `<span>${escapeHtml(doctorName)}</span><span class="d"></span>` : ''}
+        <span class="pwh-chip">💊 ${treatments.length} traitement${treatments.length > 1 ? 's' : ''} actif${treatments.length > 1 ? 's' : ''}</span>
+        ${lastConsult ? `<span class="pwh-chip">📅 Dernier RDV · ${new Date(lastConsult.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>` : ''}
+      </div>
+    </div>
+    <div class="pwh-actions">
+      <div class="pw-menu-wrap">
+        <button class="btn-export" style="width:auto;padding:0 15px;background:var(--sage);color:#fff;border-color:var(--sage);" onclick="pwToggleMenu(event,'pwNewMenu')">＋ Nouveau ▾</button>
+        <div class="pw-menu" id="pwNewMenu">
+          <div class="pw-mi" onclick="pwNew('consultation')"><span class="em">🩺</span> Consultation</div>
+          <div class="pw-mi" onclick="pwNew('ordonnance')"><span class="em">💊</span> Ordonnance</div>
+          <div class="pw-mi" onclick="pwNew('analyse')"><span class="em">📈</span> Analyse</div>
+          <div class="pw-mi" onclick="pwNew('document')"><span class="em">📄</span> Document</div>
+          <div class="pw-mi" onclick="pwNew('imagerie')"><span class="em">📷</span> Imagerie</div>
+          <div class="pw-mi" onclick="pwNew('courrier')"><span class="em">✉️</span> Courrier</div>
+        </div>
+      </div>
+      <button class="btn-export" style="width:auto;padding:0 15px;" onclick="openPatientPortalModal()">Accès patient</button>
+      <button class="btn-export" style="width:auto;padding:0 15px;" onclick="pwShare()">↗ Partager</button>
+      <div class="pw-menu-wrap">
+        <button class="btn-export" style="width:42px;padding:0;" onclick="pwToggleMenu(event,'pwMoreMenu')" aria-label="Plus d'actions">•••</button>
+        <div class="pw-menu" id="pwMoreMenu">
+          <div class="pw-mi" onclick="togglePatientFavorite(); pwCloseMenus();"><span class="em">${fav ? '★' : '☆'}</span> ${fav ? 'Épinglé' : 'Épingler le patient'}</div>
+          <div class="pw-mi" onclick="pwCloseMenus(); var n=document.querySelector('.patient-notes'); if(n)n.scrollIntoView({behavior:'smooth',block:'center'});"><span class="em">📝</span> Notes du dossier</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function pwToggleMenu(e, id) { e.stopPropagation(); const m = document.getElementById(id); const open = m.classList.contains('open'); pwCloseMenus(); if (!open) m.classList.add('open'); }
+function pwCloseMenus() { document.querySelectorAll('.pw-menu.open').forEach((m) => m.classList.remove('open')); }
+document.addEventListener('click', pwCloseMenus);
+function pwNew(type) {
+  pwCloseMenus();
+  switch (type) {
+    case 'consultation': selectPatientForGeneration(); break;
+    case 'ordonnance': openOrdonnanceEditor(null); break;
+    case 'analyse': openLabModal(); break;
+    case 'document': openEventModal(); break;
+    case 'imagerie': openImagingModal(); break;
+    case 'courrier': showToast('Le courrier se génère depuis une consultation du dossier.', 'info'); break;
+  }
+}
+function pwShare() { showToast('Le partage se fait depuis un document : Exporter puis Envoyer.', 'info'); }
+
 function renderCockpit(patient, events) {
   const el = document.getElementById('consultationCockpit');
   if (!el) return;
@@ -4407,6 +4573,8 @@ async function openPatientDetail(patientId) {
     currentPatientEvents = data.events || [];
     currentPatientInfo = data.patient || null;
     currentPatientSnapshot = null;
+    renderPatientHeader(data.patient, currentPatientEvents); // Sprint 10 : header premium + actions groupées
+    renderPatientAI(data.patient, currentPatientEvents, null); // Sprint 10b : 3 blocs IA (rendu instantané déterministe, enrichi au snapshot)
     renderCockpit(data.patient, currentPatientEvents); // Sprint 2 : briefing en tête de dossier (instantané)
     renderKeyDocuments(currentPatientEvents); // Sprint 2.2 : documents importants auto-remontés
     renderPatientInsights(data.patient, currentPatientEvents); // Colonne Insights latérale (instantané)
