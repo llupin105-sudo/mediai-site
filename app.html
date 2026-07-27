@@ -995,28 +995,6 @@
     </button>
 
     <div class="sidebar-divider"></div>
-    <button class="sidebar-link" data-view="doc-consultation" data-tooltip="Comptes-rendus" onclick="switchAppView('doc-consultation')">
-      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg></span>
-      <span class="label">Comptes-rendus</span>
-    </button>
-    <button class="sidebar-link" data-view="doc-ordonnance" data-tooltip="Ordonnances" onclick="switchAppView('doc-ordonnance')">
-      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/></svg></span>
-      <span class="label">Ordonnances</span>
-    </button>
-    <button class="sidebar-link" data-view="doc-courrier" data-tooltip="Courriers" onclick="switchAppView('doc-courrier')">
-      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg></span>
-      <span class="label">Courriers</span>
-    </button>
-    <button class="sidebar-link" data-view="doc-labo" data-tooltip="Analyses" onclick="switchAppView('doc-labo')">
-      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L4.5 19a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L14 9.5V3"/></svg></span>
-      <span class="label">Analyses</span>
-    </button>
-    <button class="sidebar-link" data-view="doc-imagerie" data-tooltip="Imagerie" onclick="switchAppView('doc-imagerie')">
-      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></span>
-      <span class="label">Imagerie</span>
-    </button>
-
-    <div class="sidebar-divider"></div>
     <button class="sidebar-link" data-view="ia-hub" data-tooltip="Assistant IA" onclick="switchAppView('ia-hub')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36-1.42 1.42M6.05 17.95l-1.42 1.42m12.73 0-1.42-1.42M6.05 6.05 4.63 4.63"/><circle cx="12" cy="12" r="4"/></svg></span>
       <span class="label">Assistant IA</span>
@@ -1796,7 +1774,15 @@ const APP_VIEW_IDS = {
   'ia-hub': 'view-ia-hub', 'parametres': 'view-parametres', documents: 'view-documents',
 };
 
+// Sprint 11 Étape 5 — les anciens sous-onglets Documents deviennent des
+// filtres du hub Documents. On redirige les appels historiques (dashboard,
+// ⌘K, notifications) vers le hub avec le bon onglet pré-sélectionné.
+const DOC_VIEW_ALIAS = {
+  'doc-consultation': 'consultation', 'doc-ordonnance': 'ordonnance',
+  'doc-courrier': 'courrier', 'doc-labo': 'analyse_labo', 'doc-imagerie': 'imagerie',
+};
 function switchAppView(viewName) {
+  if (DOC_VIEW_ALIAS[viewName]) { docCenterState.tab = DOC_VIEW_ALIAS[viewName]; viewName = 'documents'; }
   document.querySelectorAll('.app-view').forEach(v => v.classList.remove('visible'));
   const el = document.getElementById(APP_VIEW_IDS[viewName]);
   if (el) el.classList.add('visible');
