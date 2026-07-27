@@ -296,7 +296,7 @@ let currentDocFilter = 'all';
 
 function getToken(){ return localStorage.getItem('mediai_patient_token'); }
 function setToken(t){ localStorage.setItem('mediai_patient_token', t); }
-function clearToken(){ localStorage.removeItem('mediai_patient_token'); }
+function clearToken(){ localStorage.removeItem('mediai_patient_token'); if (typeof stopPatientLive === 'function') stopPatientLive(); }
 function authHeaders(){ return { 'Authorization': 'Bearer ' + (getToken() || '') }; }
 
 async function submitPatientLogin(event){
@@ -348,8 +348,9 @@ async function enterPatientApp(){
 
     renderPatientHome();
     await loadPatientTimeline();
-    loadPatientAppointments(); // Sprint 9 : mes rendez-vous (lecture seule)
-    loadPatientThreads();      // Sprint 9 : messagerie (lecture seule)
+    await loadPatientAppointments(); // Sprint 9 : mes rendez-vous (lecture seule)
+    await loadPatientThreads();      // Sprint 9 : messagerie (lecture seule)
+    startPatientLive();              // Sprint 11 Étape 7 : rafraîchissement quasi temps réel
   } catch {
     clearToken();
   }
@@ -550,6 +551,73 @@ async function openPatientThread(id){
     }).join('');
     pModal((d.thread&&d.thread.subject)||'Conversation', msgs || '<div class="p-empty">Aucun message.</div>');
   } catch(e){ pModal('Conversation', '<div class="p-empty">Impossible d\'ouvrir la conversation.</div>'); }
+}
+
+// ── Sprint 11 Étape 7 — liaison patient ⇄ médecin en quasi temps réel ──
+// Pas de websockets sur la stack actuelle : on rafraîchit en douceur quand
+// le portail est ouvert (polling léger) et à chaque retour sur l'onglet.
+// Le patient voit un nouveau document / RDV / message quasi immédiatement.
+let patientPollTimer = null;
+const patientSeen = { events: new Set(), appts: new Set(), threads: new Map() };
+function pToast(msg){
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;left:50%;bottom:92px;transform:translateX(-50%) translateY(10px);z-index:600;background:var(--navy,#0A1128);color:#fff;padding:12px 18px;border-radius:14px;font-size:13.5px;font-weight:500;box-shadow:0 12px 30px rgba(10,17,40,.3);opacity:0;transition:opacity .22s ease,transform .22s ease;max-width:90%;text-align:center;';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(function(){ t.style.opacity='1'; t.style.transform='translateX(-50%) translateY(0)'; });
+  setTimeout(function(){ t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(10px)'; setTimeout(function(){ t.remove(); }, 260); }, 4200);
+}
+function seedPatientSeen(){
+  patientSeen.events = new Set((patientEvents||[]).map(function(e){ return e.id; }));
+  patientSeen.appts = new Set((patientAppointments||[]).map(function(a){ return a.id; }));
+  patientSeen.threads = new Map((patientThreads||[]).map(function(t){ return [t.id, t.unread||0]; }));
+}
+async function pollPatientUpdates(){
+  if (document.hidden || !getToken()) return;
+  try {
+    const res = await fetch(API_BASE + '/api/patient/timeline', { headers: authHeaders() });
+    if (res.ok) {
+      const evs = (await res.json()).events || [];
+      const fresh = evs.filter(function(e){ return !patientSeen.events.has(e.id); });
+      if (fresh.length) {
+        patientEvents = evs;
+        renderPatientTreatments(); renderPatientRecentDocs(); renderPatientDocuments(); renderPatientTimeline();
+        fresh.forEach(function(e){ patientSeen.events.add(e.id); });
+        pToast(fresh.length > 1 ? (fresh.length + ' nouveaux documents de votre médecin') : 'Nouveau document de votre médecin');
+      }
+    }
+  } catch(e){}
+  try {
+    const res = await fetch(API_BASE + '/api/patient/appointments', { headers: authHeaders() });
+    if (res.ok) {
+      const items = (await res.json()).items || [];
+      const fresh = items.filter(function(a){ return !patientSeen.appts.has(a.id); });
+      patientAppointments = items; renderNextRdv(); renderPatientRdv();
+      if (fresh.length) { fresh.forEach(function(a){ patientSeen.appts.add(a.id); }); pToast('Nouveau rendez-vous programmé'); }
+    }
+  } catch(e){}
+  try {
+    const res = await fetch(API_BASE + '/api/patient/threads', { headers: authHeaders() });
+    if (res.ok) {
+      const items = (await res.json()).items || [];
+      let hasNew = false;
+      items.forEach(function(t){ const prev = patientSeen.threads.get(t.id); if (prev === undefined || (t.unread||0) > prev) hasNew = true; patientSeen.threads.set(t.id, t.unread||0); });
+      patientThreads = items; renderPatientMessages();
+      if (hasNew) pToast('Nouveau message de votre médecin');
+    }
+  } catch(e){}
+}
+function onPatientVisible(){ if (!document.hidden) pollPatientUpdates(); }
+function startPatientLive(){
+  seedPatientSeen();
+  if (patientPollTimer) clearInterval(patientPollTimer);
+  patientPollTimer = setInterval(pollPatientUpdates, 45000);
+  document.removeEventListener('visibilitychange', onPatientVisible);
+  document.addEventListener('visibilitychange', onPatientVisible);
+}
+function stopPatientLive(){
+  if (patientPollTimer) { clearInterval(patientPollTimer); patientPollTimer = null; }
+  document.removeEventListener('visibilitychange', onPatientVisible);
 }
 
 (function init(){
