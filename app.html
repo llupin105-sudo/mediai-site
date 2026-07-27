@@ -45,7 +45,7 @@
     --sans:  'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
     --mono:  var(--sans);  /* labels en Inter (majuscules/tracking), plus de monospace */
 
-    --r-xs: 4px; --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-full: 9999px;
+    --r-xs: 4px; --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-xl: 24px; --r-full: 9999px;
     /* Sprint 9 — échelle d'espacement 4px (source unique). Utiliser --space-* plutôt que des valeurs magiques. */
     --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
     /* Alias sémantiques (l'accent principal ; --sage* conservé par compat) */
@@ -74,6 +74,21 @@
     --green-deep:  #15803D;
     --tint-border: #C7DDFF;   /* bordure douce sur fonds bleu-tint */
     --blue-tint-2: #D6E6FF;   /* survol des fonds bleu-tint */
+
+    /* ══ Design System v2 (Sprint 11 Étape 8) — contrat unique ══
+       Échelle typographique (une seule source pour les tailles de texte).
+       Adoption progressive : tout nouveau composant s'y réfère. */
+    --fs-2xs: 10.5px;  /* micro-labels, compteurs */
+    --fs-xs:  12px;    /* légendes, méta */
+    --fs-sm:  13px;    /* texte secondaire */
+    --fs-base:14px;    /* corps par défaut */
+    --fs-md:  15.5px;  /* corps important, sous-titres */
+    --fs-lg:  18px;    /* titres de section */
+    --fs-xl:  23px;    /* titres de page */
+    --fs-2xl: 30px;    /* hero */
+    --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+    /* Composants canoniques : hauteur d'input alignée sur --btn-h */
+    --input-h: var(--btn-h);
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
@@ -479,6 +494,20 @@
   .btn-danger{ background:var(--card); border-color:var(--rose-tint); color:var(--rose); }
   .btn-sm{ height:34px; padding:0 var(--space-3); font-size:12.5px; }
   @media(prefers-reduced-motion:reduce){ .btn:active{ transform:none; } }
+  /* ── Sprint 11 Étape 8 — BADGE canonique (pastille de statut/étiquette) ── */
+  .badge{ display:inline-flex; align-items:center; gap:4px; font-size:var(--fs-2xs); font-weight:var(--fw-bold); letter-spacing:.03em; padding:2px 9px; border-radius:var(--r-full); background:var(--paper); color:var(--ink-soft); white-space:nowrap; line-height:1.5; }
+  .badge--blue{ background:var(--blue-tint); color:var(--sage-deep); }
+  .badge--ia{ background:var(--violet-tint); color:var(--violet-deep); }
+  .badge--green{ background:var(--green-tint); color:var(--green-deep); }
+  .badge--amber{ background:var(--amber-tint); color:#B45309; }
+  .badge--rose{ background:var(--rose-tint); color:#991B1B; }
+  /* ── Sprint 11 Étape 8 — INPUT / FIELD canonique ── */
+  .input{ width:100%; height:var(--input-h); padding:0 var(--space-3); border:1px solid var(--paper-line); border-radius:var(--r-md); background:var(--card); color:var(--ink); font-family:var(--sans); font-size:var(--fs-base); transition:border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease); }
+  .input::placeholder{ color:var(--ink-faint); }
+  .input:focus, .input:focus-visible{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-tint); }
+  textarea.input{ height:auto; min-height:96px; padding:var(--space-3); resize:vertical; line-height:1.6; }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field > label{ font-size:var(--fs-xs); font-weight:var(--fw-semibold); color:var(--ink-soft); }
   /* ── Sprint 9 2c — normalisation transversale (spécificité élevée pour primer
      sur les styles injectés au runtime, sans renommer ni toucher au JS) ── */
   body.app-mode .ckpt-card, body.app-mode .evo-card, body.app-mode .kf,
@@ -2422,12 +2451,12 @@ function renderAuroraCards() {
 
   el.innerHTML = `<div class="dsh-grid">
     <div class="dsh-col">
-      ${dshMod('📅', 'Agenda du jour', agenda, ag.length ? `<span class="dsh-pill">${ag.length} RDV</span>` : '')}
+      ${dshMod('📅', 'Agenda du jour', agenda, ag.length ? `<span class="badge badge--blue">${ag.length} RDV</span>` : '')}
       ${dshMod('🗂️', 'Dernières consultations', recent, `<button class="dsh-see" onclick="switchAppView('doc-consultation')">Tout voir</button>`)}
     </div>
     <div class="dsh-col">
-      ${dshMod('🛎️', 'Patients à voir', prio, pr.length ? `<span class="dsh-pill">${pr.length}</span>` : '')}
-      ${dshMod('⚠️', 'Alertes', alertes, `<span class="dsh-pill ia">à vérifier</span>`)}
+      ${dshMod('🛎️', 'Patients à voir', prio, pr.length ? `<span class="badge badge--blue">${pr.length}</span>` : '')}
+      ${dshMod('⚠️', 'Alertes', alertes, `<span class="badge badge--ia">à vérifier</span>`)}
       ${dshMod('⚡', 'Raccourcis', raccourcis)}
     </div>
   </div>`;
@@ -2498,8 +2527,6 @@ function ensureAuroraStyles() {
   .dsh-mh .t .ico{font-size:15px}
   .dsh-see{font-size:12.5px;color:var(--sage-deep);font-weight:500;cursor:pointer;background:none;border:none;font-family:inherit}
   .dsh-see:hover{text-decoration:underline}
-  .dsh-pill{font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:999px;background:var(--blue-tint);color:var(--sage-deep)}
-  .dsh-pill.ia{background:var(--violet-tint,#F1EDFF);color:var(--violet-deep,#6D28D9)}
   .dsh-row{display:flex;align-items:center;gap:13px;padding:12px 0;border-top:1px solid var(--paper-line);transition:padding-left .16s var(--ease-out,ease)}
   .dsh-row:first-of-type{border-top:0}
   .dsh-row.click{cursor:pointer}
