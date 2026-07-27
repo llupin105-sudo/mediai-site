@@ -508,6 +508,9 @@
   textarea.input{ height:auto; min-height:96px; padding:var(--space-3); resize:vertical; line-height:1.6; }
   .field{ display:flex; flex-direction:column; gap:6px; }
   .field > label{ font-size:var(--fs-xs); font-weight:var(--fw-semibold); color:var(--ink-soft); }
+  /* Sprint 11 Étape 9 — feedback de pression sur le bouton secondaire historique */
+  .btn-export:active{ transform:scale(.98); }
+  @media(prefers-reduced-motion:reduce){ .btn-export:active{ transform:none; } }
   /* ── Sprint 9 2c — normalisation transversale (spécificité élevée pour primer
      sur les styles injectés au runtime, sans renommer ni toucher au JS) ── */
   body.app-mode .ckpt-card, body.app-mode .evo-card, body.app-mode .kf,
@@ -556,7 +559,11 @@
 
   /* ── PAYWALL MODAL ────────────────────────────────── */
   .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(10,17,40,.5); z-index:100; align-items:center; justify-content:center; padding:20px; }
-  .modal-overlay.visible{ display:flex; }
+  .modal-overlay.visible{ display:flex; animation:fadeIn var(--dur-2) var(--ease); }
+  /* Sprint 11 Étape 9 — entrée unifiée des modales (fondu du fond + pop de la boîte) */
+  @keyframes modalPop{ from{ opacity:0; transform:translateY(10px) scale(.985); } to{ opacity:1; transform:none; } }
+  .modal-overlay.visible > *{ animation:modalPop var(--dur-3) var(--ease-out); }
+  @media(prefers-reduced-motion:reduce){ .modal-overlay.visible, .modal-overlay.visible > *{ animation:none; } }
   .modal-box{ background:var(--card); border-radius:var(--r-lg); max-width:420px; width:100%; padding:36px; text-align:center; box-shadow:var(--shadow-lg); }
   .modal-icon{ width:48px; height:48px; border-radius:50%; background:var(--amber-tint); color:var(--amber); display:flex; align-items:center; justify-content:center; margin:0 auto 18px; }
   .modal-box h3{ font-family:var(--sans); font-weight:700; font-size:19px; letter-spacing:-.01em; margin-bottom:10px; }
