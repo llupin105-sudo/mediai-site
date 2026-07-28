@@ -1915,24 +1915,66 @@ async function runCommandPaletteSearch() {
   // Ne re-affiche que si la requête n'a pas changé entre-temps (asynchrone).
   if (document.getElementById('cmdkInput').value.trim().toLowerCase() !== query) return;
 
-  const groups = [];
+  // Sprint 12 Étape 3 — Smart Search : proposer une recherche clinique IA
+  // dès qu'une requête est saisie (utile même sans correspondance littérale).
+  const smartItem = { kind:'smart', icon:'✨', title:`Recherche clinique : « ${raw} »`, sub:'Chercher dans tous les dossiers — diabète, hypertension, examens…', action:() => runSmartSearch(raw) };
+
+  const groups = [{ label:'Recherche intelligente', items:[smartItem] }];
   if (commandMatches.length) groups.push({ label:'Actions', items:commandMatches });
   if (patientMatches.length) groups.push({ label:'Patients', items:patientMatches });
   if (docMatches.length) groups.push({ label:'Documents', items:docMatches });
   if (rdvMatches.length) groups.push({ label:'Rendez-vous', items:rdvMatches });
-  cmdkCurrentItems = [...commandMatches, ...patientMatches, ...docMatches, ...rdvMatches];
+  cmdkCurrentItems = [smartItem, ...commandMatches, ...patientMatches, ...docMatches, ...rdvMatches];
 
-  if (groups.length === 0) {
-    resultsEl.innerHTML = `<div class="cmdk-empty">Aucun résultat pour « ${raw} »</div>`;
-  } else {
-    renderCmdkResults(groups);
+  renderCmdkResults(groups);
+}
+
+// Recherche clinique inter-patients : l'IA interprète la requête (côté serveur,
+// sans donnée patient), puis on filtre le cache d'événements en local.
+async function runSmartSearch(query) {
+  const resultsEl = document.getElementById('cmdkResults');
+  resultsEl.innerHTML = `<div class="cmdk-group-label">Recherche clinique</div><div class="cmdk-empty">✨ Analyse de « ${escapeHtml(query)} »…</div>`;
+  cmdkCurrentItems = [];
+  try {
+    const res = await fetch(API_BASE + '/api/search/interpret', { method:'POST', headers:{ 'Content-Type':'application/json', ...authHeaders() }, body: JSON.stringify({ query }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    const crit = data.criteres || { termes:[], types:[], mois:null, annee:null };
+    const events = await fetchAllEvents();
+    const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const termes = (crit.termes || []).map(norm).filter(Boolean);
+    const matches = events.filter((e) => {
+      if (crit.types && crit.types.length && !crit.types.includes(e.type)) return false;
+      if (crit.mois || crit.annee) { const d = new Date(e.event_date); if (crit.mois && (d.getMonth() + 1) !== crit.mois) return false; if (crit.annee && d.getFullYear() !== crit.annee) return false; }
+      if (!termes.length) return true;
+      const hay = norm(`${e.title} ${eventPreview(e)} ${(TL_TYPES[e.type] || {}).label || ''} ${e.patientPrenom || ''} ${e.patientNom || ''}`);
+      return termes.some((t) => hay.includes(t));
+    });
+    const byPatient = new Map();
+    matches.forEach((e) => { if (!byPatient.has(e.patientId)) byPatient.set(e.patientId, { id:e.patientId, prenom:e.patientPrenom, nom:e.patientNom, events:[] }); byPatient.get(e.patientId).events.push(e); });
+    const patients = [...byPatient.values()].sort((a, b) => b.events.length - a.events.length);
+    const termLabel = (crit.termes || []).slice(0, 4).join(', ');
+    if (!patients.length) {
+      resultsEl.innerHTML = `<div class="cmdk-group-label">Recherche clinique</div><div class="cmdk-empty">Aucun dossier ne correspond à « ${escapeHtml(query)} ».${termLabel ? `<div style="font-size:11px;margin-top:6px;opacity:.7">Termes explorés : ${escapeHtml(termLabel)}</div>` : ''}</div>`;
+      cmdkCurrentItems = [];
+      return;
+    }
+    const items = patients.slice(0, 12).map((p) => {
+      const latest = p.events.slice().sort((a, b) => new Date(b.event_date) - new Date(a.event_date))[0];
+      return { kind:'patient', icon:'👤', title:`${p.prenom || ''} ${p.nom || ''}`.trim(), sub:`${p.events.length} événement${p.events.length > 1 ? 's' : ''} correspondant${p.events.length > 1 ? 's' : ''} · ex. ${(TL_TYPES[latest.type] || {}).label || latest.type}`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(p.id); } };
+    });
+    cmdkCurrentItems = items;
+    renderCmdkResults([{ label:`Recherche clinique · ${patients.length} dossier${patients.length > 1 ? 's' : ''}${termLabel ? ' · ' + termLabel : ''}`, items }]);
+  } catch (err) {
+    resultsEl.innerHTML = `<div class="cmdk-empty">${err.message === 'Quota IA atteint' ? 'Quota IA atteint pour ce mois.' : 'Recherche clinique indisponible pour le moment.'}</div>`;
+    cmdkCurrentItems = [];
   }
 }
 
 function renderCmdkResults(groups) {
   ensureCmdkStyles();
   const resultsEl = document.getElementById('cmdkResults');
-  const kbdFor = { command:'Action', patient:'Patient', document:'Document', rdv:'RDV' };
+  const kbdFor = { command:'Action', patient:'Patient', document:'Document', rdv:'RDV', smart:'IA' };
   let flatIndex = 0;
   resultsEl.innerHTML = groups.map(g => `
     <div class="cmdk-group-label">${g.label}</div>
