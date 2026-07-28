@@ -4358,6 +4358,7 @@ function renderPatientHeader(patient, events) {
           <div class="pw-mi" onclick="pwNew('courrier')"><span class="em">✉️</span> Courrier</div>
         </div>
       </div>
+      <button class="btn-export" style="width:auto;padding:0 15px;background:var(--violet-tint);color:var(--violet-deep);border-color:var(--violet-tint);font-weight:600;" onclick="openCopilote()">✦ Discuter</button>
       <button class="btn-export" style="width:auto;padding:0 15px;" onclick="openPatientPortalModal()">Accès patient</button>
       <button class="btn-export" style="width:auto;padding:0 15px;" onclick="pwShare()">↗ Partager</button>
       <div class="pw-menu-wrap">
@@ -4385,6 +4386,166 @@ function pwNew(type) {
   }
 }
 function pwShare() { showToast('Le partage se fait depuis un document : Exporter puis Envoyer.', 'info'); }
+
+// ══ Sprint 12 Étape 4 — Copilote « Discuter avec le dossier » ══
+// Panneau latéral : le médecin pose des questions, l'IA répond uniquement
+// à partir du dossier (backend anonymisé). Conversation non persistée.
+let copiloteMessages = [];
+let copilotePatientId = null;
+let copiloteBusy = false;
+const COPILOTE_SUGGESTIONS = [
+  { e: '📋', q: 'Résume-moi les 6 derniers mois.' },
+  { e: '🧪', q: 'Quels examens manquent ?' },
+  { e: '💊', q: 'Y a-t-il une interaction médicamenteuse ?' },
+  { e: '🕒', q: "Que s'est-il passé depuis la dernière consultation ?" },
+];
+function ensureCopiloteStyles() {
+  if (document.getElementById('copiloteStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'copiloteStyles';
+  st.textContent = `
+  #copiloteScrim{position:fixed;inset:0;z-index:190;background:rgba(10,17,40,.28);backdrop-filter:blur(2px);opacity:0;transition:opacity var(--dur-2) var(--ease);pointer-events:none}
+  #copiloteScrim.open{opacity:1;pointer-events:auto}
+  #copilotePanel{position:fixed;top:0;right:0;z-index:200;width:440px;max-width:94vw;height:100vh;background:var(--card);border-left:1px solid var(--paper-line);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .32s var(--ease)}
+  #copilotePanel.open{transform:none}
+  .cop-head{display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--paper-line)}
+  .cop-mk{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;background:linear-gradient(135deg,var(--violet),var(--blue));color:#fff;flex:none}
+  .cop-t{font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+  .cop-s{font-size:12px;color:var(--ink-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
+  .cop-x{margin-left:auto;width:32px;height:32px;border:none;background:none;color:var(--ink-faint);font-size:22px;cursor:pointer;border-radius:8px;line-height:1}
+  .cop-x:hover{background:var(--paper);color:var(--ink)}
+  .cop-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+  .cop-sugg-lead{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+  .cop-chip{text-align:left;border:1px solid var(--paper-line);background:var(--card);border-radius:12px;padding:11px 13px;font-family:inherit;font-size:13px;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:9px;transition:border-color var(--dur-2) var(--ease),transform var(--dur-1) var(--ease)}
+  .cop-chip:hover{border-color:var(--violet);transform:translateX(2px)}
+  .cop-msg{display:flex;gap:10px;max-width:100%}
+  .cop-msg.me{flex-direction:row-reverse}
+  .cop-av{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex:none;margin-top:2px}
+  .cop-av.ia{background:var(--violet-tint);color:var(--violet-deep)}
+  .cop-av.me{background:var(--blue-tint);color:var(--sage-deep);font-weight:700;font-size:11px}
+  .cop-bub{border-radius:14px;padding:11px 14px;font-size:13.5px;line-height:1.6;max-width:82%}
+  .cop-msg.me .cop-bub{background:var(--blue);color:#fff;border-bottom-right-radius:5px}
+  .cop-msg.ia .cop-bub{background:var(--paper);color:var(--ink);border-bottom-left-radius:5px;border:1px solid var(--paper-line)}
+  .cop-bub ul{margin:6px 0 0;padding-left:18px}
+  .cop-bub li{margin-bottom:3px}
+  .cop-foot{display:flex;align-items:center;gap:6px;margin-top:9px;padding-top:9px;border-top:1px solid var(--paper-line);font-size:10.5px;color:var(--ink-faint);line-height:1.4}
+  .cop-badge{font-size:9.5px;font-weight:700;color:var(--violet-deep);background:var(--violet-tint);padding:2px 7px;border-radius:999px;white-space:nowrap}
+  .cop-typing{display:flex;gap:4px;padding:4px 0}
+  .cop-typing span{width:6px;height:6px;border-radius:50%;background:var(--ink-faint);animation:copBlink 1.2s infinite}
+  .cop-typing span:nth-child(2){animation-delay:.2s}.cop-typing span:nth-child(3){animation-delay:.4s}
+  @keyframes copBlink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  .cop-in{padding:14px 16px 16px;border-top:1px solid var(--paper-line);background:var(--card)}
+  .cop-in-row{display:flex;align-items:flex-end;gap:9px;background:var(--paper);border:1px solid var(--paper-line);border-radius:14px;padding:8px 8px 8px 14px}
+  .cop-in-row textarea{flex:1;border:none;background:none;resize:none;font-family:inherit;font-size:13.5px;color:var(--ink);max-height:90px;outline:none;line-height:1.5}
+  .cop-send{width:34px;height:34px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-size:15px;cursor:pointer;flex:none}
+  .cop-send:disabled{opacity:.5;cursor:default}
+  .cop-disc{font-size:10.5px;color:var(--ink-faint);text-align:center;margin-top:9px;line-height:1.4}
+  @media(prefers-reduced-motion:reduce){#copilotePanel{transition:none}.cop-chip:hover{transform:none}}
+  @media(max-width:520px){#copilotePanel{width:100vw}}`;
+  document.head.appendChild(st);
+}
+function ensureCopilotePanel() {
+  if (document.getElementById('copilotePanel')) return;
+  ensureCopiloteStyles();
+  const scrim = document.createElement('div'); scrim.id = 'copiloteScrim'; scrim.onclick = closeCopilote;
+  const p = document.createElement('aside'); p.id = 'copilotePanel';
+  p.innerHTML = `
+    <div class="cop-head">
+      <div class="cop-mk">✦</div>
+      <div style="min-width:0;"><div class="cop-t">Copilote</div><div class="cop-s" id="copSub">Discuter avec le dossier</div></div>
+      <button class="cop-x" onclick="closeCopilote()" aria-label="Fermer">&times;</button>
+    </div>
+    <div class="cop-body" id="copBody"></div>
+    <div class="cop-in">
+      <div class="cop-in-row">
+        <textarea id="copInput" rows="1" placeholder="Poser une question sur le dossier…" oninput="copAutosize(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();copiloteSend();}"></textarea>
+        <button class="cop-send" id="copSend" onclick="copiloteSend()" aria-label="Envoyer">↑</button>
+      </div>
+      <div class="cop-disc">L'IA répond uniquement à partir des données du dossier. Réponses à vérifier — jamais un avis médical.</div>
+    </div>`;
+  document.body.appendChild(scrim);
+  document.body.appendChild(p);
+}
+function copAutosize(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 90) + 'px'; }
+function openCopilote() {
+  if (!currentDetailPatientId) return;
+  ensureCopilotePanel();
+  if (copilotePatientId !== currentDetailPatientId) { copiloteMessages = []; copilotePatientId = currentDetailPatientId; }
+  const p = currentPatientInfo || {};
+  document.getElementById('copSub').textContent = 'Discuter avec le dossier · ' + ((p.prenom || '') + ' ' + (p.nom || '')).trim();
+  copiloteRender();
+  document.getElementById('copiloteScrim').classList.add('open');
+  document.getElementById('copilotePanel').classList.add('open');
+  setTimeout(function () { const i = document.getElementById('copInput'); if (i) i.focus(); }, 320);
+}
+function closeCopilote() {
+  const s = document.getElementById('copiloteScrim'), p = document.getElementById('copilotePanel');
+  if (s) s.classList.remove('open');
+  if (p) p.classList.remove('open');
+}
+function copFormat(text) {
+  const esc = escapeHtml(text || '');
+  const lines = esc.split('\n');
+  let html = '', inList = false;
+  for (const raw of lines) {
+    const line = raw.trim();
+    const isLi = /^[-•]\s+/.test(line);
+    if (isLi) { if (!inList) { html += '<ul>'; inList = true; } html += '<li>' + line.replace(/^[-•]\s+/, '') + '</li>'; }
+    else { if (inList) { html += '</ul>'; inList = false; } if (line) html += '<div>' + line + '</div>'; }
+  }
+  if (inList) html += '</ul>';
+  return html || esc;
+}
+function copiloteRender() {
+  const body = document.getElementById('copBody');
+  if (!body) return;
+  let html = '';
+  if (copiloteMessages.length === 0) {
+    html += '<div class="cop-sugg-lead">Questions suggérées</div>';
+    html += COPILOTE_SUGGESTIONS.map(function (s) { return `<button class="cop-chip" onclick="copiloteSuggest('${s.q.replace(/'/g, "\\'")}')"><span>${s.e}</span> ${escapeHtml(s.q)}</button>`; }).join('');
+  }
+  html += copiloteMessages.map(function (m) {
+    if (m.role === 'user') return `<div class="cop-msg me"><span class="cop-av me">${escapeHtml(copiloteInitials())}</span><div class="cop-bub">${escapeHtml(m.content)}</div></div>`;
+    if (m.role === 'typing') return `<div class="cop-msg ia"><span class="cop-av ia">✦</span><div class="cop-bub"><div class="cop-typing"><span></span><span></span><span></span></div></div></div>`;
+    return `<div class="cop-msg ia"><span class="cop-av ia">✦</span><div class="cop-bub">${copFormat(m.content)}<div class="cop-foot"><span class="cop-badge">✦ IA · à vérifier</span> Établi à partir des seules données du dossier.</div></div></div>`;
+  }).join('');
+  body.innerHTML = html;
+  body.scrollTop = body.scrollHeight;
+}
+function copiloteInitials() {
+  const n = (currentUser && currentUser.profile && currentUser.profile.nom) || 'Moi';
+  return (n.slice(0, 2)).toUpperCase();
+}
+function copiloteSuggest(q) { const i = document.getElementById('copInput'); if (i) { i.value = q; } copiloteSend(); }
+async function copiloteSend() {
+  if (copiloteBusy) return;
+  const input = document.getElementById('copInput');
+  const question = (input.value || '').trim();
+  if (question.length < 2 || !currentDetailPatientId) return;
+  input.value = ''; copAutosize(input);
+  copiloteMessages.push({ role: 'user', content: question });
+  copiloteMessages.push({ role: 'typing' });
+  copiloteBusy = true; document.getElementById('copSend').disabled = true;
+  copiloteRender();
+  try {
+    const history = copiloteMessages.filter(function (m) { return m.role === 'user' || m.role === 'assistant'; }).slice(0, -1).slice(-6);
+    const res = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ question: question, history: history }),
+    });
+    const data = await res.json();
+    copiloteMessages = copiloteMessages.filter(function (m) { return m.role !== 'typing'; });
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    copiloteMessages.push({ role: 'assistant', content: data.reponse || "Le dossier ne me permet pas de répondre à cette question." });
+  } catch (err) {
+    copiloteMessages = copiloteMessages.filter(function (m) { return m.role !== 'typing'; });
+    copiloteMessages.push({ role: 'assistant', content: (err.message === 'Quota IA atteint' ? 'Quota IA atteint pour ce mois.' : "Analyse indisponible pour le moment. Réessayez dans un instant.") });
+  } finally {
+    copiloteBusy = false; const s = document.getElementById('copSend'); if (s) s.disabled = false;
+    copiloteRender();
+  }
+}
 
 function renderCockpit(patient, events) {
   const el = document.getElementById('consultationCockpit');
