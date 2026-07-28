@@ -2285,12 +2285,74 @@ function isFocusMode() { return document.body.classList.contains('focus-mode'); 
 function updateFocusBar() {
   const l = document.getElementById('focusPatientLabel');
   if (l) l.textContent = (typeof selectedPatient !== 'undefined' && selectedPatient) ? `${selectedPatient.prenom} ${selectedPatient.nom}` : 'Consultation';
+  if (isFocusMode()) renderConsultContext();
+}
+
+// Sprint 12 Étape 9 — Mode Consultation : panneau de contexte permanent
+// (antécédents/traitements/constantes/IA) à côté de la dictée. Rien d'autre.
+function ensureConsultContextStyles() {
+  if (document.getElementById('ccStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'ccStyles';
+  st.textContent = '#consultContext{position:fixed;top:52px;right:0;bottom:0;width:340px;overflow-y:auto;background:var(--card);border-left:1px solid var(--paper-line);padding:22px 20px;display:none;z-index:85}'
+    + 'body.focus-mode #consultContext{display:block}'
+    + 'body.focus-mode #appContentArea{padding-right:340px!important}'
+    + '.cc-name{font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--ink);margin-bottom:2px}'
+    + '.cc-sub{font-size:12.5px;color:var(--ink-faint);margin-bottom:18px}'
+    + '.cc-sec{margin-bottom:18px}'
+    + '.cc-lead{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:9px;display:flex;align-items:center;gap:6px}'
+    + '.cc-chip{display:inline-block;font-size:12px;font-weight:500;padding:4px 10px;border-radius:var(--r-full);background:var(--paper);border:1px solid var(--paper-line);color:var(--ink-soft);margin:0 5px 5px 0}'
+    + '.cc-const{display:grid;grid-template-columns:1fr 1fr;gap:8px}'
+    + '.cc-const-tile{background:var(--paper);border:1px solid var(--paper-line);border-radius:10px;padding:8px 10px}'
+    + '.cc-const-k{font-size:10px;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-faint)}'
+    + '.cc-const-v{font-size:14px;font-weight:600;color:var(--ink);margin-top:1px}'
+    + '.cc-sig{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--paper-line)}'
+    + '.cc-sig:first-of-type{border-top:0}'
+    + '.cc-sig-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex:none}'
+    + '.cc-sig .t{font-size:12.5px;color:var(--ink);line-height:1.4}.cc-sig .d{font-size:11px;color:var(--ink-faint)}'
+    + '.cc-hist{font-size:12.5px;color:var(--ink-soft);line-height:1.5;padding:6px 0;border-top:1px solid var(--paper-line)}'
+    + '.cc-hist:first-of-type{border-top:0}.cc-hist b{color:var(--ink);font-weight:600}'
+    + '.cc-empty{font-size:13px;color:var(--ink-faint);line-height:1.5;margin-top:20px}'
+    + '.cc-badge-ia{font-size:9px;font-weight:700;color:var(--violet-deep);background:var(--violet-tint);padding:2px 7px;border-radius:999px;text-transform:none;letter-spacing:0}'
+    + '@media(max-width:1080px){#consultContext{display:none!important}body.focus-mode #appContentArea{padding-right:0!important}}';
+  document.head.appendChild(st);
+}
+function ensureConsultContext() {
+  ensureConsultContextStyles();
+  let el = document.getElementById('consultContext');
+  if (!el) { el = document.createElement('aside'); el.id = 'consultContext'; document.body.appendChild(el); }
+  return el;
+}
+async function renderConsultContext() {
+  const panel = ensureConsultContext();
+  if (!panel) return;
+  if (!selectedPatient) { panel.innerHTML = '<div class="cc-empty">Sélectionnez un patient pour afficher son contexte pendant la consultation.</div>'; return; }
+  const pid = selectedPatient.id;
+  panel.innerHTML = `<div class="cc-name">${escapeHtml(selectedPatient.prenom + ' ' + selectedPatient.nom)}</div><div class="cc-sub">Contexte du dossier</div><div class="cc-empty">Chargement…</div>`;
+  let events = [];
+  try { const all = await fetchAllEvents(); events = all.filter((e) => e.patientId === pid); } catch {}
+  if (!selectedPatient || selectedPatient.id !== pid || !isFocusMode()) return; // patient changé / sorti du mode
+
+  const treatments = deriveTreatments(events);
+  const consults = events.filter((e) => e.type === 'consultation').sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+  const signals = computePatientSignals(events).filter((s) => s.severite !== 'info').slice(0, 3);
+  let consts = [];
+  for (const c of consults) { const k = c.data && c.data.sections && c.data.sections.objectif && c.data.sections.objectif.constantes; if (k) { consts = Object.entries(k).filter(([, v]) => v && v !== 'null'); if (consts.length) break; } }
+  const hist = consults.slice(0, 3).map((c) => ({ date: c.event_date, txt: (c.data && c.data.resume_1_ligne) || (c.data && c.data.sections && c.data.sections.assessment && c.data.sections.assessment.diagnostic_principal) || c.title }));
+  const sevColor = (s) => s === 'important' ? 'var(--rose)' : s === 'attention' ? 'var(--amber)' : 'var(--blue)';
+
+  let html = `<div class="cc-name">${escapeHtml(selectedPatient.prenom + ' ' + selectedPatient.nom)}</div><div class="cc-sub">Contexte du dossier</div>`;
+  if (signals.length) html += `<div class="cc-sec"><div class="cc-lead">Points critiques <span class="cc-badge-ia">✦ à vérifier</span></div>${signals.map((s) => `<div class="cc-sig"><span class="cc-sig-dot" style="background:${sevColor(s.severite)}"></span><div><div class="t">${escapeHtml(s.titre)}</div>${s.detail ? `<div class="d">${escapeHtml(s.detail)}</div>` : ''}</div></div>`).join('')}</div>`;
+  html += `<div class="cc-sec"><div class="cc-lead">💊 Traitements actifs</div>${treatments.length ? treatments.map((t) => `<span class="cc-chip">${escapeHtml(t)}</span>`).join('') : '<div class="cc-empty" style="margin:0">Aucun traitement actif renseigné.</div>'}</div>`;
+  html += `<div class="cc-sec"><div class="cc-lead">🩺 Dernières constantes</div>${consts.length ? `<div class="cc-const">${consts.map(([k, v]) => `<div class="cc-const-tile"><div class="cc-const-k">${escapeHtml(k)}</div><div class="cc-const-v">${escapeHtml(String(v))}</div></div>`).join('')}</div>` : '<div class="cc-empty" style="margin:0">Aucune constante enregistrée.</div>'}</div>`;
+  html += `<div class="cc-sec"><div class="cc-lead">🕒 Historique récent</div>${hist.length ? hist.map((h) => `<div class="cc-hist"><b>${new Date(h.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</b> — ${escapeHtml(h.txt)}</div>`).join('') : '<div class="cc-empty" style="margin:0">Aucune consultation antérieure.</div>'}</div>`;
+  panel.innerHTML = html;
 }
 function enterFocusMode() {
   ensureFocusStyles();
   if (typeof switchAppView === 'function') switchAppView('consultation');
+  document.body.classList.add('focus-mode'); // avant updateFocusBar : il rend le contexte si focus actif
   updateFocusBar();
-  document.body.classList.add('focus-mode');
   window.scrollTo({ top: 0 });
 }
 function exitFocusMode() { document.body.classList.remove('focus-mode'); }
