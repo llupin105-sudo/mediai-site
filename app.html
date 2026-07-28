@@ -4266,7 +4266,7 @@ function ensurePwStyles() {
   .pw-mi .em{font-size:15px;width:20px;text-align:center}
   @media(max-width:720px){.pwh{flex-wrap:wrap}.pwh-actions{width:100%}}
   /* Sprint 10b : les 3 blocs IA remplacent les surfaces dupliquées ci-dessous */
-  #consultationCockpit,#patientSnapshotCard,#timelineNarrative,#patientInsights{display:none!important}
+  #consultationCockpit,#patientSnapshotCard,#patientInsights{display:none!important}
   .pai-row{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:14px;margin-bottom:24px}
   .pai{background:var(--card);border:1px solid var(--paper-line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow-sm);min-width:0}
   .pai-h{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:11px;display:flex;align-items:center;gap:7px}
@@ -4804,7 +4804,12 @@ function ensureTimelineNarrativeStyles() {
   const st = document.createElement('style');
   st.id = 'tnStyles';
   st.textContent = '.tn-card{background:linear-gradient(180deg,var(--card),var(--sage-tint));border:1px solid var(--paper-line);border-radius:14px;padding:18px 20px;margin-bottom:20px;animation:snapFadeUp var(--dur-3,.24s) var(--ease-out,ease)}'
-    + '.tn-head{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--sage-deep);margin-bottom:14px;display:flex;align-items:center;gap:6px}'
+    + '.tn-head{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--sage-deep);display:flex;align-items:center;gap:6px}'
+    + '.tn-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;flex-wrap:wrap}'
+    + '.tn-actions{display:flex;gap:6px}'
+    + '.tn-btn{height:28px;padding:0 11px;border-radius:8px;border:1px solid var(--paper-line);background:var(--card);font-family:inherit;font-size:12px;font-weight:600;color:var(--sage-deep);cursor:pointer;transition:background var(--dur-2,.16s),border-color var(--dur-2,.16s)}'
+    + '.tn-btn:hover{background:var(--sage-tint);border-color:var(--sage)}'
+    + '.tn-lead{font-size:12px;color:var(--ink-soft);margin-bottom:16px}'
     + '.tn-item{display:flex;gap:14px;padding-bottom:16px;position:relative}'
     + '.tn-item:last-child{padding-bottom:0}'
     + '.tn-marker{position:relative;width:12px;flex-shrink:0}'
@@ -4815,13 +4820,28 @@ function ensureTimelineNarrativeStyles() {
     + '.tn-foot{font-size:10.5px;color:var(--ink-faint);margin-top:14px;border-top:1px solid var(--paper-line);padding-top:10px;display:flex;align-items:center;gap:6px}';
   document.head.appendChild(st);
 }
+// Sprint 12 Étape 12 — « Histoire clinique » : le récit chronologique du
+// dossier, construit par l'IA, mis en avant et partageable (copie / courrier).
+let currentNarrative = null;
+function narrativePlainText(periodes) {
+  return (periodes || []).map((p) => (p.titre ? p.titre + '\n' : '') + (p.resume || '')).join('\n\n');
+}
 function renderTimelineNarrative(periodes) {
   const el = document.getElementById('timelineNarrative');
   if (!el) return;
-  if (!periodes || periodes.length === 0) { el.innerHTML = ''; return; }
+  if (!periodes || periodes.length === 0) { el.innerHTML = ''; currentNarrative = null; return; }
   ensureTimelineNarrativeStyles();
+  currentNarrative = periodes;
   el.innerHTML = `<div class="tn-card">
-    <div class="tn-head"><span style="font-size:13px;">✨</span> Le récit du dossier</div>
+    <div class="tn-topbar">
+      <div class="tn-head"><span style="font-size:14px;">✨</span> Histoire clinique</div>
+      <div class="tn-actions">
+        <button class="tn-btn" onclick="copyNarrative()" title="Copier le récit">⧉ Copier</button>
+        <button class="tn-btn" onclick="narrativeToCourrier()" title="Intégrer ce récit dans un courrier">✉️ Courrier</button>
+        <button class="tn-btn" onclick="refreshNarrative()" title="Régénérer le récit">↻</button>
+      </div>
+    </div>
+    <div class="tn-lead">Récit chronologique généré par l'IA, mis à jour à chaque nouvel événement.</div>
     ${periodes.map((p) => `<div class="tn-item">
       <div class="tn-marker"><span class="tn-dot"></span></div>
       <div style="flex:1; min-width:0;">
@@ -4832,13 +4852,49 @@ function renderTimelineNarrative(periodes) {
     <div class="tn-foot"><span>✨</span> Récit assisté par IA à partir des seules données du dossier — à vérifier, ce n'est pas un avis médical.</div>
   </div>`;
 }
-async function fetchTimelineNarrative(patientId) {
+function copyNarrative() {
+  if (!currentNarrative) return;
+  const txt = narrativePlainText(currentNarrative);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function () { showToast("Histoire clinique copiée dans le presse-papiers.", 'success'); })
+      .catch(function () { showToast("Copie impossible — sélectionnez le texte manuellement.", 'info'); });
+  } else { showToast("Copie non disponible sur ce navigateur.", 'info'); }
+}
+function refreshNarrative() {
+  if (currentDetailPatientId) fetchTimelineNarrative(currentDetailPatientId, true);
+}
+// Intègre l'histoire clinique dans un courrier : ouvre l'éditeur de courrier
+// directement en étape 2 (corps pré-rempli, éditable), prêt à exporter/envoyer.
+function narrativeToCourrier() {
+  if (!currentNarrative || !currentPatientInfo) return;
+  const p = currentPatientInfo;
+  const prof = (currentUser && currentUser.profile) || {};
+  const nomComplet = ((p.prenom || '') + ' ' + (p.nom || '')).trim();
+  const corps = `Cher Confrère, Chère Consœur,\n\nJe vous adresse la synthèse de l'histoire clinique de ${nomComplet}${p.date_naissance ? ' (né(e) le ' + new Date(p.date_naissance).toLocaleDateString('fr-FR') + ')' : ''}.\n\n${narrativePlainText(currentNarrative)}\n\nJe reste à votre disposition pour tout complément d'information.\n\nConfraternellement,\n${prof.nom ? 'Dr ' + prof.nom : ''}`;
+  lastCourrier = {
+    objet: `Histoire clinique — ${nomComplet}`,
+    corps_lettre: corps,
+    destinataire_suggere: 'Confrère',
+    date: Date.now(),
+    expediteur: { nom: prof.nom ? 'Dr ' + prof.nom : 'MediAI', cabinet: prof.cabinet || '', rpps: prof.rpps || '' },
+  };
+  selectedPatient = { id: p.id, nom: p.nom, prenom: p.prenom };
+  document.getElementById('courrierDestLabel').textContent = 'Destinataire : confrère (à préciser)';
+  document.getElementById('courrierObjet').value = lastCourrier.objet;
+  document.getElementById('courrierCorps').value = corps;
+  document.getElementById('courrierError').classList.remove('visible');
+  document.getElementById('courrierStep1').style.display = 'none';
+  document.getElementById('courrierStep2').style.display = 'block';
+  document.getElementById('courrierModal').classList.add('visible');
+}
+async function fetchTimelineNarrative(patientId, force) {
   const el = document.getElementById('timelineNarrative');
   if (!el) return;
   ensureTimelineNarrativeStyles();
-  el.innerHTML = `<div class="tn-card"><div class="tn-head"><span style="font-size:13px;">✨</span> Le récit du dossier</div>${skeletonRows(2)}</div>`;
+  el.innerHTML = `<div class="tn-card"><div class="tn-head"><span style="font-size:14px;">✨</span> Histoire clinique</div><div class="tn-lead">${force ? 'Régénération du récit…' : 'Construction du récit clinique…'}</div>${skeletonRows(2)}</div>`;
   try {
-    const res = await fetch(API_BASE + '/api/patients/' + patientId + '/timeline-narrative', { headers: authHeaders() });
+    const url = API_BASE + '/api/patients/' + patientId + '/timeline-narrative' + (force ? '?refresh=1' : '');
+    const res = await fetch(url, { headers: authHeaders() });
     const data = await res.json();
     if (currentDetailPatientId !== patientId) return; // dossier changé entre-temps
     if (!res.ok) { el.innerHTML = ''; return; }
