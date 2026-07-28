@@ -1455,7 +1455,7 @@
 <div class="notif-overlay" id="notifOverlay" onclick="if(event.target===this) closeNotifCenter();">
   <div class="notif-panel">
     <div class="notif-head">
-      <div style="font-size:15px; font-weight:600;">Notifications</div>
+      <div style="font-size:15px; font-weight:600;">Centre de notifications</div>
       <button class="modal-close" style="margin:0;" onclick="closeNotifCenter()">Fermer</button>
     </div>
     <div class="notif-body" id="notifBody"></div>
@@ -2145,43 +2145,92 @@ function notifItemHtml(e, unseen) {
     <div style="font-size:11px; color:var(--ink-faint); flex-shrink:0;">${time}</div>
   </div>`;
 }
+// Sprint 12 Étape 8 — Centre de notifications = centre d'ACTIONS groupées.
+// « Toutes les actions au même endroit », par catégorie, chacune cliquable.
+// Réutilise /api/cockpit (agrégé, déterministe) + appointments réels.
+function ncRow(icon, bg, fg, title, sub, pid, right) {
+  return `<div class="notif-item"${pid ? ` onclick="closeNotifCenter(); switchAppView('patients'); openPatientDetail('${pid}');"` : ''}>
+    <span style="width:7px;flex-shrink:0;"></span>
+    <div class="notif-ic" style="background:${bg};color:${fg};">${icon}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(title)}</div>
+      <div style="font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(sub)}</div>
+    </div>
+    ${right ? `<div style="font-size:11px;color:var(--ink-faint);flex-shrink:0;white-space:nowrap;">${right}</div>` : ''}
+  </div>`;
+}
+function ensureNcStyles() {
+  if (document.getElementById('ncStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'ncStyles';
+  st.textContent = '.nc-today{background:linear-gradient(180deg,var(--card),var(--blue-tint));border:1px solid var(--paper-line);border-radius:14px;padding:15px 17px;margin:4px 0 8px}'
+    + '.nc-today-lead{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:9px}'
+    + '.nc-today-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}'
+    + '.nc-today-list li{font-size:14px;color:var(--ink);padding-left:16px;position:relative}'
+    + '.nc-today-list li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--blue)}';
+  document.head.appendChild(st);
+}
 async function renderNotifCenter() {
   const body = document.getElementById('notifBody');
   if (!body) return;
+  ensureNcStyles();
   body.innerHTML = skeletonRows(4);
-  let events;
-  try { events = await fetchAllEvents(); }
-  catch { body.innerHTML = '<div class="dash-empty" style="padding:20px;">Impossible de charger les notifications.</div>'; return; }
-  const last = getNotifLastSeen() || 0;
-  const sorted = events.slice().sort((a, b) => notifTime(b) - notifTime(a)).slice(0, 40);
-  const appts = await fetchUpcomingAppointments();
-  if (sorted.length === 0 && appts.length === 0) {
-    body.innerHTML = emptyState({ icon: '🔔', title: 'Aucune notification', text: 'Rendez-vous, nouveaux documents et résultats apparaîtront ici.' });
-    return;
-  }
-  const nouveau = sorted.filter((e) => notifTime(e) > last);
-  const plusTot = sorted.filter((e) => notifTime(e) <= last);
+
+  let d = cockpitState.data;
+  try { if (!d) d = await fetchCockpit(); } catch { d = null; }
+  const appts = await fetchUpcomingAppointments().catch(() => []);
+  let events = [];
+  try { events = await fetchAllEvents(); } catch {}
+  d = d || {};
+
+  const prio = d.priorites || [];
+  const results = d.resultats_recents || [];
+  const renew = d.ordonnances_a_renouveler || [];
+  const now = Date.now();
+  const absents = (appts || []).filter((a) => a.status === 'absent');
+  const upcoming = (appts || []).filter((a) => a.status !== 'absent' && a.status !== 'annule' && new Date(a.start_at).getTime() > now);
+  const pl = (n) => (n > 1 ? 's' : '');
+  const nm = (o) => `${(o.prenom || '')} ${(o.nom || '')}`.trim() || 'Patient';
+
+  // ── Résumé « Aujourd'hui » ──
+  const bits = [];
+  if (results.length) bits.push(`${results.length} résultat${pl(results.length)} biologique${pl(results.length)}`);
+  if (renew.length) bits.push(`${renew.length} renouvellement${pl(renew.length)}`);
+  if (prio.length) bits.push(`${prio.length} patient${pl(prio.length)} à regarder`);
+  if (upcoming.length) bits.push(`${upcoming.length} rendez-vous`);
+  if (absents.length) bits.push(`${absents.length} patient${pl(absents.length)} absent${pl(absents.length)}`);
+
   let html = '';
-  // Rendez-vous à venir (source réelle : table appointments) — en tête.
-  if (appts.length) {
-    html += `<div class="notif-group" style="color:var(--sage-deep);">Rendez-vous à venir · ${appts.length}</div>`;
-    html += appts.slice(0, 6).map(apptNotifHtml).join('');
+  html += `<div class="nc-today">
+    <div class="nc-today-lead">Aujourd'hui</div>
+    ${bits.length ? `<ul class="nc-today-list">${bits.map((b) => `<li>${b}</li>`).join('')}</ul>` : `<div style="font-size:13px;color:var(--ink-soft);">Rien ne requiert votre attention immédiate.</div>`}
+  </div>`;
+
+  // ── Sections d'actions ──
+  const section = (label, count, rows) => count ? `<div class="notif-group">${label} · ${count}</div>${rows}` : '';
+
+  html += section('🛎️ Patients à regarder', prio.length, prio.slice(0, 8).map((p) =>
+    ncRow('⚠️', 'var(--rose-tint)', '#B4322F', nm(p), (p.signals && p.signals[0] ? p.signals[0].titre : 'Signal détecté') + (p.signals && p.signals.length > 1 ? ' · +' + (p.signals.length - 1) : ''), p.patient_id, 'Ouvrir')).join(''));
+
+  html += section('📈 Résultats à revoir', results.length, results.slice(0, 8).map((r) =>
+    ncRow('📈', 'var(--green-tint)', 'var(--green-deep)', nm(r), 'Résultat de laboratoire à revoir', r.patient_id, 'Ouvrir')).join(''));
+
+  html += section('💊 Renouvellements', renew.length, renew.slice(0, 8).map((r) =>
+    ncRow('💊', 'var(--violet-tint)', 'var(--violet-deep)', nm(r), r.jours_restants <= 0 ? 'Ordonnance échue' : 'Ordonnance à renouveler bientôt', r.patient_id, r.jours_restants <= 0 ? 'Échue' : 'Bientôt')).join(''));
+
+  html += section('📅 Rendez-vous à venir', upcoming.length, upcoming.slice(0, 6).map(apptNotifHtml).join(''));
+
+  if (absents.length) html += section('🚫 Patients absents', absents.length, absents.slice(0, 6).map((a) =>
+    ncRow('🚫', 'var(--amber-tint)', '#B45309', a.patient_nom || a.patient_label || 'Rendez-vous', 'Patient absent · ' + (a.motif || 'Consultation'), a.patient_id, '')).join(''));
+
+  // ── Activité récente (flux chronologique, secondaire) ──
+  const recent = events.slice().sort((a, b) => notifTime(b) - notifTime(a)).slice(0, 8);
+  if (recent.length) {
+    const last = getNotifLastSeen() || 0;
+    html += `<div class="notif-group">Activité récente</div>`;
+    html += recent.map((e) => notifItemHtml(e, notifTime(e) > last)).join('');
   }
-  if (nouveau.length) {
-    html += `<div class="notif-group" style="color:var(--sage-deep);">Depuis votre dernière visite · ${nouveau.length}</div>`;
-    html += nouveau.map((e) => notifItemHtml(e, true)).join('');
-  }
-  const groups = [];
-  let cur = null;
-  for (const e of plusTot) {
-    const label = notifGroupLabel(notifTime(e));
-    if (!cur || cur.label !== label) { cur = { label, items: [] }; groups.push(cur); }
-    cur.items.push(e);
-  }
-  for (const g of groups) {
-    html += `<div class="notif-group">${g.label}</div>`;
-    html += g.items.map((e) => notifItemHtml(e, false)).join('');
-  }
+
   body.innerHTML = html;
 }
 function toggleNotifCenter() {
