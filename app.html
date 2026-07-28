@@ -2279,30 +2279,48 @@ function auroraDateLine() {
   d = d.charAt(0).toUpperCase() + d.slice(1);
   return c.rdv_aujourdhui ? `${d} · ${c.rdv_aujourdhui} rendez-vous` : d;
 }
+// Sprint 12 Étape 1 — le tableau de bord ouvre sur un BRIEFING quotidien :
+// accueil + « Aujourd'hui » (compteurs réels) + « ✨ Priorités IA » (signaux
+// déterministes) + « Continuer ma journée ↓ ». Compréhension en 15 secondes.
 function renderAuroraBand() {
   const el = document.getElementById('dashBand');
   if (!el) return;
   const d = cockpitState.data || {};
-  const prio = (d.priorites && d.priorites[0]) || null;
-  const b = cockpitState.briefing;
+  const c = d.compteurs || {};
+  const pr = (d.priorites || []);
+  const urgences = pr.filter((p) => p.severite === 'important').length;
 
-  // Une seule phrase IA : la priorité du jour si elle existe, sinon le récit.
-  let aiTxt;
-  if (prio) {
-    aiTxt = `Une priorité aujourd'hui : <b>${escapeHtml((prio.prenom || '') + ' ' + (prio.nom || '')).trim()}</b> — ${escapeHtml(prio.signals[0].titre.toLowerCase())}. <span class="go" onclick="ckptOpenPatient('${prio.patient_id}')">Ouvrir le dossier →</span>`;
-  } else if (b && b.recit) {
-    aiTxt = escapeHtml(b.recit);
-  } else {
-    aiTxt = 'Rien ne requiert votre attention immédiate. Belle journée.';
-  }
+  // « Aujourd'hui » — uniquement des compteurs adossés à de vraies données.
+  const pl = (n) => (n > 1 ? 's' : '');
+  const counts = [];
+  if (c.rdv_aujourdhui) counts.push({ n: c.rdv_aujourdhui, l: `consultation${pl(c.rdv_aujourdhui)}` });
+  if (urgences) counts.push({ n: urgences, l: `urgence${pl(urgences)} potentielle${pl(urgences)}` });
+  if (c.a_renouveler) counts.push({ n: c.a_renouveler, l: `ordonnance${pl(c.a_renouveler)} à renouveler` });
+  if (c.resultats_recents) counts.push({ n: c.resultats_recents, l: `résultat${pl(c.resultats_recents)} de laboratoire arrivé${pl(c.resultats_recents)}` });
+  const countsHtml = counts.length
+    ? `<div class="dsh-counts">${counts.map((x) => `<div class="dsh-count"><b>${x.n}</b><span class="lbl">${x.l}</span></div>`).join('')}</div>`
+    : `<div class="dsh-count" style="color:var(--ink-soft)">Rien ne requiert votre attention immédiate. Belle journée.</div>`;
+
+  // « ✨ Priorités IA » — top 3 signaux, la priorité vit ici (plus dans un module).
+  const prioHtml = pr.length
+    ? `<div class="dsh-brief-lead">✨ Priorités IA</div><div class="dsh-prio">${pr.slice(0, 3).map((p) => `
+        <div class="dsh-prio-row" onclick="ckptOpenPatient('${p.patient_id}')">
+          <span class="dsh-prio-ic ${p.severite === 'important' ? 'red' : ''}">⚠</span>
+          <div class="dsh-prio-b"><div class="n">${escapeHtml((p.prenom || '') + ' ' + (p.nom || '')).trim()}</div><div class="r">${escapeHtml(p.signals[0].titre)}${p.signals.length > 1 ? ' · +' + (p.signals.length - 1) : ''}</div></div>
+        </div>`).join('')}</div><div class="dsh-brief-tag"><span class="badge badge--ia">✦ IA · à vérifier</span></div>`
+    : '';
 
   el.innerHTML = `<div class="dsh-hero">
     <div class="dsh-dt">${auroraDateLine()}</div>
     <h1 class="dsh-hi">${escapeHtml(auroraGreeting())}.</h1>
-    <div class="dsh-ai"><span class="tag">✦ IA · à vérifier</span><span class="txt">${aiTxt}</span></div>
+    <div class="dsh-brief-lead">Aujourd'hui</div>
+    ${countsHtml}
+    ${prioHtml}
+    <div class="dsh-divider"></div>
     <div class="dsh-cta">
       <button class="dsh-btn dsh-btn-primary" onclick="dashboardNewConsultation()">＋ Nouvelle consultation</button>
       <button class="dsh-btn dsh-btn-ghost" onclick="openNewPatientModal()">Nouveau patient</button>
+      <button class="dsh-continue" onclick="document.getElementById('dashCards').scrollIntoView({behavior:'smooth',block:'start'})">Continuer ma journée ↓</button>
     </div>
   </div>`;
 }
@@ -2341,16 +2359,6 @@ function renderAuroraCards() {
   // ── Dernières consultations (rempli en asynchrone, voir fillRecentConsults) ──
   const recent = `<div id="dashRecent"><div class="dsh-loading">Chargement…</div></div>`;
 
-  // ── Patients à voir ──
-  const pr = (d.priorites || []);
-  const prio = pr.length
-    ? pr.slice(0, 4).map((p) => `
-        <div class="dsh-row click" onclick="ckptOpenPatient('${p.patient_id}')"><span class="dsh-dot ${p.severite === 'important' ? 'red' : p.severite === 'attention' ? 'amber' : 'blue'}"></span>
-          <div class="dsh-bd"><div class="n">${escapeHtml((p.prenom || '') + ' ' + (p.nom || '')).trim()}</div><div class="m">${escapeHtml(p.signals[0].titre)}${p.signals.length > 1 ? ' · +' + (p.signals.length - 1) : ''}</div></div>
-          <span class="dsh-arw">→</span>
-        </div>`).join('')
-    : dshEmpty('Aucun signal — tout est à jour.');
-
   // ── Alertes (renouvellements + résultats à revoir) ──
   const al = [];
   (d.ordonnances_a_renouveler || []).forEach((r) => al.push({ tone: (r.jours_restants <= 0 ? 'red' : 'amber'), name: `${(r.prenom || '')} ${(r.nom || '')}`.trim(), m: 'Ordonnance à renouveler', pid: r.patient_id }));
@@ -2377,7 +2385,6 @@ function renderAuroraCards() {
       ${dshMod('🗂️', 'Dernières consultations', recent, `<button class="dsh-see" onclick="switchAppView('doc-consultation')">Tout voir</button>`)}
     </div>
     <div class="dsh-col">
-      ${dshMod('🛎️', 'Patients à voir', prio, pr.length ? `<span class="badge badge--blue">${pr.length}</span>` : '')}
       ${dshMod('⚠️', 'Alertes', alertes, `<span class="badge badge--ia">à vérifier</span>`)}
       ${dshMod('⚡', 'Raccourcis', raccourcis)}
     </div>
@@ -2430,7 +2437,25 @@ function ensureAuroraStyles() {
   .dsh-ai .txt b{color:var(--ink);font-weight:600}
   .dsh-ai .txt .go{color:var(--blue);font-weight:600;cursor:pointer;white-space:nowrap}
   .dsh-ai .txt .go:hover{text-decoration:underline}
-  .dsh-cta{display:flex;gap:11px;margin-top:22px;flex-wrap:wrap}
+  /* Sprint 12 — briefing quotidien */
+  .dsh-brief-lead{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:22px 0 11px}
+  .dsh-counts{display:flex;flex-direction:column;gap:8px}
+  .dsh-count{display:flex;align-items:baseline;gap:11px;font-size:15px}
+  .dsh-count b{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;min-width:20px;color:var(--ink)}
+  .dsh-count .lbl{color:var(--ink-soft)}
+  .dsh-prio{display:flex;flex-direction:column;max-width:640px}
+  .dsh-prio-row{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-top:1px solid var(--paper-line);cursor:pointer;transition:padding-left .16s var(--ease-out,ease)}
+  .dsh-prio-row:first-child{border-top:0}
+  .dsh-prio-row:hover{padding-left:4px}
+  .dsh-prio-ic{color:var(--amber);font-size:15px;margin-top:1px;flex:none}
+  .dsh-prio-ic.red{color:var(--rose)}
+  .dsh-prio-b .n{font-size:14px;font-weight:600;color:var(--ink)}
+  .dsh-prio-b .r{font-size:13px;color:var(--ink-soft);margin-top:1px}
+  .dsh-brief-tag{margin-top:10px}
+  .dsh-divider{height:1px;background:var(--paper-line);margin:22px 0;max-width:640px}
+  .dsh-continue{background:none;border:none;font-family:inherit;font-size:14px;font-weight:600;color:var(--sage-deep);cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:6px;transition:gap var(--dur-2) var(--ease)}
+  .dsh-continue:hover{gap:10px}
+  .dsh-cta{display:flex;gap:11px;margin-top:22px;flex-wrap:wrap;align-items:center}
   .dsh-btn{height:44px;padding:0 20px;border-radius:12px;font-family:inherit;font-size:14px;font-weight:600;border:1px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:transform .12s var(--ease-out,ease),background .18s,border-color .18s,box-shadow .18s}
   .dsh-btn:active{transform:scale(.98)}
   .dsh-btn-primary{background:var(--blue);color:#fff;box-shadow:0 8px 20px rgba(20,96,255,.26)}
