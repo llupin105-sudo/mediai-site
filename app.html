@@ -1846,10 +1846,18 @@ function ensureCmdkStyles() {
 
 // Registre de commandes — création + navigation. `keywords` = alias de recherche.
 function cmdkCommands() {
-  const nav = (title, view, icon, keywords) => ({ kind:'command', icon, title, sub:'Ouvrir', keywords, action:() => { closeCommandPalette(); switchAppView(view); } });
+  const nav = (title, view, icon, keywords) => ({ kind:'command', isNav:true, icon, title, sub:'Ouvrir', keywords, action:() => { closeCommandPalette(); switchAppView(view); } });
   return [
     { kind:'command', icon:'✨', title:'Nouvelle consultation', sub:'Démarrer une consultation', keywords:'nouvelle consultation dicter compte rendu cr soap enregistrer', action:() => { closeCommandPalette(); dashboardNewConsultation(); } },
     { kind:'command', icon:'👤', title:'Nouveau patient', sub:'Créer une fiche patient', keywords:'nouveau patient creer créer fiche ajouter', action:() => { closeCommandPalette(); openNewPatientModal(); } },
+    { kind:'command', icon:'💊', title:'Créer une ordonnance', sub:'Nouvelle ordonnance', keywords:'creer créer ordonnance ordo prescription medicament médicament traitement nouvelle', action:() => { closeCommandPalette(); openQuickCreate('ordonnance'); } },
+    { kind:'command', icon:'📈', title:'Ajouter une analyse', sub:'Structurer un résultat de laboratoire', keywords:'analyse labo biologie bio prise de sang resultat résultat bilan ajouter structurer', action:() => { closeCommandPalette(); openQuickCreate('analyse'); } },
+    { kind:'command', icon:'📷', title:'Ajouter une imagerie', sub:'Structurer un compte-rendu d\'imagerie', keywords:'imagerie radio irm scanner echographie échographie compte rendu structurer', action:() => { closeCommandPalette(); openQuickCreate('imagerie'); } },
+    { kind:'command', icon:'📄', title:'Ajouter un document', sub:'Ajouter un document au dossier', keywords:'document ajouter piece pièce jointe fichier événement evenement', action:() => { closeCommandPalette(); openQuickCreate('document'); } },
+    { kind:'command', icon:'✍️', title:'Note rapide', sub:'Ajouter une note au dossier', keywords:'note rapide memo mémo annotation', action:() => { closeCommandPalette(); openQuickCreate('note'); } },
+    { kind:'command', icon:'✉️', title:'Générer un courrier', sub:'Courrier de correspondance', keywords:'courrier lettre correspondance confrere confrère adressage generer générer', action:() => { closeCommandPalette(); openQuickCreate('courrier'); } },
+    { kind:'command', icon:'🔑', title:'Inviter un patient', sub:'Activer l\'accès au portail patient', keywords:'inviter patient acces accès portail activer identifiants connexion', action:() => { closeCommandPalette(); withPatient(function () { openPatientPortalModal(); }); } },
+    { kind:'command', icon:'📄', title:'Exporter en PDF', sub:'Exporter le document courant', keywords:'exporter export pdf telecharger télécharger imprimer', action:() => { closeCommandPalette(); openQuickCreate('pdf'); } },
     { kind:'command', icon:'🎯', title:'Mode Focus', sub:'Consultation sans distraction', keywords:'focus concentration consultation sans distraction plein ecran écran zen', action:() => { closeCommandPalette(); enterFocusMode(); } },
     nav('Tableau de bord', 'dashboard', '🏠', 'accueil home dashboard tableau bord journee journée'),
     nav('Patients', 'patients', '👥', 'patients liste dossiers'),
@@ -1877,8 +1885,8 @@ async function runCommandPaletteSearch() {
   // Sans requête : création + navigation principale.
   if (!query) {
     const cmds = cmdkCommands();
-    const quick = cmds.slice(0, 2);
-    const navItems = cmds.slice(2, 8);
+    const quick = cmds.filter((c) => !c.isNav).slice(0, 6);
+    const navItems = cmds.filter((c) => c.isNav).slice(0, 6);
     cmdkCurrentItems = [...quick, ...navItems];
     renderCmdkResults([{ label:'Actions rapides', items:quick }, { label:'Aller à', items:navItems }]);
     return;
