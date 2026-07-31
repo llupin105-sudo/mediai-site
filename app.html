@@ -1068,6 +1068,7 @@
     <div class="piw-main">
     <div id="patientAI"></div>
     <div id="patientHealth"></div>
+    <div id="patientTreatments"></div>
     <div id="consultationCockpit"></div>
     <div id="patientHero" style="display:none;"></div>
     <div id="patientSnapshotCard" style="display:none; margin-top:16px;"></div>
@@ -4369,6 +4370,85 @@ function renderPatientHealth(patient, events) {
   </div>`;
 }
 
+// ══ Sprint 12 Étape 6 — Vue Traitements structurée ═══════════════════
+// D'après la dernière ordonnance (comme « traitements actifs » ailleurs) :
+// médicament · posologie · durée · statut de renouvellement + vérification
+// d'interactions (endpoint existant). Honnête : pas de photo/observance/
+// pharmacie (données inexistantes) — non affiché plutôt qu'inventé.
+function ensureTreatmentsStyles() {
+  if (document.getElementById('trtStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'trtStyles';
+  st.textContent = '.trt-card{background:var(--card);border:1px solid var(--paper-line);border-radius:16px;padding:18px 20px;margin-bottom:24px;box-shadow:var(--shadow-xs)}'
+    + '.trt-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;flex-wrap:wrap}'
+    + '.trt-title{font-size:14.5px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}'
+    + '.trt-sub{font-size:11.5px;color:var(--ink-faint);margin-bottom:14px}'
+    + '.trt-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--paper-line)}'
+    + '.trt-row:first-of-type{border-top:0}'
+    + '.trt-dot{width:9px;height:9px;border-radius:50%;background:var(--sage);flex:none}'
+    + '.trt-name{font-size:14px;font-weight:600;color:var(--ink)}'
+    + '.trt-dose{font-size:12.5px;color:var(--ink-faint);margin-top:1px}'
+    + '.trt-status{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;flex:none;margin-left:auto}'
+    + '.trt-status.ok{background:var(--green-tint);color:var(--green-deep)}'
+    + '.trt-status.soon{background:var(--amber-tint);color:#B45309}'
+    + '.trt-status.due{background:var(--rose-tint);color:#991B1B}'
+    + '.trt-inter{margin-top:14px}'
+    + '.trt-inter-btn{height:34px;padding:0 14px;border-radius:9px;border:1px solid var(--paper-line);background:var(--paper);font-family:inherit;font-size:12.5px;font-weight:600;color:var(--sage-deep);cursor:pointer;transition:background var(--dur-2,.16s),border-color var(--dur-2,.16s)}'
+    + '.trt-inter-btn:hover{background:var(--sage-tint);border-color:var(--sage)}'
+    + '.trt-inter-res{margin-top:12px;border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.55;display:none}'
+    + '.trt-foot{font-size:10.5px;color:var(--ink-faint);margin-top:14px;border-top:1px solid var(--paper-line);padding-top:10px}';
+  document.head.appendChild(st);
+}
+function renderPatientTreatmentsCard(events) {
+  const el = document.getElementById('patientTreatments');
+  if (!el) return;
+  const ord = (events || []).find((e) => e.type === 'ordonnance' && e.data && Array.isArray(e.data.prescriptions) && e.data.prescriptions.length);
+  const rx = ord ? ord.data.prescriptions.filter((p) => p.medicament) : [];
+  if (!rx.length) { el.innerHTML = ''; return; }
+  ensureTreatmentsStyles();
+  // Statut de renouvellement, d'après la durée de l'ordonnance.
+  const durs = rx.map((p) => parseDelayToDays(p.duree)).filter(Boolean);
+  let status = null;
+  if (durs.length) {
+    const exp = new Date(ord.event_date).getTime() + Math.max(...durs) * 86400000;
+    const now = Date.now();
+    status = now > exp ? { cls: 'due', l: 'À renouveler' } : (now > exp - 14 * 86400000 ? { cls: 'soon', l: 'Renouvellement proche' } : { cls: 'ok', l: 'En cours' });
+  }
+  const meds = rx.map((p) => p.medicament);
+  el.innerHTML = `<div class="trt-card">
+    <div class="trt-head"><div class="trt-title">💊 Traitements${status ? ` <span class="trt-status ${status.cls}">${status.l}</span>` : ''}</div></div>
+    <div class="trt-sub">D'après la dernière ordonnance du ${new Date(ord.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}.</div>
+    ${rx.map((p) => `<div class="trt-row"><span class="trt-dot"></span><div style="flex:1;min-width:0;"><div class="trt-name">${escapeHtml(p.medicament)}</div><div class="trt-dose">${escapeHtml([p.posologie, p.duree].filter(Boolean).join(' · ') || 'Posologie non précisée')}</div></div></div>`).join('')}
+    ${meds.length >= 2 ? `<div class="trt-inter"><button class="trt-inter-btn" onclick='checkPatientInteractions(${JSON.stringify(meds).replace(/'/g, "&#39;")}, this)'>🔎 Vérifier les interactions</button><div class="trt-inter-res" id="trtInterRes"></div></div>` : ''}
+    <div class="trt-foot">Traitements dérivés de l'ordonnance — à confirmer avec le dossier. Photo, observance et pharmacie non gérées.</div>
+  </div>`;
+}
+async function checkPatientInteractions(medicaments, btn) {
+  const box = document.getElementById('trtInterRes');
+  if (!box) return;
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Vérification…';
+  box.style.display = 'block'; box.style.background = 'var(--paper)'; box.style.border = '1px solid var(--paper-line)'; box.innerHTML = '<span style="color:var(--ink-faint)">Analyse des interactions…</span>';
+  try {
+    const res = await fetch(API_BASE + '/api/ordonnance/check-interactions', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ medicaments }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    const r = data.resultat || {};
+    if (r.aucune_interaction_majeure_connue || !r.interactions_detectees || !r.interactions_detectees.length) {
+      box.style.background = 'var(--sage-tint)'; box.style.border = '1px solid var(--tint-border)';
+      box.innerHTML = '<div style="color:var(--sage-deep);font-weight:600;">✓ Aucune interaction majeure connue identifiée.</div><div style="color:var(--ink-faint);margin-top:5px;font-size:11.5px;">Filet de vigilance — à confirmer via une source officielle, ce n\'est pas un avis pharmaceutique.</div>';
+    } else {
+      box.style.background = 'var(--amber-tint)'; box.style.border = '1px solid rgba(245,158,11,.28)';
+      box.innerHTML = r.interactions_detectees.map((i) => `<div style="margin-bottom:9px;"><div style="font-weight:600;color:#B45309;">⚠ ${escapeHtml((i.medicaments_concernes || []).join(' + '))}${i.niveau_vigilance ? ' — ' + escapeHtml(i.niveau_vigilance) : ''}</div><div style="color:var(--ink-soft);">${escapeHtml(i.explication || '')}</div></div>`).join('') + '<div style="color:var(--ink-faint);font-size:11.5px;">À vérifier via une source officielle — ce n\'est pas un avis pharmaceutique.</div>';
+    }
+  } catch (err) {
+    box.style.background = 'var(--rose-tint)'; box.style.border = '1px solid var(--rose-tint)';
+    box.innerHTML = '<span style="color:#991B1B;">Vérification indisponible pour le moment.</span>';
+  } finally {
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+
 // ══ Patient Workspace — Colonne « Insights » latérale (sticky) ═════
 // Panneau permanent : reste visible pendant qu'on parcourt le dossier.
 // Consolide vigilance, signaux, documents clés, à préparer, constantes.
@@ -4927,6 +5007,7 @@ async function openPatientDetail(patientId) {
     renderPatientHeader(data.patient, currentPatientEvents); // Sprint 10 : header premium + actions groupées
     renderPatientAI(data.patient, currentPatientEvents, null); // Sprint 10b : 3 blocs IA (rendu instantané déterministe, enrichi au snapshot)
     renderPatientHealth(data.patient, currentPatientEvents); // Sprint 10d : mini-dashboard santé (constantes, 100 % déterministe)
+    renderPatientTreatmentsCard(currentPatientEvents); // Sprint 12 Étape 6 : vue Traitements structurée
     renderCockpit(data.patient, currentPatientEvents); // Sprint 2 : briefing en tête de dossier (instantané)
     renderKeyDocuments(currentPatientEvents); // Sprint 2.2 : documents importants auto-remontés
     renderPatientInsights(data.patient, currentPatientEvents); // Colonne Insights latérale (instantané)
