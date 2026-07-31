@@ -1061,9 +1061,14 @@
   <div class="app-content-inner">
 
     <div id="view-dashboard" class="app-view visible">
-      <!-- ══ DASHBOARD (Sprint 11) — hero léger + 5 modules ══ -->
-      <div id="dashBand"></div>
-      <div id="dashCards"></div>
+      <!-- ══ DASHBOARD — hero + modules (gauche) + Assistant MediAI (droite) ══ -->
+      <div class="dsh-cols">
+        <div class="dsh-left">
+          <div id="dashBand"></div>
+          <div id="dashCards"></div>
+        </div>
+        <div id="dashAssistant"></div>
+      </div>
     </div>
 
     <section class="patients-section app-view" id="patientsSection">
@@ -2456,6 +2461,7 @@ async function renderDashboard() {
   }
   renderAuroraBand();
   renderAuroraCards();
+  renderDashAssistant(); // Sprint 13 ③ : colonne Assistant MediAI
   loadCockpitBriefing(); // phrase IA + reco en tâche de fond (non bloquant)
 }
 
@@ -2638,13 +2644,123 @@ async function fillRecentConsults() {
   }
 }
 
+// ══ Sprint 13 ③ — Assistant MediAI (dashboard) ══════════════════════
+// Assistant personnel du médecin. Répond de façon DÉTERMINISTE à partir
+// des vraies données de la journée (/api/cockpit) — jamais de donnée
+// inventée. Les intentions non couvertes renvoient une réponse honnête.
+let dashAsstMsgs = [];
+const DASH_ASST_SUGGEST = [
+  { e: '☀️', q: 'Prépare ma journée' },
+  { e: '🧪', q: 'Quels examens sont arrivés ?' },
+  { e: '📞', q: 'Quels patients dois-je rappeler ?' },
+  { e: '💊', q: 'Quelles ordonnances renouveler ?' },
+];
+function dashAsstInitials() { const n = (currentUser && currentUser.profile && currentUser.profile.nom) || 'Moi'; return n.slice(0, 2).toUpperCase(); }
+function renderDashAssistant() {
+  const el = document.getElementById('dashAssistant');
+  if (!el) return;
+  let body = '';
+  if (dashAsstMsgs.length === 0) {
+    body += '<div class="asst-lead">Suggestions</div>';
+    body += DASH_ASST_SUGGEST.map((s) => `<button class="asst-chip" onclick="dashAsstSuggest('${s.q.replace(/'/g, "\\'")}')"><span>${s.e}</span> ${escapeHtml(s.q)}</button>`).join('');
+  }
+  body += dashAsstMsgs.map((m) => m.role === 'user'
+    ? `<div class="asst-msg me"><span class="asst-av me">${escapeHtml(dashAsstInitials())}</span><div class="asst-bub">${escapeHtml(m.content)}</div></div>`
+    : `<div class="asst-msg ia"><span class="asst-av ia">✦</span><div class="asst-bub">${m.content}</div></div>`).join('');
+  el.innerHTML = `<div class="asst">
+    <div class="asst-head"><div class="asst-mk">✦</div><div style="min-width:0;"><div class="asst-t">Assistant MediAI</div><div class="asst-s">Votre copilote de la journée</div></div></div>
+    <div class="asst-body" id="dashAsstBody">${body}</div>
+    <div class="asst-foot">
+      <textarea id="dashAsstInput" rows="1" placeholder="Posez une question…" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dashAsstSend();}"></textarea>
+      <button class="asst-send" onclick="dashAsstSend()" aria-label="Envoyer">↑</button>
+    </div>
+  </div>`;
+  const b = document.getElementById('dashAsstBody'); if (b) b.scrollTop = b.scrollHeight;
+}
+function dashAsstSuggest(q) { const i = document.getElementById('dashAsstInput'); if (i) i.value = q; dashAsstSend(); }
+function dashAsstSend() {
+  const input = document.getElementById('dashAsstInput');
+  const q = (input.value || '').trim();
+  if (q.length < 2) return;
+  input.value = ''; input.style.height = 'auto';
+  dashAsstMsgs.push({ role: 'user', content: q });
+  dashAsstMsgs.push({ role: 'assistant', content: dashAsstAnswer(q) });
+  renderDashAssistant();
+}
+// Réponse déterministe à partir des données réelles de la journée.
+function dashAsstAnswer(query) {
+  const n = query.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const d = cockpitState.data || {};
+  const c = d.compteurs || {};
+  const results = d.resultats_recents || [], renew = d.ordonnances_a_renouveler || [], prio = d.priorites || [];
+  const nm = (o) => `${(o.prenom || '')} ${(o.nom || '')}`.trim() || 'Patient';
+  const link = (o, label) => `<span class="go" onclick="ckptOpenPatient('${o.patient_id}')">${escapeHtml(label || nm(o))} →</span>`;
+  const foot = '<div style="font-size:10.5px;color:var(--ink-faint);margin-top:7px;">D\'après votre journée — à vérifier.</div>';
+
+  if (/(prepare|prepar|journee|ma journee|jour)/.test(n)) {
+    const bits = [];
+    if (c.rdv_aujourdhui) bits.push(`<li><b>${c.rdv_aujourdhui}</b> consultation${c.rdv_aujourdhui > 1 ? 's' : ''}</li>`);
+    if (results.length) bits.push(`<li><b>${results.length}</b> résultat${results.length > 1 ? 's' : ''} de laboratoire arrivé${results.length > 1 ? 's' : ''}</li>`);
+    if (renew.length) bits.push(`<li><b>${renew.length}</b> ordonnance${renew.length > 1 ? 's' : ''} à renouveler</li>`);
+    if (prio.length) bits.push(`<li><b>${prio.length}</b> patient${prio.length > 1 ? 's' : ''} à regarder en priorité</li>`);
+    if (!bits.length) return 'Rien ne requiert votre attention immédiate aujourd\'hui. Belle journée.' + foot;
+    return `Voici votre journée :<ul>${bits.join('')}</ul>${prio.length ? 'À regarder en premier : ' + link(prio[0]) + '.' : ''}${foot}`;
+  }
+  if (/(examen|resultat|labo|biolog|arrive)/.test(n)) {
+    if (!results.length) return 'Aucun nouveau résultat de laboratoire à revoir pour l\'instant.' + foot;
+    return `Résultats arrivés (${results.length}) :<ul>${results.slice(0, 6).map((r) => `<li>${link(r)}</li>`).join('')}</ul>${foot}`;
+  }
+  if (/(renouvel|ordonnance)/.test(n)) {
+    if (!renew.length) return 'Aucune ordonnance à renouveler pour l\'instant.' + foot;
+    return `À renouveler (${renew.length}) :<ul>${renew.slice(0, 6).map((r) => `<li>${link(r)}${r.jours_restants <= 0 ? ' — échue' : ''}</li>`).join('')}</ul>${foot}`;
+  }
+  if (/(rappel|rappeler|recontact)/.test(n)) {
+    return 'Aucune liste de rappels n\'est encore configurée dans MediAI. En attendant, les patients à regarder en priorité sont dans votre briefing.' + (prio.length ? '<br>Le plus urgent : ' + link(prio[0]) + '.' : '') + foot;
+  }
+  if (/(resume|résume|synthese|dossier de)/.test(n)) {
+    const nom = query.replace(/.*(resume|résume|synthese|dossier de)\s*/i, '').trim();
+    const p = nom && (patientsCache || []).find((x) => `${x.prenom} ${x.nom}`.toLowerCase().includes(nom.toLowerCase()));
+    if (p) return `Pour une synthèse complète de <b>${escapeHtml(p.prenom + ' ' + p.nom)}</b>, ouvrez son dossier puis « ✦ Discuter ». <span class="go" onclick="ckptOpenPatient('${p.id}')">Ouvrir le dossier →</span>${foot}`;
+    return 'Indiquez le nom du patient (ex. « Résume Thomas Martin »), ou ouvrez son dossier et utilisez « ✦ Discuter » pour un résumé complet.' + foot;
+  }
+  return 'Je peux <b>préparer votre journée</b>, lister les <b>résultats arrivés</b>, les <b>ordonnances à renouveler</b> et les <b>patients à regarder</b>. Les questions libres sur un dossier se posent via « ✦ Discuter » dans le dossier patient.' + foot;
+}
+
 function ensureAuroraStyles() {
   if (document.getElementById('auroraStyles')) return;
   const st = document.createElement('style');
   st.id = 'auroraStyles';
   st.textContent = `
   @keyframes dshIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  #view-dashboard{max-width:1180px;padding-bottom:104px}
+  #view-dashboard{max-width:1240px;padding-bottom:104px}
+  /* Sprint 13 ③ — colonne Assistant MediAI */
+  .dsh-cols{display:grid;grid-template-columns:minmax(0,1fr) 366px;gap:24px;align-items:start}
+  .dsh-left{min-width:0;display:flex;flex-direction:column;gap:20px}
+  #dashAssistant{position:sticky;top:16px}
+  .asst{background:var(--card);border:1px solid var(--paper-line);border-radius:18px;box-shadow:var(--shadow-xs);display:flex;flex-direction:column;overflow:hidden;max-height:calc(100vh - 120px)}
+  .asst-head{display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--paper-line)}
+  .asst-mk{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:linear-gradient(135deg,var(--violet),var(--blue));color:#fff;flex:none}
+  .asst-t{font-size:14px;font-weight:700;color:var(--ink)}
+  .asst-s{font-size:11.5px;color:var(--ink-faint);margin-top:1px}
+  .asst-body{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:13px;min-height:200px}
+  .asst-lead{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+  .asst-chip{text-align:left;border:1px solid var(--paper-line);background:var(--card);border-radius:11px;padding:10px 12px;font-family:inherit;font-size:12.5px;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:8px;transition:border-color .16s var(--ease-out,ease),transform .12s var(--ease-out,ease)}
+  .asst-chip:hover{border-color:var(--violet);transform:translateX(2px)}
+  .asst-msg{display:flex;gap:9px;max-width:100%}
+  .asst-msg.me{flex-direction:row-reverse}
+  .asst-av{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;flex:none;margin-top:1px}
+  .asst-av.ia{background:var(--violet-tint);color:var(--violet-deep)}
+  .asst-av.me{background:var(--blue-tint);color:var(--sage-deep);font-weight:700;font-size:10px}
+  .asst-bub{border-radius:13px;padding:10px 13px;font-size:13px;line-height:1.55;max-width:84%}
+  .asst-msg.me .asst-bub{background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+  .asst-msg.ia .asst-bub{background:var(--paper);color:var(--ink);border-bottom-left-radius:4px;border:1px solid var(--paper-line)}
+  .asst-bub ul{margin:5px 0 0;padding-left:17px}.asst-bub li{margin-bottom:2px}
+  .asst-bub .go{color:var(--sage-deep);font-weight:600;cursor:pointer}
+  .asst-foot{padding:6px 8px 6px 13px;border-top:1px solid var(--paper-line);display:flex;align-items:flex-end;gap:8px}
+  .asst-foot textarea{flex:1;border:none;background:none;resize:none;font-family:inherit;font-size:13px;color:var(--ink);max-height:80px;outline:none;line-height:1.5;padding:8px 0}
+  .asst-send{width:32px;height:32px;border-radius:9px;border:none;background:var(--blue);color:#fff;font-size:14px;cursor:pointer;flex:none}
+  .asst-send:hover{background:#2b72ff}
+  @media(max-width:1100px){.dsh-cols{grid-template-columns:1fr}#dashAssistant{position:static}.asst{max-height:none}}
   /* Hero léger sur fond papier (Sprint 11) */
   .dsh-hero{margin-bottom:34px;animation:dshIn .5s var(--ease-out,ease) both}
   .dsh-dt{font-size:13px;color:var(--ink-faint);font-weight:500;text-transform:capitalize}
