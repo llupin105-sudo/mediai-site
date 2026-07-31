@@ -1126,7 +1126,7 @@
       <textarea id="patientNotesText" placeholder="Antécédents, allergies, contexte général..." onblur="savePatientNotes()"></textarea>
     </div>
     </div>
-    <aside class="piw-rail"><div id="keyFactsRail"></div><div id="patientInsights"></div></aside>
+    <aside class="piw-rail"><div id="dossierAsstEntry"></div><div id="keyFactsRail"></div><div id="patientInsights"></div></aside>
     </div>
   </div>
 </section>
@@ -4825,6 +4825,20 @@ function pwNew(type) {
 }
 function pwShare() { showToast('Le partage se fait depuis un document : Exporter puis Envoyer.', 'info'); }
 
+// Sprint 13 ⑤ — point d'entrée « Assistant MediAI » dans la colonne droite
+// du dossier (distinct du Résumé). Ouvre le Copilote « Discuter avec le dossier ».
+function renderDossierAsstEntry() {
+  const el = document.getElementById('dossierAsstEntry');
+  if (!el) return;
+  el.innerHTML = `<div style="background:linear-gradient(180deg,var(--card),var(--violet-tint));border:1px solid var(--paper-line);border-radius:16px;padding:16px 17px;margin-bottom:18px;box-shadow:var(--shadow-xs);cursor:pointer" onclick="openCopilote()">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <span style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:linear-gradient(135deg,var(--violet),var(--blue));color:#fff;flex:none;">✦</span>
+      <div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:var(--ink);">Assistant MediAI</div><div style="font-size:11.5px;color:var(--ink-faint);">Discuter avec le dossier</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:11px;">Résumer, préparer la consultation, examens manquants, interactions… <span style="color:var(--sage-deep);font-weight:600;">Ouvrir →</span></div>
+  </div>`;
+}
+
 // ══ Sprint 12 Étape 4 — Copilote « Discuter avec le dossier » ══
 // Panneau latéral : le médecin pose des questions, l'IA répond uniquement
 // à partir du dossier (backend anonymisé). Conversation non persistée.
@@ -5145,6 +5159,7 @@ async function openPatientDetail(patientId) {
     currentPatientSnapshot = null;
     renderPatientHeader(data.patient, currentPatientEvents); // Sprint 10 : header premium + actions groupées
     renderPatientAI(data.patient, currentPatientEvents, null); // Sprint 10b : 3 blocs IA (rendu instantané déterministe, enrichi au snapshot)
+    renderDossierAsstEntry(); // Sprint 13 ⑤ : point d'entrée Assistant MediAI dans le rail
     renderPatientHealth(data.patient, currentPatientEvents); // Sprint 10d : mini-dashboard santé (constantes, 100 % déterministe)
     renderPatientTreatmentsCard(currentPatientEvents); // Sprint 12 Étape 6 : vue Traitements structurée
     renderCockpit(data.patient, currentPatientEvents); // Sprint 2 : briefing en tête de dossier (instantané)
