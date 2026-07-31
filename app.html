@@ -93,6 +93,19 @@
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
 
+  /* Sprint 12 Étape 10 — détails premium : scrollbars fines sur les panneaux */
+  .cop-body, #notifBody, #consultContext, .cmdk-results, .pw-menu{ scrollbar-width:thin; scrollbar-color:var(--paper-line) transparent; }
+  .cop-body::-webkit-scrollbar, #notifBody::-webkit-scrollbar, #consultContext::-webkit-scrollbar, .cmdk-results::-webkit-scrollbar, .pw-menu::-webkit-scrollbar{ width:9px; height:9px; }
+  .cop-body::-webkit-scrollbar-track, #notifBody::-webkit-scrollbar-track, #consultContext::-webkit-scrollbar-track, .cmdk-results::-webkit-scrollbar-track, .pw-menu::-webkit-scrollbar-track{ background:transparent; }
+  .cop-body::-webkit-scrollbar-thumb, #notifBody::-webkit-scrollbar-thumb, #consultContext::-webkit-scrollbar-thumb, .cmdk-results::-webkit-scrollbar-thumb, .pw-menu::-webkit-scrollbar-thumb{ background:var(--paper-line); border-radius:9px; border:2px solid var(--card); }
+  .cop-body::-webkit-scrollbar-thumb:hover, #notifBody::-webkit-scrollbar-thumb:hover, #consultContext::-webkit-scrollbar-thumb:hover, .cmdk-results::-webkit-scrollbar-thumb:hover, .pw-menu::-webkit-scrollbar-thumb:hover{ background:var(--ink-faint); }
+  /* Entrée en cascade du dossier à l'ouverture */
+  @keyframes dossEnter{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+  .dossier-enter #patientHeaderNew{ animation:dossEnter .42s var(--ease-out,cubic-bezier(.22,.61,.36,1)) both; }
+  .dossier-enter .piw-main{ animation:dossEnter .42s var(--ease-out,cubic-bezier(.22,.61,.36,1)) .06s both; }
+  .dossier-enter .piw-rail{ animation:dossEnter .42s var(--ease-out,cubic-bezier(.22,.61,.36,1)) .12s both; }
+  @media (prefers-reduced-motion:reduce){ .dossier-enter #patientHeaderNew, .dossier-enter .piw-main, .dossier-enter .piw-rail{ animation:none; } }
+
   /* Anneau de focus clavier cohérent (accessibilité premium) — ne
      s'affiche qu'à la navigation clavier, jamais au clic souris. */
   a:focus-visible, button:focus-visible, [role="button"]:focus-visible,
@@ -4931,7 +4944,11 @@ async function openPatientDetail(patientId) {
     fetchTimelineNarrative(patientId); // Smart Timeline : le récit du dossier (IA, caché)
 
     document.getElementById('patientsListView').style.display = 'none';
-    document.getElementById('patientDetailView').classList.add('visible');
+    const dv = document.getElementById('patientDetailView');
+    dv.classList.add('visible');
+    // Sprint 12 Étape 10 — entrée en cascade (une fois par ouverture).
+    dv.classList.remove('dossier-enter'); void dv.offsetWidth; dv.classList.add('dossier-enter');
+    setTimeout(function () { dv.classList.remove('dossier-enter'); }, 700);
   } catch (err) {
     showErrorModal({ icon: '📄', title: 'Dossier indisponible', text: 'Impossible de charger ce dossier pour le moment. Vérifiez votre connexion et réessayez.', retry: function () { openPatientDetail(patientId); } });
   }
