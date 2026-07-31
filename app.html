@@ -355,6 +355,20 @@
   .tl-live-violet{ background:var(--violet-tint); color:var(--violet-deep); }
   @keyframes tlLivePulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(245,158,11,.0); } 50%{ box-shadow:0 0 0 3px rgba(245,158,11,.18); } }
   @media (prefers-reduced-motion:reduce){ .tl-live-amber{ animation:none; } }
+  /* Sprint 12 Étape 5 — dépliage inline au clic */
+  .tl-chev{ margin-left:auto; color:var(--ink-faint); font-size:14px; line-height:1; transition:transform .26s var(--ease-out,ease); }
+  .tl-item.tl-expanded .tl-chev{ transform:rotate(180deg); }
+  .tl-detail-wrap{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .28s var(--ease-out,ease); }
+  .tl-item.tl-expanded .tl-detail-wrap{ grid-template-rows:1fr; margin-top:10px; }
+  .tl-detail{ overflow:hidden; min-height:0; }
+  .tl-d-row{ display:flex; gap:12px; padding:6px 0; border-top:1px solid var(--paper-line); font-size:12.5px; }
+  .tl-d-row:first-child{ border-top:0; }
+  .tl-d-k{ color:var(--ink-faint); min-width:104px; flex:none; }
+  .tl-d-v{ color:var(--ink); font-weight:500; }
+  .tl-d-empty{ font-size:12.5px; color:var(--ink-faint); padding:4px 0; }
+  .tl-d-open{ margin-top:11px; background:var(--paper); border:1px solid var(--paper-line); border-radius:8px; height:30px; padding:0 12px; font-family:var(--sans); font-size:12px; font-weight:600; color:var(--sage-deep); cursor:pointer; transition:background var(--dur-2,.16s), border-color var(--dur-2,.16s); }
+  .tl-d-open:hover{ background:var(--sage-tint); border-color:var(--sage); }
+  @media (prefers-reduced-motion:reduce){ .tl-detail-wrap,.tl-chev{ transition:none; } }
   .tl-date{ font-size:11.5px; color:var(--ink-faint); margin-left:auto; white-space:nowrap; }
   .tl-title{ font-size:14px; font-weight:600; color:var(--ink); line-height:1.35; }
   .tl-preview{ font-size:12.5px; color:var(--ink-faint); margin-top:4px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
@@ -5343,7 +5357,7 @@ function tlHoverShow(id, ev) {
   c.innerHTML = `<div class="tlh-head"><span class="tlh-ic">${meta.icon}</span><span class="tlh-badge">${meta.label}</span><span class="tlh-date">${dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
     <div class="tlh-title">${escapeHtml(e.title || meta.label)}</div>
     ${prev ? `<div class="tlh-prev">${escapeHtml(prev)}</div>` : ''}
-    <div class="tlh-open">Cliquer pour ouvrir le document →</div>`;
+    <div class="tlh-open">Cliquer pour déplier le détail →</div>`;
   c.classList.add('show');
   tlHoverMove(ev);
 }
@@ -5360,6 +5374,37 @@ function tlHoverMove(ev) {
 function tlHoverHide() { const c = document.getElementById('tlHoverCard'); if (c) c.classList.remove('show'); }
 window.addEventListener('scroll', tlHoverHide, true);
 
+// Sprint 12 Étape 5 — Timeline enrichie : au clic, l'événement se déplie
+// inline (détail structuré) au lieu d'ouvrir directement la modale.
+function tlDetailHtml(e) {
+  const d = e.data || {};
+  const kv = (k, v) => v ? `<div class="tl-d-row"><span class="tl-d-k">${escapeHtml(k)}</span><span class="tl-d-v">${escapeHtml(String(v))}</span></div>` : '';
+  const rows = [];
+  if (e.type === 'consultation') {
+    const s = d.sections || {};
+    rows.push(kv('Motif', s.subjectif && s.subjectif.motif_principal));
+    rows.push(kv('Diagnostic', s.assessment && s.assessment.diagnostic_principal));
+    const c = s.objectif && s.objectif.constantes;
+    if (c) { const cs = Object.entries(c).filter(([, v]) => v && v !== 'null').map(([k, v]) => `${k} ${v}`).join(' · '); rows.push(kv('Constantes', cs)); }
+    const meds = (s.plan && s.plan.prescriptions || []).map((p) => p.medicament).filter(Boolean).join(', ');
+    rows.push(kv('Traitements', meds));
+    rows.push(kv('Suivi', s.plan && s.plan.suivi));
+  } else if (e.type === 'ordonnance') {
+    (d.prescriptions || []).forEach((p) => rows.push(kv(p.medicament || 'Médicament', [p.posologie, p.duree].filter(Boolean).join(' · '))));
+  } else if (e.type === 'courrier') {
+    rows.push(kv('Objet', d.objet)); rows.push(kv('Destinataire', d.destinataire_suggere));
+  } else if (e.type === 'analyse_labo') {
+    (d.resultats || []).slice(0, 10).forEach((r) => rows.push(kv(r.parametre || 'Paramètre', [r.valeur, r.unite].filter(Boolean).join(' '))));
+  } else if (e.type === 'imagerie') {
+    rows.push(kv('Conclusion', d.conclusion_radiologue)); rows.push(kv('Zone examinée', d.zone_examinee));
+  }
+  const body = rows.filter(Boolean).join('') || '<div class="tl-d-empty">Pas de détail structuré pour cet événement.</div>';
+  return body + `<button class="tl-d-open" onclick="event.stopPropagation();viewTimelineEvent(${JSON.stringify(e).replace(/'/g, '&#39;')})">Ouvrir le détail complet →</button>`;
+}
+function tlToggleExpand(item, ev) {
+  if (ev) tlHoverHide();
+  item.classList.toggle('tl-expanded');
+}
 // Sprint 12 Étape 7 — Dossier vivant : badges déterministes sur la timeline.
 // « Si un labo arrive → à revoir », « si une ordonnance expire → à renouveler ».
 // Calculé sur TOUT le dossier (pas le sous-ensemble filtré). 100% déterministe.
@@ -5420,7 +5465,7 @@ function renderTimeline(events, raisons) {
         const raison = raisons?.get(e.id);
         const dt = new Date(e.event_date);
         return `
-        <div class="tl-item" data-type="${e.type}" onmouseenter="tlHoverShow('${e.id}',event)" onmousemove="tlHoverMove(event)" onmouseleave="tlHoverHide()" onclick='tlHoverHide();viewTimelineEvent(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
+        <div class="tl-item" data-type="${e.type}" onmouseenter="tlHoverShow('${e.id}',event)" onmousemove="tlHoverMove(event)" onmouseleave="tlHoverHide()" onclick="tlToggleExpand(this,event)">
           <div class="tl-node">${meta.icon}</div>
           <div class="tl-card-wrap">
             <div class="tl-card">
@@ -5428,10 +5473,12 @@ function renderTimeline(events, raisons) {
                 <span class="tl-badge">${meta.label}</span>
                 ${(liveFlags[e.id] || []).map((f) => `<span class="tl-live tl-live-${f.cls}">${f.label}</span>`).join('')}
                 <span class="tl-date">${dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} · ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span class="tl-chev" aria-hidden="true">⌄</span>
               </div>
               <div class="tl-title">${e.title}</div>
               ${preview ? `<div class="tl-preview">${preview}</div>` : ''}
               ${raison ? `<div class="tl-annotation">🔍 ${raison}</div>` : ''}
+              <div class="tl-detail-wrap" onclick="event.stopPropagation()"><div class="tl-detail">${tlDetailHtml(e)}</div></div>
             </div>
           </div>
         </div>`;
