@@ -313,6 +313,27 @@
   .lc-d{font-size:12.5px;color:var(--ink-soft);line-height:1.5}
   .lc-go{font-size:13px;font-weight:700;color:var(--blue);margin-top:9px}
   @media(max-width:560px){.lc-grid{grid-template-columns:1fr}.lc-panel{padding:30px 22px}}
+
+  /* Section Tarifs (Sprint 13) */
+  .pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:44px;align-items:stretch}
+  .pcard{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);padding:26px 24px;transition:transform .3s var(--ease),box-shadow .3s var(--ease),border-color .3s}
+  .pcard:hover{transform:translateY(-5px);box-shadow:var(--shadow-md)}
+  .pcard-pop{border:1.5px solid var(--blue);box-shadow:0 20px 50px rgba(20,96,255,.16);position:relative}
+  .pbadge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--blue);color:#fff;font-size:11px;font-weight:700;letter-spacing:.03em;padding:5px 13px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 20px rgba(20,96,255,.3)}
+  .pname{font-size:14px;font-weight:700;letter-spacing:-.01em;color:var(--navy)}
+  .pprice{font-size:30px;font-weight:800;letter-spacing:-.02em;color:var(--navy);margin:8px 0 2px;display:flex;align-items:baseline;gap:4px}
+  .pprice .per{font-size:13px;font-weight:600;color:var(--ink-faint)}
+  .ptag{font-size:13px;color:var(--ink-soft);line-height:1.5;margin-bottom:18px;min-height:42px}
+  .pfeat{list-style:none;display:flex;flex-direction:column;gap:10px;margin:0 0 22px;flex:1}
+  .pfeat li{font-size:13.5px;color:var(--ink-soft);padding-left:26px;position:relative;line-height:1.45}
+  .pfeat li::before{content:"✓";position:absolute;left:0;top:1px;width:18px;height:18px;border-radius:50%;background:var(--blue-tint);color:var(--sage-deep);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .pfeat li.plus{font-weight:600;color:var(--navy)}
+  .pfeat li.plus::before{content:"+";background:var(--violet-tint);color:var(--violet)}
+  .pcard .btn{width:100%;justify-content:center;margin-top:auto}
+  .pbtn-soft{background:var(--blue-tint);color:var(--sage-deep)}
+  .pbtn-soft:hover{background:#D6E6FF}
+  @media(max-width:980px){.pgrid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.pgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -602,6 +623,82 @@
     <div class="faq-item reveal"><div class="faq-q">Combien de temps faut-il pour déployer MediAI ?<span class="faq-plus"></span></div><div class="faq-a"><p>MediAI se comprend sans notice. La prise en main se fait en quelques minutes : dictez une consultation, et le compte-rendu structuré apparaît, prêt à valider.</p></div></div>
     <div class="faq-item reveal"><div class="faq-q">Quel accompagnement proposez-vous ?<span class="faq-plus"></span></div><div class="faq-a"><p>Nous accompagnons chaque professionnel à chaque étape : prise en main, personnalisation des modèles et support. Demandez une démonstration pour en discuter.</p></div></div>
   </div></div>
+</section>
+
+<!-- 11bis. TARIFS (Sprint 13) -->
+<section class="block" id="pricing" style="background:var(--paper-2)">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">Tarifs</span>
+      <h2 class="h-sec reveal" data-d="1" style="margin-top:14px">Une formule pour chaque étape</h2>
+      <p class="sub-sec reveal" data-d="2" style="margin:14px auto 0">De l'étudiant en médecine à l'établissement de santé — commencez gratuitement, évoluez à votre rythme.</p>
+    </div>
+    <div class="pgrid">
+
+      <div class="pcard reveal">
+        <div class="pname">Student</div>
+        <div class="pprice">Gratuit</div>
+        <div class="ptag">Pour les étudiants en médecine.</div>
+        <ul class="pfeat">
+          <li>Cas cliniques</li>
+          <li>IA pédagogique</li>
+          <li>Patients fictifs</li>
+          <li>Entraînement</li>
+          <li>Communauté</li>
+          <li>Accès limité</li>
+        </ul>
+        <a href="/app?mode=signup" class="btn btn-primary">Commencer gratuitement</a>
+      </div>
+
+      <div class="pcard reveal" data-d="1">
+        <div class="pname">Start</div>
+        <div class="pprice">39 €<span class="per">/mois</span></div>
+        <div class="ptag">Pour les médecins qui démarrent.</div>
+        <ul class="pfeat">
+          <li>Dictée IA</li>
+          <li>Consultation</li>
+          <li>Ordonnances</li>
+          <li>Courriers</li>
+          <li>Dossier patient</li>
+          <li>Application patient</li>
+        </ul>
+        <a href="/app?mode=signup" class="btn pbtn-soft">Choisir Start</a>
+      </div>
+
+      <div class="pcard pcard-pop reveal" data-d="2">
+        <span class="pbadge">Le plus populaire</span>
+        <div class="pname">Pro</div>
+        <div class="pprice">99 €<span class="per">/mois</span></div>
+        <div class="ptag">Pour aller plus loin avec l'intelligence clinique.</div>
+        <ul class="pfeat">
+          <li class="plus">Tout Start, plus :</li>
+          <li>Assistant IA</li>
+          <li>Préparation automatique</li>
+          <li>Analyse biologique</li>
+          <li>Imagerie</li>
+          <li>Synchronisation</li>
+          <li>Statistiques</li>
+          <li>Support prioritaire</li>
+        </ul>
+        <a href="/app?mode=signup" class="btn btn-primary">Choisir Pro</a>
+      </div>
+
+      <div class="pcard reveal" data-d="3">
+        <div class="pname">Enterprise</div>
+        <div class="pprice">Sur devis</div>
+        <div class="ptag">Pour les cliniques, centres de santé et hôpitaux.</div>
+        <ul class="pfeat">
+          <li>Cliniques</li>
+          <li>Centres de santé</li>
+          <li>Hôpitaux</li>
+          <li>Déploiement dédié</li>
+          <li>Accompagnement</li>
+        </ul>
+        <a href="#footer" class="btn pbtn-soft">Nous contacter</a>
+      </div>
+
+    </div>
+  </div>
 </section>
 
 <!-- 12. CTA -->
