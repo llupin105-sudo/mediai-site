@@ -408,6 +408,42 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
         <div class="p-timeline" id="pHisto"></div>
       </div>
 
+      <div class="p-view" id="pview-evolution">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Mon évolution</div>
+        <div class="p-greeting-sub" style="margin-bottom:16px;">Vos mesures au fil du temps, d'après vos consultations.</div>
+        <div id="pEvo"></div>
+      </div>
+
+      <div class="p-view" id="pview-connectee">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Santé connectée</div>
+        <div class="p-greeting-sub" style="margin-bottom:16px;">Bientôt, reliez vos appareils pour enrichir votre suivi.</div>
+        <div class="sante-group">
+          <div class="sante-row" onclick="showComingSoon('Apple Santé','La synchronisation avec Apple Santé arrive bientôt.')"><div class="sante-ico" style="background:#EEF1F6;color:var(--ink);">🍎</div><div class="b"><div class="t">Apple Santé</div><div class="s">Activité, sommeil, fréquence cardiaque</div></div><div class="soon">Bientôt</div></div>
+          <div class="sante-row" onclick="showComingSoon('Google Fit','La synchronisation avec Google Fit arrive bientôt.')"><div class="sante-ico" style="background:#E7F0FF;color:var(--blue);">🏃</div><div class="b"><div class="t">Google Fit</div><div class="s">Activité et pas quotidiens</div></div><div class="soon">Bientôt</div></div>
+          <div class="sante-row" onclick="showComingSoon('Montre connectée','La connexion des montres et bracelets arrive bientôt.')"><div class="sante-ico" style="background:#FDE7F3;color:var(--pink);">⌚</div><div class="b"><div class="t">Montre connectée</div><div class="s">Fréquence cardiaque, sommeil</div></div><div class="soon">Bientôt</div></div>
+        </div>
+        <div class="p-card" style="font-size:13px;color:var(--ink-soft);line-height:1.6;">Une fois un appareil connecté, vous retrouverez ici votre <b>sommeil</b>, votre <b>activité</b> et votre <b>fréquence cardiaque</b> aux côtés des mesures prises en consultation.<br><br>Aucune donnée n'est collectée tant que vous n'avez rien connecté.</div>
+      </div>
+
+      <div class="p-view" id="pview-securite">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:16px;">Sécurité & confidentialité</div>
+        <div class="p-section-label" style="margin-top:0;">Vos données</div>
+        <div class="sante-group">
+          <div class="sante-row" onclick="downloadMyData()"><div class="sante-ico" style="background:#EAFBF1;color:var(--green);">⬇️</div><div class="b"><div class="t">Télécharger mes données</div><div class="s">Exporter tout votre dossier (format JSON)</div></div><div class="chev">›</div></div>
+        </div>
+        <div class="p-section-label">Partage de mon dossier</div>
+        <div class="sante-group">
+          <div class="sante-row" onclick="showComingSoon('Partager mon dossier','Le partage sécurisé de votre dossier avec un autre professionnel arrive bientôt.')"><div class="sante-ico" style="background:#E7F0FF;color:var(--blue);">🔗</div><div class="b"><div class="t">Partager mon dossier</div><div class="s">Avec un autre professionnel de santé</div></div><div class="soon">Bientôt</div></div>
+          <div class="sante-row" onclick="showComingSoon('Gérer les accès','La gestion des accès à votre dossier arrive bientôt.')"><div class="sante-ico" style="background:#FEF3E2;color:var(--amber);">🛡️</div><div class="b"><div class="t">Gérer les accès</div><div class="s">Voir et retirer des accès</div></div><div class="soon">Bientôt</div></div>
+        </div>
+        <div class="p-section-label">Connexion</div>
+        <div class="sante-group">
+          <div class="sante-row" style="cursor:default;"><div class="sante-ico" style="background:#EEF1F6;color:var(--ink-soft);">✉️</div><div class="b"><div class="t">Email de connexion</div><div class="s" id="pSecEmail">—</div></div></div>
+          <div class="sante-row" onclick="showComingSoon('Appareils & connexions','L\'historique de vos connexions arrivera bientôt.')"><div class="sante-ico" style="background:#EEF1F6;color:var(--ink-soft);">💻</div><div class="b"><div class="t">Appareils & connexions</div><div class="s">Historique de vos connexions</div></div><div class="soon">Bientôt</div></div>
+        </div>
+        <div class="p-card" style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;">🔒 Votre connexion est sécurisée (HTTPS). Votre dossier n'est accessible qu'à vous et à votre médecin ; il n'est jamais partagé sans votre accord.</div>
+      </div>
+
       <div class="p-view" id="pview-messages">
         <div class="p-greeting" style="font-size:20px; margin-bottom:16px;">Messagerie</div>
         <div class="p-card" id="pThreadList"></div>
@@ -415,6 +451,14 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
 
       <div class="p-view" id="pview-profil">
         <div class="p-greeting" style="font-size:20px; margin-bottom:16px;">Profil</div>
+
+        <div class="p-card" style="display:flex;align-items:center;gap:14px;">
+          <div id="pAvatar" style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--blue-light));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex:none;">—</div>
+          <div style="min-width:0;">
+            <div id="pAvatarName" style="font-size:16.5px;font-weight:800;letter-spacing:-.01em;">—</div>
+            <div id="pAvatarSub" style="font-size:12.5px;color:var(--ink-faint);">Espace santé MediAI</div>
+          </div>
+        </div>
 
         <div class="sante-group">
           <div class="sante-row" onclick="switchPatientView('messages')">
@@ -425,6 +469,16 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
           <div class="sante-row" onclick="switchPatientView('notifications')">
             <div class="sante-ico" style="background:#FDE7F3;color:var(--pink);">🔔</div>
             <div class="b"><div class="t">Notifications</div><div class="s">Vos alertes récentes</div></div>
+            <div class="chev">›</div>
+          </div>
+          <div class="sante-row" onclick="switchPatientView('connectee')">
+            <div class="sante-ico" style="background:#EEF1F6;color:var(--ink-soft);">⌚</div>
+            <div class="b"><div class="t">Santé connectée</div><div class="s">Vos appareils et applications</div></div>
+            <div class="chev">›</div>
+          </div>
+          <div class="sante-row" onclick="switchPatientView('securite')">
+            <div class="sante-ico" style="background:#E9F9EF;color:var(--green);">🔒</div>
+            <div class="b"><div class="t">Sécurité & confidentialité</div><div class="s">Vos données, partage, connexions</div></div>
             <div class="chev">›</div>
           </div>
         </div>
@@ -559,6 +613,9 @@ function renderPatientHome(){
   document.getElementById('pProfileMedecin').textContent = medecinInfo.nom || 'Non renseigne';
   document.getElementById('pProfileCabinet').textContent = medecinInfo.cabinet || 'Non renseigne';
   document.getElementById('pProfileEmail').textContent = document.getElementById('loginEmail').value || '-';
+  const initials = ((patientInfo.prenom||'')[0]||'') + ((patientInfo.nom||'')[0]||'');
+  const av=document.getElementById('pAvatar'); if(av) av.textContent=(initials||'?').toUpperCase();
+  const an=document.getElementById('pAvatarName'); if(an) an.textContent=((patientInfo.prenom||'')+' '+(patientInfo.nom||'')).trim()||'Mon profil';
   renderPatientHomeCards();
 }
 
@@ -1015,6 +1072,53 @@ function renderPatientHistorique(){
   }).join('');
 }
 
+// ── ⑫ Mon évolution — graphes déterministes des constantes réelles ──
+function pAreaChart(arr, color){
+  if(!arr || arr.length<2) return '';
+  const w=300, h=92, pad=8; const vals=arr.map(function(x){ return x.v; });
+  const min=Math.min.apply(null,vals), max=Math.max.apply(null,vals), rng=(max-min)||1;
+  const X=function(i){ return pad+(i/(arr.length-1))*(w-2*pad); };
+  const Y=function(v){ return h-pad-((v-min)/rng)*(h-2*pad); };
+  const pts=arr.map(function(p,i){ return X(i).toFixed(1)+','+Y(p.v).toFixed(1); });
+  const line=pts.map(function(p,i){ return (i?'L':'M')+p; }).join(' ');
+  const area='M'+X(0).toFixed(1)+','+(h-pad)+' L'+pts.join(' L')+' L'+X(arr.length-1).toFixed(1)+','+(h-pad)+' Z';
+  const gid='g'+color.replace(/[^a-z0-9]/gi,'');
+  const dots=arr.map(function(p,i){ return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.v).toFixed(1)+'" r="2.6" fill="'+color+'"/>'; }).join('');
+  return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'" preserveAspectRatio="none" style="display:block;overflow:visible;">'
+    +'<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+color+'" stop-opacity="0.20"/><stop offset="1" stop-color="'+color+'" stop-opacity="0"/></linearGradient></defs>'
+    +'<path d="'+area+'" fill="url(#'+gid+')"/><path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'+dots+'</svg>';
+}
+function renderPatientEvolution(){
+  const el=document.getElementById('pEvo'); if(!el) return;
+  const s=pVitalSeries();
+  const defs=[{k:'poids',label:'Poids',unit:'kg',color:'#1460FF'},{k:'tension',label:'Tension (systolique)',unit:'mmHg',color:'#8B5CF6'},{k:'pouls',label:'Pouls',unit:'bpm',color:'#EC4899'}];
+  const cards=defs.filter(function(d){ return s[d.k].length>=2; }).map(function(d){
+    const arr=s[d.k], vals=arr.map(function(x){ return x.v; });
+    const min=Math.min.apply(null,vals), max=Math.max.apply(null,vals), last=vals[vals.length-1];
+    return '<div class="p-card"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;"><div style="font-size:14.5px;font-weight:800;">'+d.label+'</div><div style="font-size:18px;font-weight:800;letter-spacing:-.02em;">'+last+' <span style="font-size:12px;color:var(--ink-faint);font-weight:600;">'+d.unit+'</span></div></div>'
+      +'<div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:12px;">'+arr.length+' mesures · min '+min+' · max '+max+'</div>'
+      + pAreaChart(arr,d.color)
+      +'<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-faint);margin-top:6px;"><span>'+new Date(arr[0].date).toLocaleDateString('fr-FR',{month:'short',year:'2-digit'})+'</span><span>'+new Date(arr[arr.length-1].date).toLocaleDateString('fr-FR',{month:'short',year:'2-digit'})+'</span></div></div>';
+  }).join('');
+  const empty = cards ? '' : '<div class="p-empty"><div class="p-empty-icon">📈</div>Vos mesures apparaîtront ici au fil de vos consultations.</div>';
+  const connected = '<div class="p-section-label">Depuis vos appareils</div><div class="sante-group"><div class="sante-row" onclick="switchPatientView(\'connectee\')"><div class="sante-ico" style="background:#EEF1F6;color:var(--ink-soft);">⌚</div><div class="b"><div class="t">Sommeil · Activité · Fréquence cardiaque</div><div class="s">Connectez un appareil pour suivre ces données</div></div><div class="soon">Bientôt</div></div></div>';
+  el.innerHTML = (cards||empty) + connected;
+}
+
+// ── ⑬ Sécurité — export des données du patient (client, ses propres données) ──
+function renderPatientSecurite(){
+  const em=document.getElementById('pSecEmail'); if(em) em.textContent=(document.getElementById('loginEmail')&&document.getElementById('loginEmail').value)||'—';
+}
+function downloadMyData(){
+  const data={ exporte_le:new Date().toISOString(), patient:patientInfo, medecin:medecinInfo, evenements:patientEvents, rendez_vous:patientAppointments };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob); const link=document.createElement('a');
+  link.href=url; link.download='mes-donnees-mediai.json'; document.body.appendChild(link); link.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); link.remove(); }, 120);
+  if(navigator.vibrate) navigator.vibrate(10);
+  pToast('Vos données ont été téléchargées');
+}
+
 function switchPatientView(view){
   const target = document.getElementById('pview-' + view);
   if (!target) return; // vue pas encore construite → on ne casse pas la navigation
@@ -1033,6 +1137,8 @@ function switchPatientView(view){
   if (view === 'preparer') renderPatientPreparer();
   if (view === 'notifications') renderPatientNotifications();
   if (view === 'historique') renderPatientHistorique();
+  if (view === 'evolution') renderPatientEvolution();
+  if (view === 'securite') renderPatientSecurite();
 }
 
 // ── Hub « Santé » — point d'accès unique au suivi (façon réglages Apple) ──
@@ -1051,9 +1157,9 @@ function renderSanteHub(){
     { view:'traitements', ready:true, ico:'💊', bg:'#EAFBF1', fg:'var(--green)', t:'Mes traitements', s: medCount ? medCount+' médicament'+(medCount>1?'s':'')+' en cours' : 'Aucun traitement' },
     { view:'resultats', ready:true, ico:'🔬', bg:'#E0F6FF', fg:'#0284C7', t:'Mes résultats', s: resCount ? resCount+' résultat'+(resCount>1?'s':'') : 'Aucun résultat' },
     { view:'historique', ready:true, ico:'🕓', bg:'#EEF1F6', fg:'var(--ink-soft)', t:'Mon historique', s: (patientEvents||[]).length ? (patientEvents.length+' événement'+(patientEvents.length>1?'s':'')) : 'Votre chronologie' },
-    { view:'evolution', ready:false, ico:'📈', bg:'#FDE7F3', fg:'var(--pink)', t:'Mon évolution', s:'Poids, tension, pouls…' },
+    { view:'evolution', ready:true, ico:'📈', bg:'#FDE7F3', fg:'var(--pink)', t:'Mon évolution', s:'Poids, tension, pouls…' },
     { view:'preparer', ready:true, ico:'📋', bg:'#FEF3E2', fg:'var(--amber)', t:'Préparer ma consultation', s:'Avant votre prochain rendez-vous' },
-    { view:'connectee', ready:false, ico:'⌚', bg:'#EEF1F6', fg:'var(--ink-soft)', t:'Santé connectée', s:'Montre, Apple Santé, Google Fit' }
+    { view:'connectee', ready:true, ico:'⌚', bg:'#EEF1F6', fg:'var(--ink-soft)', t:'Santé connectée', s:'Montre, Apple Santé, Google Fit' }
   ];
   el.innerHTML = '<div class="sante-group">' + items.map(function(it){
     const right = it.ready ? '<div class="chev">›</div>' : '<div class="soon">Bientôt</div>';
