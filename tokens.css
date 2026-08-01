@@ -1,0 +1,98 @@
+/* ============================================================================
+   MediAI — Design System v2 · SOURCE UNIQUE DE VÉRITÉ (Sprint 16)
+   ----------------------------------------------------------------------------
+   Ce fichier est la SEULE définition des design tokens de MediAI. Les trois
+   frontends (index.html, app.html, patient.html) le chargent AVANT leur propre
+   <style>. Toute nouvelle page/composant doit utiliser ces variables — jamais
+   de valeur « magique » en dur, jamais de :root local qui redéfinit un token.
+
+   Valeurs alignées sur l'identité officielle (bleu #1460FF / navy #0A1128).
+   Documentation : docs/04_DESIGN_SYSTEM.md.
+   ========================================================================== */
+:root{
+  /* ── Palette primitive (couleurs brutes) ──────────────────────────────── */
+  --navy:       #0A1128;   /* Bleu Nuit */
+  --navy-2:     #0d1836;
+  --blue:       #1460FF;   /* Bleu Principal */
+  --blue-light: #00C6FF;   /* Bleu Clair */
+  --blue-tint:  #E6F2FF;   /* Bleu Très Clair */
+  --blue-tint-2:#D6E6FF;   /* survol des fonds bleu-tint */
+  --tint-border:#C7DDFF;   /* bordure douce sur fond bleu-tint */
+  --green:      #22C55E;   /* Vert Succès */
+  --green-tint: #DCFCE7;
+  --green-deep: #15803D;
+  --violet:     #8B5CF6;   /* Violet */
+  --violet-tint:#F1EDFF;
+  --violet-deep:#6D28D9;
+  --pink:       #EC4899;   /* Rose */
+  --pink-tint:  #FCE7F3;
+  --amber:      #F59E0B;   /* Orange Alerte */
+  --amber-tint: #FEF3E2;
+  --red:        #EF4444;   /* Erreur */
+  --rose:       #EF4444;   /* alias erreur (compat) */
+  --rose-tint:  #FEE2E2;
+  --gray:       #64748B;   /* Gris */
+
+  /* ── Surfaces & encre (tokens fonctionnels) ───────────────────────────── */
+  --paper:      #F8FAFC;   /* Fond principal (app dense) */
+  --paper-2:    #F6F8FC;   /* Fond secondaire */
+  --paper-line: #E2E8F0;   /* Filet sur fond papier */
+  --line:       #E2E8F0;   /* Bordure/filet standard */
+  --line-2:     #EEF2F8;   /* Filet très léger */
+  --card:       #FFFFFF;   /* Surface de carte */
+  --bg-secondary: #F6F8FC; /* (corrige un token référencé mais jamais défini) */
+  --ink:        var(--navy);
+  --ink-soft:   #475569;
+  --ink-faint:  var(--gray);
+
+  /* ── Accent sémantique (accent principal = bleu) ──────────────────────── */
+  --accent:      var(--blue);
+  --accent-deep: #0D3EBF;   /* hover accent principal */
+  --accent-tint: var(--blue-tint);
+  --clinical:      var(--violet);  /* accent secondaire (clinique) */
+  --clinical-tint: #F1EDFF;
+
+  /* ── Dégradés ─────────────────────────────────────────────────────────── */
+  --grad-primary:   linear-gradient(135deg, var(--navy), var(--blue-light));
+  --grad-secondary: linear-gradient(135deg, var(--blue), var(--violet));
+  --grad-text:      linear-gradient(120deg, #1460FF 10%, #00C6FF 90%);
+
+  /* ── Typographie ──────────────────────────────────────────────────────── */
+  --sans:  'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', sans-serif;
+  --serif: var(--sans);   /* identité 100 % sans-serif */
+  --mono:  var(--sans);   /* labels en Inter (majuscules/tracking) */
+  --fs-2xs: 10.5px;  --fs-xs: 12px;   --fs-sm: 13px;   --fs-base: 14px;
+  --fs-md:  15.5px;  --fs-lg: 18px;   --fs-xl: 23px;   --fs-2xl: 30px;
+  --fw-medium: 500;  --fw-semibold: 600;  --fw-bold: 700;
+
+  /* ── Espacement (échelle 4px, source unique) ──────────────────────────── */
+  --space-1: 4px;  --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 24px; --space-6: 32px;  --space-7: 48px;  --space-8: 64px;
+
+  /* ── Rayons ───────────────────────────────────────────────────────────── */
+  --r-xs: 4px; --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-xl: 24px; --r-full: 9999px;
+
+  /* ── Élévation ────────────────────────────────────────────────────────── */
+  --shadow-xs: 0 1px 2px rgba(10,17,40,.05);
+  --shadow-sm: 0 2px 8px rgba(10,17,40,.06);
+  --shadow-md: 0 8px 20px rgba(10,17,40,.08);
+  --shadow-lg: 0 16px 40px rgba(10,17,40,.14);
+
+  /* ── Mouvement (discret par principe — Apple/Linear) ──────────────────── */
+  --ease:     cubic-bezier(.4, 0, .2, 1);
+  --ease-out: cubic-bezier(.22, .61, .36, 1);
+  --dur-1: .1s;   --dur-2: .16s;  --dur-3: .24s;
+
+  /* ── Composants canoniques ────────────────────────────────────────────── */
+  --btn-h: 42px;
+  --btn-radius: var(--r-md);
+  --btn-transition: background .16s ease, border-color .16s ease, color .16s ease, transform .1s ease, box-shadow .16s ease;
+  --input-h: var(--btn-h);
+}
+
+/* ── Accessibilité de base, partagée par tous les frontends (WCAG AA) ────── */
+:focus-visible{ outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{ animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  html{ scroll-behavior: auto; }
+}

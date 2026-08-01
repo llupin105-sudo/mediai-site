@@ -20,12 +20,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/tokens.css">
 <style>
   :root{
     --navy:#0A1128; --navy-2:#0d1836; --blue:#1460FF; --blue-light:#00C6FF; --blue-tint:#E6F2FF;
     --violet:#8B5CF6; --violet-tint:#F1EDFF; --violet-deep:#6D28D9; --green:#22C55E; --green-tint:#DCFCE7; --green-deep:#15803D; --amber:#F59E0B; --pink:#EC4899; --red:#EF4444;
     --paper:#FFFFFF; --paper-2:#F6F8FC; --line:#E7ECF3; --line-2:#EEF2F8;
-    --ink:#0A1128; --ink-soft:#4A5878; --ink-faint:#8A97AA; --sage-deep:#0D3EBF;
+    --ink:#0A1128; --ink-soft:#4A5878; --ink-faint:#8A97AA; --accent-deep:#0D3EBF;
     --grad-text:linear-gradient(120deg,#1460FF 10%,#00C6FF 90%);
     --shadow-sm:0 4px 16px rgba(10,17,40,.06);
     --shadow-md:0 18px 48px rgba(10,17,40,.10);
@@ -39,7 +40,7 @@
   body{font-family:var(--sans);color:var(--ink);background:var(--paper);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
   a{text-decoration:none;color:inherit}
   img{max-width:100%;display:block}
-  ::selection{background:var(--blue-tint);color:var(--sage-deep)}
+  ::selection{background:var(--blue-tint);color:var(--accent-deep)}
   .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
 
   /* ── Typographie éditoriale ── */
@@ -248,11 +249,11 @@
   .ptag{font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:18px;min-height:38px}
   .pfeat{list-style:none;display:flex;flex-direction:column;gap:10px;margin:0 0 22px;flex:1}
   .pfeat li{font-size:13.5px;color:var(--ink-soft);padding-left:25px;position:relative;line-height:1.4}
-  .pfeat li::before{content:"✓";position:absolute;left:0;top:0;width:17px;height:17px;border-radius:50%;background:var(--blue-tint);color:var(--sage-deep);font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .pfeat li::before{content:"✓";position:absolute;left:0;top:0;width:17px;height:17px;border-radius:50%;background:var(--blue-tint);color:var(--accent-deep);font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
   .pfeat li.plus{font-weight:600;color:var(--navy)}
   .pfeat li.plus::before{content:"+";background:var(--violet-tint);color:var(--violet)}
   .pcard .btn{width:100%;justify-content:center;margin-top:auto;height:46px}
-  .pbtn-soft{background:var(--blue-tint);color:var(--sage-deep)}
+  .pbtn-soft{background:var(--blue-tint);color:var(--accent-deep)}
   .pbtn-soft:hover{background:#D6E6FF;transform:translateY(-2px)}
 
   /* ══ ⑨ FAQ ══ */
@@ -508,7 +509,7 @@
   <div class="wrap">
     <div class="feat">
       <div class="feat-txt reveal"><span class="eyebrow">Dictée IA</span><h3>Parlez. Le compte-rendu s'écrit.</h3><p>Une dictée naturelle devient un compte-rendu structuré au format SOAP, anonymisé avant tout traitement, prêt à vérifier.</p></div>
-      <div class="feat-mock reveal" data-d="1"><div class="fm-head"><div class="fm-av">✦</div><div><div class="fm-t">Compte-rendu généré</div><div class="fm-s">Consultation · à vérifier</div></div></div><div class="fm-line" style="width:90%"></div><div class="fm-line" style="width:75%"></div><div class="fm-line" style="width:82%"></div><div><span class="fm-pill" style="background:var(--blue-tint);color:var(--sage-deep)">Diagnostic</span><span class="fm-pill" style="background:var(--green-tint);color:var(--green-deep)">Constantes</span><span class="fm-pill" style="background:var(--violet-tint);color:var(--violet-deep)">Plan</span></div></div>
+      <div class="feat-mock reveal" data-d="1"><div class="fm-head"><div class="fm-av">✦</div><div><div class="fm-t">Compte-rendu généré</div><div class="fm-s">Consultation · à vérifier</div></div></div><div class="fm-line" style="width:90%"></div><div class="fm-line" style="width:75%"></div><div class="fm-line" style="width:82%"></div><div><span class="fm-pill" style="background:var(--blue-tint);color:var(--accent-deep)">Diagnostic</span><span class="fm-pill" style="background:var(--green-tint);color:var(--green-deep)">Constantes</span><span class="fm-pill" style="background:var(--violet-tint);color:var(--violet-deep)">Plan</span></div></div>
     </div>
     <div class="feat rev">
       <div class="feat-txt reveal"><span class="eyebrow">Ordonnances</span><h3>Prescrire, sans friction.</h3><p>Générées depuis la consultation, pré-remplies, avec un filet de vigilance sur les interactions médicamenteuses.</p></div>
@@ -520,7 +521,7 @@
     </div>
     <div class="feat rev">
       <div class="feat-txt reveal"><span class="eyebrow">Application Patient</span><h3>Un lien clair avec vos patients.</h3><p>Le patient retrouve ses documents, son prochain rendez-vous et son suivi — dans un espace simple et rassurant.</p></div>
-      <div class="feat-mock reveal" data-d="1"><div class="fm-head"><div class="fm-av" style="background:var(--blue-light)">👤</div><div><div class="fm-t">Bonjour, Thomas 👋</div><div class="fm-s">Votre espace santé</div></div></div><div class="fm-line" style="width:88%"></div><div class="fm-line" style="width:70%"></div><div><span class="fm-pill" style="background:var(--blue-tint);color:var(--sage-deep)">Prochain RDV</span><span class="fm-pill" style="background:var(--paper-2);color:var(--ink-soft)">Documents</span></div></div>
+      <div class="feat-mock reveal" data-d="1"><div class="fm-head"><div class="fm-av" style="background:var(--blue-light)">👤</div><div><div class="fm-t">Bonjour, Thomas 👋</div><div class="fm-s">Votre espace santé</div></div></div><div class="fm-line" style="width:88%"></div><div class="fm-line" style="width:70%"></div><div><span class="fm-pill" style="background:var(--blue-tint);color:var(--accent-deep)">Prochain RDV</span><span class="fm-pill" style="background:var(--paper-2);color:var(--ink-soft)">Documents</span></div></div>
     </div>
   </div>
 </section>
