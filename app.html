@@ -1749,8 +1749,35 @@ function closeSidebarMenu() {
 function enterAppMode() {
   if (document.body.classList.contains('app-mode')) return; // déjà actif
   document.body.classList.add('app-mode');
+  ensureCopiloteFab();
   switchAppView('dashboard');
   renderDashboard();
+}
+
+// Sprint 17 ① — Copilote OMNIPRÉSENT : lanceur flottant visible partout + ⌘J.
+function ensureCopiloteFab() {
+  if (document.getElementById('copiloteFab')) return;
+  if (!document.getElementById('copiloteFabStyles')) {
+    const st = document.createElement('style'); st.id = 'copiloteFabStyles';
+    st.textContent = `
+    #copiloteFab{position:fixed;right:24px;bottom:96px;z-index:150;display:flex;align-items:center;gap:9px;height:52px;padding:0 20px 0 16px;border:none;border-radius:var(--r-full);background:linear-gradient(135deg,var(--violet),var(--blue));color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 10px 30px rgba(20,96,255,.34);transition:transform .14s var(--ease),box-shadow .18s var(--ease)}
+    #copiloteFab:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(20,96,255,.42)}
+    #copiloteFab:active{transform:translateY(0)}
+    #copiloteFab .mk{font-size:18px}
+    #copiloteFab kbd{font-family:inherit;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.22);padding:2px 6px;border-radius:6px;margin-left:2px}
+    body:not(.app-mode) #copiloteFab{display:none}
+    @media(max-width:560px){#copiloteFab .lbl,#copiloteFab kbd{display:none}#copiloteFab{padding:0;width:52px;justify-content:center}}
+    @media(prefers-reduced-motion:reduce){#copiloteFab{transition:none}}`;
+    document.head.appendChild(st);
+  }
+  const fab = document.createElement('button');
+  fab.id = 'copiloteFab'; fab.setAttribute('aria-label', 'Ouvrir le Copilote');
+  fab.innerHTML = '<span class="mk">✦</span><span class="lbl">Copilote</span><kbd>⌘J</kbd>';
+  fab.onclick = openCopiloteSmart;
+  document.body.appendChild(fab);
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'j' || e.key === 'J')) { e.preventDefault(); openCopiloteSmart(); }
+  });
 }
 function exitAppMode() {
   document.body.classList.remove('app-mode');
@@ -4785,11 +4812,20 @@ function renderDossierAsstEntry() {
 let copiloteMessages = [];
 let copilotePatientId = null;
 let copiloteBusy = false;
+let copiloteMode = 'dossier'; // 'dossier' (IA sur un dossier) | 'cockpit' (exploitation, déterministe)
 const COPILOTE_SUGGESTIONS = [
   { e: '📋', q: 'Résume-moi les 6 derniers mois.' },
   { e: '🧪', q: 'Quels examens manquent ?' },
   { e: '💊', q: 'Y a-t-il une interaction médicamenteuse ?' },
   { e: '🕒', q: "Que s'est-il passé depuis la dernière consultation ?" },
+];
+// Sprint 17 ① — Copilote omniprésent : questions d'exploitation transversale,
+// répondues de façon DÉTERMINISTE à partir de la journée (aucune IA, instantané).
+const COPILOTE_OPS_SUGGESTIONS = [
+  { e: '🗓️', q: 'Prépare mon après-midi.' },
+  { e: '🔬', q: 'Quels examens sont arrivés cette semaine ?' },
+  { e: '💊', q: 'Quelles ordonnances sont à renouveler ?' },
+  { e: '⚠️', q: 'Quels patients sont à regarder en priorité ?' },
 ];
 function ensureCopiloteStyles() {
   if (document.getElementById('copiloteStyles')) return;
@@ -4850,10 +4886,10 @@ function ensureCopilotePanel() {
     <div class="cop-body" id="copBody"></div>
     <div class="cop-in">
       <div class="cop-in-row">
-        <textarea id="copInput" rows="1" placeholder="Poser une question sur le dossier…" oninput="copAutosize(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();copiloteSend();}"></textarea>
+        <textarea id="copInput" rows="1" placeholder="Posez une question…" oninput="copAutosize(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();copiloteSend();}"></textarea>
         <button class="cop-send" id="copSend" onclick="copiloteSend()" aria-label="Envoyer">↑</button>
       </div>
-      <div class="cop-disc">L'IA répond uniquement à partir des données du dossier. Réponses à vérifier — jamais un avis médical.</div>
+      <div class="cop-disc" id="copDisc">Réponses à vérifier — jamais un avis médical.</div>
     </div>`;
   document.body.appendChild(scrim);
   document.body.appendChild(p);
@@ -4862,9 +4898,28 @@ function copAutosize(t) { t.style.height = 'auto'; t.style.height = Math.min(t.s
 function openCopilote() {
   if (!currentDetailPatientId) return;
   ensureCopilotePanel();
+  copiloteMode = 'dossier';
   if (copilotePatientId !== currentDetailPatientId) { copiloteMessages = []; copilotePatientId = currentDetailPatientId; }
   const p = currentPatientInfo || {};
   document.getElementById('copSub').textContent = 'Discuter avec le dossier · ' + ((p.prenom || '') + ' ' + (p.nom || '')).trim();
+  const disc = document.getElementById('copDisc'); if (disc) disc.textContent = "L'IA répond uniquement à partir des données du dossier. Réponses à vérifier — jamais un avis médical.";
+  copShowPanel();
+}
+// Sprint 17 ① — ouverture GLOBALE (mode cockpit, exploitation de la journée).
+async function openCopiloteGlobal() {
+  ensureCopilotePanel();
+  if (copiloteMode !== 'cockpit') { copiloteMessages = []; }
+  copiloteMode = 'cockpit';
+  document.getElementById('copSub').textContent = 'Votre copilote — toute la journée';
+  const disc = document.getElementById('copDisc'); if (disc) disc.textContent = "Réponses établies à partir de votre journée. À vérifier — jamais un avis médical.";
+  copiloteRender();
+  copShowPanel();
+  // Données fraîches de la journée si nécessaire (non bloquant pour l'ouverture).
+  if (!cockpitState.data) { try { cockpitState.data = await fetchCockpit(); copiloteRender(); } catch (e) {} }
+}
+// Choisit le bon mode selon le contexte : dossier ouvert → dossier, sinon cockpit.
+function openCopiloteSmart() { if (currentDetailPatientId) openCopilote(); else openCopiloteGlobal(); }
+function copShowPanel() {
   copiloteRender();
   document.getElementById('copiloteScrim').classList.add('open');
   document.getElementById('copilotePanel').classList.add('open');
@@ -4893,13 +4948,17 @@ function copiloteRender() {
   if (!body) return;
   let html = '';
   if (copiloteMessages.length === 0) {
+    const sugg = copiloteMode === 'cockpit' ? COPILOTE_OPS_SUGGESTIONS : COPILOTE_SUGGESTIONS;
     html += '<div class="cop-sugg-lead">Questions suggérées</div>';
-    html += COPILOTE_SUGGESTIONS.map(function (s) { return `<button class="cop-chip" onclick="copiloteSuggest('${s.q.replace(/'/g, "\\'")}')"><span>${s.e}</span> ${escapeHtml(s.q)}</button>`; }).join('');
+    html += sugg.map(function (s) { return `<button class="cop-chip" onclick="copiloteSuggest('${s.q.replace(/'/g, "\\'")}')"><span>${s.e}</span> ${escapeHtml(s.q)}</button>`; }).join('');
   }
+  const footNote = copiloteMode === 'cockpit' ? "D'après votre journée." : 'Établi à partir des seules données du dossier.';
   html += copiloteMessages.map(function (m) {
     if (m.role === 'user') return `<div class="cop-msg me"><span class="cop-av me">${escapeHtml(copiloteInitials())}</span><div class="cop-bub">${escapeHtml(m.content)}</div></div>`;
     if (m.role === 'typing') return `<div class="cop-msg ia"><span class="cop-av ia">✦</span><div class="cop-bub"><div class="cop-typing"><span></span><span></span><span></span></div></div></div>`;
-    return `<div class="cop-msg ia"><span class="cop-av ia">✦</span><div class="cop-bub">${copFormat(m.content)}<div class="cop-foot"><span class="cop-badge">✦ IA · à vérifier</span> Établi à partir des seules données du dossier.</div></div></div>`;
+    // Les réponses cockpit sont déjà du HTML sûr (généré localement) → rendu direct ; les réponses dossier (texte IA) sont échappées via copFormat.
+    const inner = m.html ? m.content : copFormat(m.content);
+    return `<div class="cop-msg ia"><span class="cop-av ia">✦</span><div class="cop-bub">${inner}<div class="cop-foot"><span class="cop-badge">✦ IA · à vérifier</span> ${footNote}</div></div></div>`;
   }).join('');
   body.innerHTML = html;
   body.scrollTop = body.scrollHeight;
@@ -4913,7 +4972,16 @@ async function copiloteSend() {
   if (copiloteBusy) return;
   const input = document.getElementById('copInput');
   const question = (input.value || '').trim();
-  if (question.length < 2 || !currentDetailPatientId) return;
+  if (question.length < 2) return;
+  // Mode cockpit : réponse déterministe instantanée à partir de la journée.
+  if (copiloteMode === 'cockpit') {
+    input.value = ''; copAutosize(input);
+    copiloteMessages.push({ role: 'user', content: question });
+    copiloteMessages.push({ role: 'assistant', html: true, content: dashAsstAnswer(question) });
+    copiloteRender();
+    return;
+  }
+  if (!currentDetailPatientId) return;
   input.value = ''; copAutosize(input);
   copiloteMessages.push({ role: 'user', content: question });
   copiloteMessages.push({ role: 'typing' });
