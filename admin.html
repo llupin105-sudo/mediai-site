@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Command Center — MediAI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/tokens.css">
+<style>
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:var(--sans); background:var(--paper); color:var(--ink); line-height:1.55; -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:960px; margin:0 auto; padding:0 22px 60px; }
+
+  .cc-top{ display:flex; align-items:center; justify-content:space-between; padding:20px 0; border-bottom:1px solid var(--line); margin-bottom:26px; }
+  .cc-brand{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:16px; }
+  .cc-brand .logo{ width:30px; height:30px; border-radius:9px; background:var(--grad-primary); color:#fff; display:flex; align-items:center; justify-content:center; }
+  .cc-brand .tag{ font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--blue); background:var(--blue-tint); padding:3px 9px; border-radius:var(--r-full); }
+  .cc-who{ font-size:12.5px; color:var(--ink-soft); }
+
+  .gate{ max-width:420px; margin:80px auto; text-align:center; }
+  .gate h1{ font-size:22px; font-weight:800; margin-bottom:8px; }
+  .gate p{ font-size:14px; color:var(--ink-soft); margin-bottom:20px; }
+  .gate a{ display:inline-block; background:var(--blue); color:#fff; text-decoration:none; font-weight:700; font-size:14px; padding:11px 20px; border-radius:var(--r-md); }
+  .gate code{ background:var(--card); border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:12.5px; }
+
+  h2.sec{ font-size:12.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin:30px 0 12px; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  .stat{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:18px; box-shadow:var(--shadow-sm); }
+  .stat .k{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); }
+  .stat .v{ font-size:24px; font-weight:800; letter-spacing:-.02em; margin-top:4px; }
+  .stat .s{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .dot{ display:inline-block; width:9px; height:9px; border-radius:50%; vertical-align:middle; margin-right:6px; }
+  .todo{ color:var(--ink-faint); font-weight:600; }
+
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--shadow-sm); overflow:hidden; }
+  .row{ display:flex; align-items:center; gap:14px; padding:15px 18px; border-bottom:1px solid var(--line); }
+  .row:last-child{ border-bottom:none; }
+  .row .b{ flex:1; min-width:0; }
+  .row .t{ font-size:14px; font-weight:700; }
+  .row .d{ font-size:12.5px; color:var(--ink-faint); }
+  .badge{ font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; padding:4px 10px; border-radius:var(--r-full); flex:none; }
+  .b-done{ background:var(--green-tint); color:var(--green-deep); }
+  .b-wip{ background:var(--blue-tint); color:var(--blue); }
+  .b-next{ background:var(--paper-2); color:var(--ink-soft); border:1px solid var(--line); }
+  .b-block{ background:var(--amber-tint); color:#92610a; }
+
+  .sw{ position:relative; width:44px; height:26px; border-radius:var(--r-full); background:var(--line); border:none; cursor:pointer; flex:none; transition:background .18s ease; }
+  .sw::after{ content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:var(--shadow-sm); transition:transform .18s ease; }
+  .sw.on{ background:var(--green); } .sw.on::after{ transform:translateX(18px); }
+  .sw:disabled{ opacity:.5; cursor:progress; }
+  .note{ font-size:12px; color:var(--ink-faint); margin-top:8px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div id="gate" class="gate" style="display:none;">
+  <h1>Command Center</h1>
+  <p id="gateMsg">Accès réservé aux administrateurs MediAI.</p>
+  <a href="/app?mode=login">Se connecter</a>
+</div>
+
+<div id="cc" class="wrap" style="display:none;">
+  <div class="cc-top">
+    <div class="cc-brand"><span class="logo">✦</span> MediAI <span class="tag">Command Center</span></div>
+    <div class="cc-who" id="ccWho"></div>
+  </div>
+
+  <h2 class="sec">Santé du système</h2>
+  <div class="grid" id="ccHealth"></div>
+
+  <h2 class="sec">Feature flags · activation sans redéploiement</h2>
+  <div class="card" id="ccFlags"></div>
+  <div class="note">Chaque bascule appelle l'API admin en direct : l'effet est immédiat pour tous les clients, sans redéploiement.</div>
+
+  <h2 class="sec">Feuille de route</h2>
+  <div class="card" id="ccRoadmap"></div>
+
+  <h2 class="sec">Produit &amp; utilisateurs</h2>
+  <div class="grid" id="ccMetrics"></div>
+  <div class="note">Ces indicateurs seront alimentés par la couche d'instrumentation (Vague 2 — architecture définie, sans collecte de donnée personnelle). Aucun chiffre n'est affiché tant qu'il n'est pas réellement mesuré.</div>
+</div>
+
+<script>
+const API_BASE = 'https://mediai-backend-156u.onrender.com';
+function tok(){ return localStorage.getItem('mediai_token'); }
+function authH(){ return { 'Authorization':'Bearer ' + (tok()||'') }; }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Feuille de route réelle (reflet de docs/). Statuts : done | wip | next | block.
+const ROADMAP = [
+  { s:'Sprint 16 · Project Renaissance', d:'Maturité : Design System v2, Trust Center, i18n, feature flags, Command Center', st:'wip' },
+  { s:'Sprint 15 · Patient Experience Revolution', d:'App patient autonome (15 étapes) + Mon Parcours Santé', st:'done' },
+  { s:'Sprint 14 · The First Impression', d:'Refonte de la landing publique', st:'done' },
+  { s:'Sprint 13 · Platform Experience', d:'Tarifs, assistant dashboard, pages plateforme', st:'done' },
+  { s:'Sprint 12 · Intelligence First', d:'Copilote clinique, ⌘K, dossier vivant', st:'done' },
+  { s:'Conformité HDS', d:'Bloqueur avant vrais patients : hébergement + transcription + socle RGPD', st:'block' },
+  { s:'Vague 2 · Plateforme', d:'Navigation 2 clics, IA en couche, moteur de notifications', st:'next' },
+  { s:'Vague 3 · Command Center complet', d:'Métriques produit réelles, déploiements, feedbacks', st:'next' },
+];
+const BADGE = { done:['b-done','Terminé'], wip:['b-wip','En cours'], next:['b-next','À venir'], block:['b-block','Bloqueur'] };
+
+async function boot(){
+  if(!tok()){ return showGate('Vous devez être connecté avec un compte administrateur.'); }
+  let me;
+  try{ const r = await fetch(API_BASE+'/api/auth/me', { headers:authH() }); if(!r.ok) throw 0; me = await r.json(); }
+  catch(e){ return showGate('Session expirée. Reconnectez-vous.'); }
+  if(!me || !me.isAdmin){
+    return showGate('Ce compte n\'est pas administrateur. Ajoutez votre email à la variable ADMIN_EMAILS du backend pour accéder au Command Center.');
+  }
+  document.getElementById('ccWho').textContent = me.email + ' · admin';
+  document.getElementById('cc').style.display = 'block';
+  renderHealth(); renderFlags(); renderRoadmap(); renderMetrics();
+}
+function showGate(msg){ document.getElementById('gateMsg').textContent = msg; document.getElementById('gate').style.display = 'block'; }
+
+async function renderHealth(){
+  const el = document.getElementById('ccHealth');
+  const t0 = performance.now();
+  let ok = false, ms = null;
+  try{ const r = await fetch(API_BASE+'/api/flags'); ok = r.ok; ms = Math.round(performance.now()-t0); }catch(e){}
+  const green = 'background:var(--green)', red = 'background:var(--rose)';
+  el.innerHTML =
+    stat('Backend', '<span class="dot" style="'+(ok?green:red)+'"></span>'+(ok?'Opérationnel':'Injoignable'), ok?('Réponse en '+ms+' ms'):'—')
+  + stat('Frontend', '<span class="dot" style="'+green+'"></span>Servi', 'Vercel · déploiement continu')
+  + stat('Base de données', '<span class="dot" style="'+(ok?green:red)+'"></span>'+(ok?'Connectée':'—'), 'PostgreSQL managé')
+  + stat('Conformité', '<span class="dot" style="background:var(--amber)"></span>HDS en cours', 'Données synthétiques uniquement');
+}
+function stat(k,v,s){ return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v" style="font-size:16px;">'+v+'</div><div class="s">'+esc(s)+'</div></div>'; }
+
+async function renderFlags(){
+  const el = document.getElementById('ccFlags');
+  let flags = {};
+  try{ const r = await fetch(API_BASE+'/api/flags'); flags = (await r.json()).flags || {}; }catch(e){ el.innerHTML='<div class="row"><div class="b"><div class="d">Flags indisponibles.</div></div></div>'; return; }
+  el.innerHTML = Object.keys(flags).map(function(k){
+    const f = flags[k];
+    return '<div class="row"><div class="b"><div class="t">'+esc(f.label)+'</div><div class="d">'+esc(k)+'</div></div>'
+      + '<button class="sw '+(f.enabled?'on':'')+'" data-key="'+esc(k)+'" onclick="toggleFlag(this)" aria-label="Basculer"></button></div>';
+  }).join('');
+}
+async function toggleFlag(btn){
+  const key = btn.dataset.key; const next = !btn.classList.contains('on');
+  btn.disabled = true;
+  try{
+    const r = await fetch(API_BASE+'/api/admin/flags/'+encodeURIComponent(key), { method:'PUT', headers:Object.assign({'Content-Type':'application/json'},authH()), body:JSON.stringify({enabled:next}) });
+    if(!r.ok) throw 0;
+    btn.classList.toggle('on', next);
+  }catch(e){ alert('Échec de la mise à jour du flag.'); }
+  finally{ btn.disabled = false; }
+}
+
+function renderRoadmap(){
+  document.getElementById('ccRoadmap').innerHTML = ROADMAP.map(function(r){
+    const b = BADGE[r.st];
+    return '<div class="row"><div class="b"><div class="t">'+esc(r.s)+'</div><div class="d">'+esc(r.d)+'</div></div><span class="badge '+b[0]+'">'+b[1]+'</span></div>';
+  }).join('');
+}
+function renderMetrics(){
+  const items = ['Utilisateurs actifs','Consultations générées','Ordonnances créées','Documents produits','Temps gagné estimé','Feedbacks'];
+  document.getElementById('ccMetrics').innerHTML = items.map(function(k){
+    return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v todo" style="font-size:16px;">À instrumenter</div><div class="s">Vague 2</div></div>';
+  }).join('');
+}
+boot();
+</script>
+</body>
+</html>
