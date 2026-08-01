@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Centre de confiance — MediAI</title>
+<meta name="description" content="Comment MediAI protège les données de santé — hébergement, sécurité, chiffrement, RGPD, disponibilité. En toute transparence.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/tokens.css">
+<style>
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:var(--sans); background:var(--paper); color:var(--ink); line-height:1.6; -webkit-font-smoothing:antialiased; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:920px; margin:0 auto; padding:0 24px; }
+
+  header{ display:flex; align-items:center; justify-content:space-between; padding:22px 0; }
+  .brand{ display:flex; align-items:center; gap:9px; font-weight:800; font-size:17px; letter-spacing:-.01em; }
+  .brand .logo{ width:30px; height:30px; border-radius:9px; background:var(--grad-primary); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; }
+  .lang{ display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:var(--r-full); padding:3px; }
+  .lang button{ border:none; background:none; font-family:inherit; font-size:12.5px; font-weight:700; color:var(--ink-soft); padding:6px 12px; border-radius:var(--r-full); cursor:pointer; }
+  .lang button.on{ background:var(--blue); color:#fff; }
+
+  .hero{ padding:40px 0 22px; }
+  .hero h1{ font-size:clamp(28px,5vw,40px); font-weight:800; letter-spacing:-.03em; line-height:1.1; }
+  .hero p{ font-size:16px; color:var(--ink-soft); margin-top:12px; max-width:620px; }
+
+  .status{ display:flex; align-items:center; gap:13px; background:var(--amber-tint); border:1px solid #FADFB2; border-radius:var(--r-lg); padding:16px 18px; margin:8px 0 36px; }
+  .status .dot{ width:10px; height:10px; border-radius:50%; background:var(--amber); flex:none; box-shadow:0 0 0 4px rgba(245,158,11,.15); }
+  .status .k{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#92610a; }
+  .status .v{ font-size:14.5px; font-weight:700; color:#7a5210; }
+
+  .grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  @media (max-width:680px){ .grid{ grid-template-columns:1fr; } }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); padding:22px; box-shadow:var(--shadow-sm); }
+  .card .ic{ width:42px; height:42px; border-radius:12px; background:var(--blue-tint); color:var(--blue); display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
+  .card h3{ font-size:16.5px; font-weight:800; letter-spacing:-.01em; margin-bottom:6px; }
+  .card p{ font-size:14px; color:var(--ink-soft); }
+
+  .foot{ margin:40px 0; padding:20px 22px; background:var(--blue-tint); border-radius:var(--r-lg); font-size:13.5px; color:var(--ink-soft); }
+  .back{ display:inline-block; margin:0 0 48px; font-size:14px; font-weight:700; color:var(--blue); }
+  svg{ width:22px; height:22px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="/"><span class="logo">✦</span> MediAI</a>
+    <div class="lang" id="langSwitch" role="group" aria-label="Langue / Language">
+      <button data-lang="fr" class="on">FR</button>
+      <button data-lang="en">EN</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1 data-i18n="trust.title">Centre de confiance</h1>
+    <p data-i18n="trust.subtitle">Comment MediAI protège les données de santé — en toute transparence.</p>
+  </section>
+
+  <div class="status">
+    <span class="dot"></span>
+    <div>
+      <div class="k" data-i18n="trust.status.label">Statut de conformité</div>
+      <div class="v" data-i18n="trust.status.value">Hébergement HDS en cours · données synthétiques uniquement</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6z"/></svg></div>
+      <h3 data-i18n="trust.hosting.h">Hébergement</h3>
+      <p data-i18n="trust.hosting.p"></p>
+    </div>
+    <div class="card">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <h3 data-i18n="trust.security.h">Sécurité</h3>
+      <p data-i18n="trust.security.p"></p>
+    </div>
+    <div class="card">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><circle cx="12" cy="16" r="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+      <h3 data-i18n="trust.encryption.h">Chiffrement</h3>
+      <p data-i18n="trust.encryption.p"></p>
+    </div>
+    <div class="card">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/></svg></div>
+      <h3 data-i18n="trust.rgpd.h">RGPD</h3>
+      <p data-i18n="trust.rgpd.p"></p>
+    </div>
+    <div class="card">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></div>
+      <h3 data-i18n="trust.backups.h">Sauvegardes</h3>
+      <p data-i18n="trust.backups.p"></p>
+    </div>
+    <div class="card">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+      <h3 data-i18n="trust.availability.h">Disponibilité</h3>
+      <p data-i18n="trust.availability.p"></p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="ic" style="background:var(--green-tint);color:var(--green-deep);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+    <h3 data-i18n="trust.incidents.h">Historique des incidents</h3>
+    <p data-i18n="trust.incidents.p"></p>
+  </div>
+
+  <div class="foot" data-i18n="trust.footer"></div>
+  <a class="back" href="/" data-i18n="trust.back">← Retour à l'accueil</a>
+</div>
+
+<script src="/i18n.js"></script>
+<script>
+  (function(){
+    const sw = document.getElementById('langSwitch');
+    function sync(){ sw.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.lang === MediaiI18n.lang); }); }
+    sw.addEventListener('click', function(e){ const b = e.target.closest('button'); if(!b) return; MediaiI18n.setLang(b.dataset.lang); sync(); });
+    sync();
+  })();
+</script>
+</body>
+</html>
