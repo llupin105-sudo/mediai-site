@@ -919,6 +919,10 @@
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
       <span class="label">Tableau de bord</span>
     </button>
+    <button class="sidebar-link" data-view="journal" data-tooltip="Journal du cabinet" onclick="switchAppView('journal')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 2v5h5"/><path d="M8 13h8M8 17h5"/></svg></span>
+      <span class="label">Journal</span>
+    </button>
     <button class="sidebar-link" data-view="patients" data-tooltip="Patients" onclick="switchAppView('patients')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
       <span class="label">Patients</span>
@@ -1226,6 +1230,9 @@
         </div>
       </div>
     </div>
+
+    <!-- Sprint 17 — Journal du cabinet -->
+    <div id="view-journal" class="app-view"></div>
 
     <!-- Sprint 13 — pages plateforme -->
     <div id="view-actions-center" class="app-view"></div>
@@ -1788,6 +1795,7 @@ const APP_VIEW_IDS = {
   dashboard: 'view-dashboard', patients: 'patientsSection', consultation: 'view-consultation',
   'ia-hub': 'view-ia-hub', 'parametres': 'view-parametres', documents: 'view-documents',
   'actions-center': 'view-actions-center', labs: 'view-labs', marketplace: 'view-marketplace',
+  journal: 'view-journal',
 };
 
 // Sprint 11 Étape 5 — les anciens sous-onglets Documents deviennent des
@@ -1816,6 +1824,7 @@ function switchAppView(viewName) {
   if (viewName === 'documents') {
     renderDocumentCenter();
   }
+  if (viewName === 'journal') { renderJournal(); }
   if (viewName === 'actions-center') { renderActionsCenter(); }
   if (viewName === 'labs') { renderLabs(); }
   if (viewName === 'marketplace') { renderMarketplace(); }
@@ -1827,6 +1836,63 @@ function switchAppView(viewName) {
   }
   // Ferme la sidebar mobile après un choix, si elle était ouverte en overlay
   document.getElementById('appSidebar')?.classList.remove('mobile-open');
+}
+
+// ══ Sprint 17 · Vague B — Journal du cabinet ══
+// « MediAI a travaillé pour vous » : activité réelle par période + temps
+// gagné en ESTIMATION TRANSPARENTE (hypothèses affichées, jamais mesuré).
+let journalData = null;
+let journalPeriod = 'today';
+const JOURNAL_TYPES = [
+  ['consultation', 'Comptes-rendus', '📄', 'var(--blue)', 'var(--blue-tint)'],
+  ['ordonnance', 'Ordonnances', '💊', 'var(--green-deep)', 'var(--green-tint)'],
+  ['analyse_labo', 'Analyses', '🔬', '#0284C7', '#E0F6FF'],
+  ['imagerie', 'Imagerie', '🩻', 'var(--pink)', 'var(--pink-tint)'],
+  ['courrier', 'Courriers', '✉️', '#92610a', 'var(--amber-tint)'],
+];
+function jFmtMin(m) { m = Math.round(m || 0); const h = Math.floor(m / 60), mm = m % 60; return h ? (h + ' h' + (mm ? ' ' + String(mm).padStart(2, '0') : '')) : (mm + ' min'); }
+async function renderJournal() {
+  const el = document.getElementById('view-journal'); if (!el) return;
+  el.innerHTML = `<div style="max-width:920px;margin:0 auto;padding:10px 4px 110px;"><div class="skel skel-line w-40"></div><div class="skel" style="height:120px;border-radius:20px;margin:16px 0"></div><div class="skel" style="height:200px;border-radius:20px"></div></div>`;
+  try {
+    const res = await fetch(API_BASE + '/api/journal', { headers: authHeaders() });
+    if (!res.ok) throw new Error();
+    journalData = await res.json();
+  } catch (e) {
+    el.innerHTML = `<div style="max-width:920px;margin:0 auto;padding:40px 4px;text-align:center;"><div style="font-size:30px">📔</div><div style="color:var(--ink-soft);margin:10px 0 14px">Impossible de charger le journal pour le moment.</div><button class="btn btn-ghost btn-sm" onclick="renderJournal()">Réessayer</button></div>`;
+    return;
+  }
+  paintJournal();
+}
+function setJournalPeriod(p) { journalPeriod = p; paintJournal(); }
+function paintJournal() {
+  const el = document.getElementById('view-journal'); if (!el || !journalData) return;
+  const counts = (journalData.periods && journalData.periods[journalPeriod]) || {};
+  const minutes = (journalData.estimation && journalData.estimation.minutes && journalData.estimation.minutes[journalPeriod]) || 0;
+  const H = journalData.estimation && journalData.estimation.hypotheses || {};
+  const periodLabel = { today: "aujourd'hui", week: 'cette semaine', month: 'ce mois-ci' }[journalPeriod];
+  const totalDocs = JOURNAL_TYPES.reduce((s, t) => s + (counts[t[0]] || 0), 0);
+  const tabs = [['today', "Aujourd'hui"], ['week', '7 jours'], ['month', '30 jours']]
+    .map(([k, lbl]) => `<button onclick="setJournalPeriod('${k}')" style="border:1.5px solid ${journalPeriod === k ? 'var(--blue)' : 'var(--paper-line)'};background:${journalPeriod === k ? 'var(--blue)' : 'var(--card)'};color:${journalPeriod === k ? '#fff' : 'var(--ink-soft)'};font-family:inherit;font-size:13px;font-weight:700;padding:8px 16px;border-radius:999px;cursor:pointer;">${lbl}</button>`).join('');
+  const cards = JOURNAL_TYPES.map((t) => {
+    const n = counts[t[0]] || 0;
+    return `<div style="background:var(--card);border:1px solid var(--paper-line);border-radius:16px;padding:16px;box-shadow:var(--shadow-xs);"><div style="width:38px;height:38px;border-radius:11px;background:${t[4]};color:${t[3]};display:grid;place-items:center;font-size:18px;margin-bottom:12px;">${t[2]}</div><div style="font-size:26px;font-weight:800;letter-spacing:-.02em;">${n}</div><div style="font-size:12.5px;color:var(--ink-soft);">${t[1]}</div></div>`;
+  }).join('');
+  const hypLine = JOURNAL_TYPES.filter((t) => H[t[0]]).map((t) => `${H[t[0]]} min/${t[1].toLowerCase().replace(/s$/, '')}`).join(' · ');
+  el.innerHTML = `<div style="max-width:920px;margin:0 auto;padding:10px 4px 110px;">
+    <div style="font-size:13px;color:var(--ink-faint);font-weight:500;">Journal du cabinet</div>
+    <h1 style="font-size:28px;font-weight:800;letter-spacing:-.025em;margin:4px 0 20px;">Ce que MediAI a fait pour vous</h1>
+    <div style="background:var(--grad-secondary);border-radius:20px;padding:24px 26px;color:#fff;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:22px;flex-wrap:wrap;">
+      <div><div style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;opacity:.9;">Temps gagné estimé · ${periodLabel}</div>
+      <div style="font-size:40px;font-weight:800;letter-spacing:-.03em;margin-top:2px;">${jFmtMin(minutes)}</div></div>
+      <div style="margin-left:auto;text-align:right;"><div style="font-size:34px;font-weight:800;">${totalDocs}</div><div style="font-size:12.5px;opacity:.92;">document${totalDocs > 1 ? 's' : ''} produit${totalDocs > 1 ? 's' : ''} ${periodLabel}</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin:20px 0 14px;">${tabs}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;">${cards}</div>
+    <div style="margin-top:18px;padding:14px 16px;background:var(--paper);border:1px solid var(--paper-line);border-radius:14px;font-size:12px;color:var(--ink-faint);line-height:1.6;">
+      <b style="color:var(--ink-soft);">Estimation à titre indicatif</b> — calculée sur le nombre de documents produits, <b>non mesurée</b>.<br>Hypothèses : ${hypLine}.
+    </div>
+  </div>`;
 }
 
 function toggleSidebar() {
