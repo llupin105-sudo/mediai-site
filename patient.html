@@ -191,6 +191,37 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
 .pa-inputbar button{ width:44px; height:44px; border:none; border-radius:50%; background:var(--blue); color:#fff; font-size:18px; cursor:pointer; flex:none; display:flex; align-items:center; justify-content:center; }
 .pa-inputbar button:disabled{ background:var(--ink-faint); }
 
+/* ── ③ Rendez-vous (cartes riches) ── */
+.rdv-card{ background:var(--card); border-radius:var(--r-lg); box-shadow:var(--shadow-sm); padding:18px; margin-bottom:14px; }
+.rdv-head{ display:flex; align-items:center; gap:13px; margin-bottom:14px; }
+.rdv-avatar{ width:46px; height:46px; border-radius:50%; background:var(--blue-tint); color:var(--blue); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; flex:none; }
+.rdv-doc{ font-size:15px; font-weight:800; letter-spacing:-.01em; }
+.rdv-spec{ font-size:12.5px; color:var(--ink-faint); }
+.rdv-badge{ margin-left:auto; font-size:11px; font-weight:700; padding:4px 11px; border-radius:var(--r-full); flex:none; }
+.rdv-when{ display:flex; gap:10px; margin-bottom:10px; }
+.rdv-when .cell{ flex:1; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-md); padding:11px 13px; }
+.rdv-when .k{ font-size:11px; color:var(--ink-faint); font-weight:700; text-transform:uppercase; letter-spacing:.02em; }
+.rdv-when .v{ font-size:14px; font-weight:700; margin-top:2px; }
+.rdv-meta{ font-size:13px; color:var(--ink-soft); display:flex; align-items:center; gap:7px; margin-top:4px; }
+.rdv-actions{ display:flex; gap:9px; margin-top:14px; }
+.rdv-btn{ flex:1; height:42px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--card); font-family:inherit; font-size:13.5px; font-weight:700; color:var(--ink); cursor:pointer; }
+.rdv-btn.primary{ background:var(--blue); border-color:var(--blue); color:#fff; }
+.rdv-btn:active{ transform:scale(.98); }
+
+/* ── ④ Traitements ── */
+.trt-card{ background:var(--card); border-radius:var(--r-lg); box-shadow:var(--shadow-sm); padding:18px; margin-bottom:14px; }
+.trt-head{ display:flex; align-items:center; gap:13px; }
+.trt-pill{ width:46px; height:46px; border-radius:14px; background:#EAFBF1; color:var(--green); display:flex; align-items:center; justify-content:center; font-size:22px; flex:none; }
+.trt-name{ font-size:15.5px; font-weight:800; letter-spacing:-.01em; }
+.trt-dose{ font-size:13px; color:var(--ink-soft); margin-top:1px; }
+.trt-times{ display:flex; gap:8px; margin-top:14px; }
+.trt-time{ flex:1; text-align:center; border:1.5px solid var(--line); border-radius:var(--r-md); padding:9px 6px; font-size:11.5px; font-weight:700; color:var(--ink-faint); line-height:1.5; }
+.trt-time.on{ border-color:var(--green); background:#EAFBF1; color:#0F7A3D; }
+.trt-meta{ margin-top:14px; padding-top:13px; border-top:1px solid var(--line); font-size:13px; display:flex; flex-direction:column; gap:7px; }
+.trt-meta .row{ display:flex; justify-content:space-between; gap:12px; }
+.trt-meta .lab{ color:var(--ink-faint); }
+.trt-meta .val{ font-weight:600; text-align:right; }
+
 .p-sidebar{ display:none; } /* masqué en mobile — la tabbar prend le relais */
 @media (min-width:820px){ body.pa-active .pa-inputbar{ left:220px; } }
 @media (min-width:820px){
@@ -339,6 +370,11 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
         <div class="p-greeting" style="font-size:20px; margin-bottom:16px;">Mes rendez-vous</div>
         <button onclick="showComingSoon('Prendre rendez-vous', 'La prise de rendez-vous en ligne arrive bientot. Pour l\'instant, contactez votre cabinet.')" style="width:100%; height:48px; border:none; border-radius:14px; background:var(--sage,#1460FF); color:#fff; font-family:inherit; font-size:15px; font-weight:600; cursor:pointer; margin-bottom:18px;">+ Prendre rendez-vous</button>
         <div class="p-card" id="pRdvList"></div>
+      </div>
+
+      <div class="p-view" id="pview-traitements">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Mes traitements</div>
+        <div id="pTrtList"></div>
       </div>
 
       <div class="p-view" id="pview-messages">
@@ -766,6 +802,8 @@ function switchPatientView(view){
   if (view === 'parcours') loadPatientParcours();
   if (view === 'sante') renderSanteHub();
   if (view === 'assistant') initPatientAssistant();
+  if (view === 'rdv') renderPatientRdv();
+  if (view === 'traitements') renderPatientTraitements();
 }
 
 // ── Hub « Santé » — point d'accès unique au suivi (façon réglages Apple) ──
@@ -781,7 +819,7 @@ function renderSanteHub(){
   const items = [
     { view:'parcours', ready:true, ico:'📖', bg:'#F3EEFF', fg:'var(--violet)', t:'Mon Parcours Santé', s:'Votre histoire de soin, expliquée' },
     { view:'rdv', ready:true, ico:'📅', bg:'#E7F0FF', fg:'var(--blue)', t:'Mes rendez-vous', s:rdvSub },
-    { view:'traitements', ready:false, ico:'💊', bg:'#EAFBF1', fg:'var(--green)', t:'Mes traitements', s: medCount ? medCount+' médicament'+(medCount>1?'s':'')+' en cours' : 'Aucun traitement' },
+    { view:'traitements', ready:true, ico:'💊', bg:'#EAFBF1', fg:'var(--green)', t:'Mes traitements', s: medCount ? medCount+' médicament'+(medCount>1?'s':'')+' en cours' : 'Aucun traitement' },
     { view:'resultats', ready:false, ico:'🔬', bg:'#E0F6FF', fg:'#0284C7', t:'Mes résultats', s: resCount ? resCount+' résultat'+(resCount>1?'s':'') : 'Aucun résultat' },
     { view:'evolution', ready:false, ico:'📈', bg:'#FDE7F3', fg:'var(--pink)', t:'Mon évolution', s:'Poids, tension, pouls…' },
     { view:'preparer', ready:false, ico:'📋', bg:'#FEF3E2', fg:'var(--amber)', t:'Préparer ma consultation', s:'Avant votre prochain rendez-vous' },
@@ -921,17 +959,81 @@ function renderNextRdv(){
 }
 function renderPatientRdv(){
   const el = document.getElementById('pRdvList'); if(!el) return;
-  if(!patientAppointments.length){ el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">Cal</div>Aucun rendez-vous pour le moment.</div>'; return; }
-  const sorted = patientAppointments.slice().sort(function(a,b){ return new Date(b.start_at)-new Date(a.start_at); });
-  el.innerHTML = sorted.map(function(a){
-    const past = new Date(a.start_at).getTime() < Date.now();
-    return '<div class="p-doc-row">'+
-      '<div class="p-doc-icon tp-consultation">Cal</div>'+
-      '<div class="p-doc-body"><div class="p-doc-title">'+new Date(a.start_at).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+' a '+new Date(a.start_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</div>'+
-      '<div class="p-doc-sub">'+escapeHtmlP(a.motif||'Consultation')+' - '+apptStatusFr(a.status)+'</div></div>'+
-      '<div class="p-doc-date">'+(past?'passe':'a venir')+'</div>'+
-    '</div>';
-  }).join('');
+  if(!patientAppointments.length){ el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">\u{1F4C5}</div>Aucun rendez-vous pour le moment.</div>'; return; }
+  const now = Date.now();
+  const upcoming = patientAppointments.filter(function(a){ return new Date(a.start_at).getTime()>=now && a.status!=='annule'; }).sort(function(a,b){ return new Date(a.start_at)-new Date(b.start_at); });
+  const past = patientAppointments.filter(function(a){ return new Date(a.start_at).getTime()<now || a.status==='annule'; }).sort(function(a,b){ return new Date(b.start_at)-new Date(a.start_at); });
+  const doc = (medecinInfo && medecinInfo.nom) || 'Votre médecin';
+  const spec = (medecinInfo && medecinInfo.specialite) || '';
+  const initials = (doc.replace(/^Dr\.?\s*/i,'').trim().split(/\s+/).map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase()) || 'Dr';
+  function card(a){
+    const isPast = new Date(a.start_at).getTime() < now;
+    const dt = new Date(a.start_at);
+    const dur = a.end_at ? Math.round((new Date(a.end_at)-dt)/60000) : null;
+    const modeLabel = ({ cabinet:'Au cabinet', video:'Téléconsultation', telephone:'Par téléphone', visite:'Visite à domicile' })[a.mode] || 'Au cabinet';
+    const bd = a.status==='annule' ? ['#FEECEC','#DC2626','Annulé'] : a.status==='termine' ? ['#EEF1F6','#5B6472','Terminé'] : a.status==='confirme' ? ['#E9F9EF','#0F7A3D','Confirmé'] : isPast ? ['#EEF1F6','#5B6472','Passé'] : ['#E7F0FF','#1460FF','Planifié'];
+    return '<div class="rdv-card">'
+      +'<div class="rdv-head"><div class="rdv-avatar">'+escapeHtmlP(initials)+'</div><div style="min-width:0;"><div class="rdv-doc">'+escapeHtmlP(doc)+'</div><div class="rdv-spec">'+escapeHtmlP(spec||modeLabel)+'</div></div><div class="rdv-badge" style="background:'+bd[0]+';color:'+bd[1]+';">'+bd[2]+'</div></div>'
+      +'<div class="rdv-when"><div class="cell"><div class="k">Date</div><div class="v">'+dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'long'})+'</div></div><div class="cell"><div class="k">Heure</div><div class="v">'+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(dur?' · '+dur+' min':'')+'</div></div></div>'
+      + (a.motif ? '<div class="rdv-meta">\u{1F4DD} '+escapeHtmlP(a.motif)+'</div>' : '')
+      + '<div class="rdv-meta">\u{1F4CD} '+escapeHtmlP((a.mode && a.mode!=='cabinet') ? modeLabel : ((medecinInfo && medecinInfo.cabinet) || modeLabel))+'</div>'
+      + (!isPast && a.status!=='annule' ? '<div class="rdv-actions"><button class="rdv-btn primary" onclick="addRdvToCalendar(\''+a.id+'\')">\u{1F4C5} Ajouter au calendrier</button></div>' : '')
+      + '</div>';
+  }
+  let html = '';
+  if (upcoming.length) html += '<div class="p-section-label" style="margin-top:0;">À venir</div>' + upcoming.map(card).join('');
+  if (past.length) html += '<div class="p-section-label">Passés</div>' + past.map(card).join('');
+  el.innerHTML = html;
+}
+
+// Export .ics — le patient ajoute son propre rendez-vous à son agenda.
+function icsEsc(s){ return String(s||'').replace(/([\\;,])/g,'\\$1').replace(/\n/g,'\\n'); }
+function addRdvToCalendar(id){
+  const a = (patientAppointments||[]).find(function(x){ return String(x.id)===String(id); }); if(!a) return;
+  const fmt = function(d){ return new Date(d).toISOString().replace(/[-:]/g,'').split('.')[0]+'Z'; };
+  const end = a.end_at || new Date(new Date(a.start_at).getTime()+30*60000).toISOString();
+  const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//MediAI//Patient//FR','BEGIN:VEVENT',
+    'UID:'+(a.id||Date.now())+'@mediai','DTSTAMP:'+fmt(new Date()),'DTSTART:'+fmt(a.start_at),'DTEND:'+fmt(end),
+    'SUMMARY:'+icsEsc('Rendez-vous médical'+(a.motif?' — '+a.motif:'')),
+    'LOCATION:'+icsEsc((medecinInfo && medecinInfo.cabinet) || ''),
+    'DESCRIPTION:'+icsEsc('Avec '+((medecinInfo && medecinInfo.nom) || 'votre médecin')),
+    'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const blob = new Blob([ics], { type:'text/calendar' });
+  const url = URL.createObjectURL(blob); const link = document.createElement('a');
+  link.href = url; link.download = 'rendez-vous.ics'; document.body.appendChild(link); link.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); link.remove(); }, 120);
+  if (navigator.vibrate) navigator.vibrate(10);
+}
+
+// ── ④ Traitements — d'après la dernière ordonnance réelle ──
+function parsePosologie(txt){
+  const t = (txt||'').toLowerCase();
+  return { matin:/matin/.test(t), midi:/midi/.test(t), soir:/soir/.test(t) };
+}
+function renderPatientTraitements(){
+  const el = document.getElementById('pTrtList'); if(!el) return;
+  const lastOrd = (patientEvents||[]).find(function(e){ return e.type==='ordonnance'; });
+  const meds = lastOrd && lastOrd.data && Array.isArray(lastOrd.data.prescriptions) ? lastOrd.data.prescriptions.filter(function(p){ return p.medicament; }) : [];
+  if (!meds.length) { el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">\u{1F48A}</div>Aucun traitement en cours enregistré.</div>'; return; }
+  const presc = (medecinInfo && medecinInfo.nom) || 'Votre médecin';
+  const dateStr = lastOrd.event_date ? new Date(lastOrd.event_date).toLocaleDateString('fr-FR',{ day:'numeric', month:'long', year:'numeric' }) : '';
+  el.innerHTML = '<div class="p-greeting-sub" style="margin:-2px 0 16px;">D\'après votre dernière ordonnance'+(dateStr?' du '+dateStr:'')+'.</div>'
+    + meds.map(function(m){
+      const p = parsePosologie(m.posologie);
+      const anyTime = p.matin || p.midi || p.soir;
+      const times = anyTime ? '<div class="trt-times">'
+        + '<div class="trt-time '+(p.matin?'on':'')+'">☀️<br>Matin</div>'
+        + '<div class="trt-time '+(p.midi?'on':'')+'">\u{1F324}️<br>Midi</div>'
+        + '<div class="trt-time '+(p.soir?'on':'')+'">\u{1F319}<br>Soir</div>'
+        + '</div>' : '';
+      return '<div class="trt-card"><div class="trt-head"><div class="trt-pill">\u{1F48A}</div><div style="min-width:0;"><div class="trt-name">'+escapeHtmlP(m.medicament)+'</div><div class="trt-dose">'+escapeHtmlP(m.posologie||"Voir l'ordonnance")+'</div></div></div>'
+        + times
+        + '<div class="trt-meta">'
+          + (m.duree ? '<div class="row"><span class="lab">Durée</span><span class="val">'+escapeHtmlP(m.duree)+'</span></div>' : '')
+          + '<div class="row"><span class="lab">Prescrit par</span><span class="val">'+escapeHtmlP(presc)+'</span></div>'
+          + '<div class="row"><span class="lab">Notice & effets</span><span class="val" style="color:var(--ink-faint);font-weight:500;">À demander à votre pharmacien</span></div>'
+        + '</div></div>';
+    }).join('');
 }
 async function loadPatientThreads(){
   try { const res = await fetch(API_BASE + '/api/patient/threads', { headers: authHeaders() }); const d = await res.json(); patientThreads = d.items || []; }
