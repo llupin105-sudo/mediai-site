@@ -115,14 +115,16 @@ function showGate(msg){ document.getElementById('gateMsg').textContent = msg; do
 async function renderHealth(){
   const el = document.getElementById('ccHealth');
   const t0 = performance.now();
-  let ok = false, ms = null;
-  try{ const r = await fetch(API_BASE+'/api/flags'); ok = r.ok; ms = Math.round(performance.now()-t0); }catch(e){}
-  const green = 'background:var(--green)', red = 'background:var(--rose)';
+  let ok = false, ms = null, h = null;
+  try{ const r = await fetch(API_BASE+'/health'); ms = Math.round(performance.now()-t0); if(r.ok){ h = await r.json(); ok = true; } }catch(e){}
+  const dbOk = !!(h && /connect/i.test(h.database||''));
+  const green = 'background:var(--green)', red = 'background:var(--rose)', amber = 'background:var(--amber)';
+  function d(cond){ return '<span class="dot" style="'+(cond?green:red)+'"></span>'; }
   el.innerHTML =
-    stat('Backend', '<span class="dot" style="'+(ok?green:red)+'"></span>'+(ok?'Opérationnel':'Injoignable'), ok?('Réponse en '+ms+' ms'):'—')
+    stat('Backend', d(ok)+(ok?'Opérationnel':'Injoignable'), ok?('v'+((h&&h.version)||'?')+' · '+ms+' ms'):'—')
+  + stat('Base de données', d(dbOk)+(dbOk?'Connectée':'—'), (h&&h.database)||'PostgreSQL managé')
   + stat('Frontend', '<span class="dot" style="'+green+'"></span>Servi', 'Vercel · déploiement continu')
-  + stat('Base de données', '<span class="dot" style="'+(ok?green:red)+'"></span>'+(ok?'Connectée':'—'), 'PostgreSQL managé')
-  + stat('Conformité', '<span class="dot" style="background:var(--amber)"></span>HDS en cours', 'Données synthétiques uniquement');
+  + stat('Conformité', '<span class="dot" style="'+amber+'"></span>HDS en cours', (h&&h.data_policy==='synthetic-only')?'Données synthétiques uniquement':'Données synthétiques uniquement');
 }
 function stat(k,v,s){ return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v" style="font-size:16px;">'+v+'</div><div class="s">'+esc(s)+'</div></div>'; }
 
