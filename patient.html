@@ -222,6 +222,18 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
 .trt-meta .lab{ color:var(--ink-faint); }
 .trt-meta .val{ font-weight:600; text-align:right; }
 
+/* ── ⑮ Bannière proactive contextuelle (accueil) ── */
+.care-banner{ display:flex; align-items:center; gap:12px; background:linear-gradient(135deg,#EAF3FF,#F3EEFF); border:1px solid #DCE8FF; border-radius:var(--r-md); padding:13px 15px; margin:14px 0 2px; cursor:pointer; transition:transform .12s ease; }
+.care-banner:active{ transform:scale(.99); }
+.care-banner .ci{ font-size:22px; flex:none; }
+.care-banner .ct{ font-size:13.5px; font-weight:800; color:var(--navy); letter-spacing:-.01em; }
+.care-banner .cs{ font-size:12px; color:var(--ink-soft); margin-top:1px; }
+.care-banner .cgo{ margin-left:auto; color:var(--blue); font-size:22px; flex:none; }
+
+/* ── ⑭ Accessibilité & confort ── */
+:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; border-radius:4px; }
+@media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation-duration:.001ms !important; transition-duration:.001ms !important; } html{ scroll-behavior:auto; } }
+
 /* ── ⑦ Préparer ma consultation (checklist) ── */
 .prep-check{ display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); cursor:pointer; }
 .prep-check:last-child{ border-bottom:none; }
@@ -306,6 +318,9 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
       <div class="p-view visible" id="pview-accueil">
         <div class="p-greeting" id="pGreeting">Bonjour</div>
         <div class="p-greeting-sub" id="pGreetingSub"></div>
+
+        <!-- ⑮ Bannière proactive contextuelle -->
+        <div id="pCareBanner"></div>
 
         <!-- ❤️ État de santé -->
         <div class="ph-hero" id="phHero"></div>
@@ -667,7 +682,23 @@ function renderPatientHomeCards(){
   renderPatientNextRdvTile();
   renderPatientTodayTreatment();
   renderPatientMiniTrends();
+  renderPatientCareBanner();
   if (typeof updateNotifBadge === 'function') updateNotifBadge();
+}
+
+// ⑮ Carte blanche — une seule attention proactive, la plus utile du moment,
+// entièrement dérivée des données réelles (jamais inventée).
+function renderPatientCareBanner(){
+  const el = document.getElementById('pCareBanner'); if(!el) return;
+  const now = Date.now();
+  const next = (patientAppointments||[]).filter(function(a){ return a.status!=='annule' && new Date(a.start_at).getTime()>now; }).sort(function(a,b){ return new Date(a.start_at)-new Date(b.start_at); })[0];
+  const days = next ? Math.ceil((new Date(next.start_at).getTime()-now)/86400000) : null;
+  const newRes = (patientEvents||[]).filter(function(e){ return (e.type==='analyse_labo'||e.type==='imagerie') && (now-new Date(e.event_date).getTime())/86400000 <= 3; })[0];
+  let b = null;
+  if (next && days <= 2) b = { ci:'📅', ct: days<=0?"Votre rendez-vous est aujourd'hui" : days===1?'Votre rendez-vous est demain' : 'Votre rendez-vous approche', cs:'Préparez votre consultation en 1 minute', act:"switchPatientView('preparer')" };
+  else if (newRes) b = { ci:'🔬', ct:'Un nouveau résultat est disponible', cs:escapeHtmlP(newRes.title)+' · à interpréter avec votre médecin', act:"switchPatientView('resultats')" };
+  if (!b) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="care-banner" onclick="'+b.act+'"><span class="ci">'+b.ci+'</span><div style="min-width:0;"><div class="ct">'+b.ct+'</div><div class="cs">'+b.cs+'</div></div><span class="cgo">›</span></div>';
 }
 
 function renderPatientHealthState(){
@@ -759,57 +790,6 @@ async function loadPatientTimeline(){
 
 const TYPE_ICONS = { consultation:'Doc', ordonnance:'Rx', courrier:'Mail', analyse_labo:'Lab', imagerie:'Img' };
 const TYPE_LABELS = { consultation:'Compte-rendu', ordonnance:'Ordonnance', courrier:'Courrier', analyse_labo:'Analyse', imagerie:'Imagerie' };
-
-// Sprint 12 Étape 11 — Patient 2.0 : briefing proactif sur l'accueil.
-// 100 % factuel/déterministe. Pas d'observance (« bien suivi ») ni de
-// questionnaire : ces données n'existent pas — on ne les invente pas.
-function renderPatientBriefing(){
-  const el = document.getElementById('pBriefing');
-  if (!el) return;
-  const now = Date.now();
-  const rows = [];
-  // Votre prochain rendez-vous
-  const nextRdv = (patientAppointments || [])
-    .filter(function(a){ return a.status !== 'annule' && new Date(a.start_at).getTime() > now; })
-    .sort(function(a,b){ return new Date(a.start_at) - new Date(b.start_at); })[0];
-  if (nextRdv) {
-    const days = Math.ceil((new Date(nextRdv.start_at).getTime() - now) / 86400000);
-    const quand = days <= 0 ? "aujourd'hui" : days === 1 ? 'demain' : 'dans ' + days + ' jours';
-    const dateStr = new Date(nextRdv.start_at).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' }) + ' à ' + new Date(nextRdv.start_at).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-    rows.push({ icon:'\u{1F4C5}', k:'Votre prochain rendez-vous', v: quand.charAt(0).toUpperCase() + quand.slice(1) + ' — ' + dateStr + (nextRdv.motif ? ' (' + nextRdv.motif + ')' : '') });
-  }
-  // Votre traitement
-  const lastOrd = (patientEvents || []).find(function(e){ return e.type === 'ordonnance'; });
-  const meds = lastOrd && lastOrd.data && Array.isArray(lastOrd.data.prescriptions)
-    ? lastOrd.data.prescriptions.map(function(p){ return p.medicament; }).filter(Boolean) : [];
-  if (meds.length) rows.push({ icon:'\u{1F48A}', k:'Votre traitement', v: meds.join(', ') });
-  // N'oubliez pas
-  const recentRes = (patientEvents || []).filter(function(e){ return (e.type === 'analyse_labo' || e.type === 'imagerie') && (now - new Date(e.event_date).getTime()) / 86400000 <= 14; });
-  if (recentRes.length) rows.push({ icon:'\u{2705}', k:"N'oubliez pas", v:'Un nouveau résultat est disponible dans vos documents.' });
-  else if (nextRdv) { const dd = Math.ceil((new Date(nextRdv.start_at).getTime() - now) / 86400000); if (dd <= 2) rows.push({ icon:'\u{2705}', k:"N'oubliez pas", v:'Pensez à préparer votre rendez-vous à venir.' }); }
-  if (!rows.length) { el.innerHTML = ''; return; }
-  el.innerHTML = '<div style="background:#F2F5FA;border-radius:16px;padding:16px 18px;margin:14px 0 4px;display:flex;flex-direction:column;gap:13px;">'
-    + rows.map(function(r){ return '<div style="display:flex;align-items:flex-start;gap:12px;"><span style="font-size:17px;flex:none;line-height:1.3;">' + r.icon + '</span><div style="min-width:0;"><div style="font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#8A97AA;margin-bottom:2px;">' + escapeHtmlP(r.k) + '</div><div style="font-size:14.5px;color:#0A1128;line-height:1.45;">' + escapeHtmlP(r.v) + '</div></div></div>'; }).join('')
-    + '</div>';
-}
-function renderPatientTreatments(){
-  const el = document.getElementById('pTreatments');
-  if (!el) return;
-  const lastOrdonnance = patientEvents.find(function(e){ return e.type === 'ordonnance'; });
-  if (!lastOrdonnance || !lastOrdonnance.data.prescriptions || lastOrdonnance.data.prescriptions.length === 0) {
-    el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">Rx</div>Aucun traitement en cours enregistre.</div>';
-    return;
-  }
-  el.innerHTML = lastOrdonnance.data.prescriptions.map(function(rx){
-    return '<div class="p-treatment-pill">' +
-      '<div class="p-treatment-dot"></div>' +
-      '<div style="flex:1;">' +
-        '<div class="p-treatment-name">' + rx.medicament + '</div>' +
-        '<div class="p-treatment-dose">' + (rx.posologie || '') + ' ' + (rx.duree ? '- ' + rx.duree : '') + '</div>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
 
 function renderPatientRecentDocs(){
   const el = document.getElementById('pRecentDocs');
@@ -1128,6 +1108,7 @@ function switchPatientView(view){
   document.querySelectorAll('.p-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.view === tabKey); });
   document.body.classList.toggle('pa-active', view === 'assistant');
   window.scrollTo({ top:0, behavior:'auto' });
+  if (navigator.vibrate) navigator.vibrate(5);
   if (view === 'parcours') loadPatientParcours();
   if (view === 'sante') renderSanteHub();
   if (view === 'assistant') initPatientAssistant();
@@ -1282,17 +1263,8 @@ function showComingSoon(title, text){ pModal(title, '<div style="font-size:14px;
 async function loadPatientAppointments(){
   try { const res = await fetch(API_BASE + '/api/patient/appointments', { headers: authHeaders() }); const d = await res.json(); patientAppointments = d.items || []; }
   catch(e){ patientAppointments = []; }
-  renderPatientNextRdvTile(); renderNextRdv(); renderPatientRdv();
+  renderPatientNextRdvTile(); renderPatientRdv();
   if (typeof updateNotifBadge === 'function') updateNotifBadge();
-}
-function renderNextRdv(){
-  const el = document.getElementById('pNextRdv'); if(!el) return;
-  const now = Date.now();
-  const next = patientAppointments.filter(function(a){ return a.status!=='annule' && new Date(a.start_at).getTime()>now; }).sort(function(a,b){ return new Date(a.start_at)-new Date(b.start_at); })[0];
-  const t = el.querySelector('.p-rdv-title'), s = el.querySelector('.p-rdv-sub');
-  if(!next){ t.textContent = 'Aucun rendez-vous programme'; s.textContent = 'Voir mes rendez-vous'; return; }
-  t.textContent = 'Prochain rendez-vous';
-  s.textContent = new Date(next.start_at).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) + ' a ' + new Date(next.start_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) + (next.motif?' - '+next.motif:'');
 }
 function renderPatientRdv(){
   const el = document.getElementById('pRdvList'); if(!el) return;
@@ -1441,7 +1413,7 @@ async function pollPatientUpdates(){
     if (res.ok) {
       const items = (await res.json()).items || [];
       const fresh = items.filter(function(a){ return !patientSeen.appts.has(a.id); });
-      patientAppointments = items; renderPatientNextRdvTile(); renderNextRdv(); renderPatientRdv();
+      patientAppointments = items; renderPatientNextRdvTile(); renderPatientRdv();
       if (fresh.length) { fresh.forEach(function(a){ patientSeen.appts.add(a.id); }); pToast('Nouveau rendez-vous programmé'); }
     }
   } catch(e){}
