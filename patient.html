@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/tokens.css">
 <script defer src="/flags.js"></script>
+<script defer src="/notif-engine.js"></script>
 <style>
 :root{
   --navy:#0A1128; --blue:#1460FF; --blue-light:#00C6FF; --blue-tint:#EAF3FF;
@@ -1012,28 +1013,46 @@ function renderPatientPreparer(){
 
 // ── ⑧ Notifications intelligentes (dérivées, déterministes) ──
 const NOTIF_TYPE = { consultation:['📄','#EAF1FF','#1460FF'], ordonnance:['💊','#EAFBF1','#22C55E'], courrier:['✉️','#FEF3E2','#F59E0B'], analyse_labo:['🔬','#E0F6FF','#0284C7'], imagerie:['🩻','#FDE7F3','#EC4899'] };
+// Sources brutes (faits réels) → le moteur (notif-engine.js) décide de la
+// priorité, dédupe, plafonne et gère les « non lus ». Jamais de bruit.
 function computePatientNotifs(){
   const now=Date.now(); const out=[];
   (patientEvents||[]).forEach(function(e){
     const t=new Date(e.event_date).getTime(); const age=(now-t)/86400000;
     if(age>=0 && age<=21){ const isRes=e.type==='analyse_labo'||e.type==='imagerie'; const meta=NOTIF_TYPE[e.type]||['📄','#EEF1F6','#5B6472'];
-      out.push({ ico:meta[0], bg:meta[1], fg:meta[2], t:isRes?'Nouveau résultat disponible':'Nouveau document', s:e.title, ts:t, act:"openPatientDoc('"+e.id+"')" }); }
+      out.push({ id:e.id, kind:isRes?'result':'doc', priority:isRes?'high':'info', ico:meta[0], bg:meta[1], fg:meta[2], t:isRes?'Nouveau résultat disponible':'Nouveau document', s:e.title, ts:t, act:"openPatientDoc('"+e.id+"')" }); }
   });
   (patientAppointments||[]).forEach(function(a){
     const t=new Date(a.start_at).getTime(); const dd=(t-now)/86400000;
-    if(a.status!=='annule' && dd>=0 && dd<=7){ out.push({ ico:'📅', bg:'#E7F0FF', fg:'#1460FF', t:'Rendez-vous à venir', s:new Date(a.start_at).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(a.motif?' · '+a.motif:''), ts:t, act:"switchPatientView('rdv')", future:true }); }
+    if(a.status!=='annule' && dd>=0 && dd<=7){ out.push({ id:'rdv-'+a.id, kind:'rdv', priority: dd<=2?'urgent':'high', ico:'📅', bg:'#E7F0FF', fg:'#1460FF', t:'Rendez-vous à venir', s:new Date(a.start_at).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(a.motif?' · '+a.motif:''), ts:t, act:"switchPatientView('rdv')", future:true }); }
   });
-  return out.sort(function(a,b){ return (b.future?Number.MAX_SAFE_INTEGER:b.ts) - (a.future?Number.MAX_SAFE_INTEGER:a.ts); });
+  return out;
+}
+const NOTIF_SEEN_KEY='mediai_patient_notif_seen';
+function patientNotifModel(){
+  const raw=computePatientNotifs();
+  if(!window.MediaiNotif) return { items:raw.slice(0,12), total:raw.length, hidden:0 };
+  return MediaiNotif.build(raw, { cap:12 });
 }
 function renderPatientNotifications(){
   const el=document.getElementById('pNotifs'); if(!el) return;
-  const ns=computePatientNotifs();
-  if(!ns.length){ el.innerHTML='<div class="p-empty"><div class="p-empty-icon">🔔</div>Aucune notification pour le moment.</div>'; return; }
-  el.innerHTML='<div class="sante-group">'+ns.map(function(n){ const when=n.future?'À venir':pAgo(n.ts);
-    return '<div class="sante-row" onclick="'+n.act+'"><div class="sante-ico" style="background:'+n.bg+';color:'+n.fg+';">'+n.ico+'</div><div class="b"><div class="t">'+escapeHtmlP(n.t)+'</div><div class="s">'+escapeHtmlP(n.s)+'</div></div><div class="s" style="flex:none;align-self:center;">'+escapeHtmlP(when)+'</div></div>';
+  const ns=patientNotifModel().items;
+  if(!ns.length){ el.innerHTML='<div class="p-empty"><div class="p-empty-icon">🔔</div>Aucune notification pour le moment.</div>'; if(window.MediaiNotif) MediaiNotif.markAllSeen(ns,NOTIF_SEEN_KEY); updateNotifBadge(); return; }
+  const accent={ urgent:'var(--rose)', high:'var(--blue)' };
+  el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin:-2px 0 12px;"><div class="p-greeting-sub" style="margin:0;">'+ns.length+' notification'+(ns.length>1?'s':'')+'</div><button onclick="markPatientNotifsRead()" style="border:none;background:none;color:var(--blue);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">Tout marquer comme lu</button></div>'
+    +'<div class="sante-group">'+ns.map(function(n){ const when=n.future?'À venir':pAgo(n.ts); const bl=accent[n.priority]?('border-left:3px solid '+accent[n.priority]+';'):'';
+    return '<div class="sante-row" style="'+bl+'" onclick="'+n.act+'"><div class="sante-ico" style="background:'+n.bg+';color:'+n.fg+';">'+n.ico+'</div><div class="b"><div class="t">'+escapeHtmlP(n.t)+'</div><div class="s">'+escapeHtmlP(n.s)+'</div></div><div class="s" style="flex:none;align-self:center;">'+escapeHtmlP(when)+'</div></div>';
   }).join('')+'</div>';
+  if(window.MediaiNotif) MediaiNotif.markAllSeen(ns,NOTIF_SEEN_KEY);
+  updateNotifBadge();
 }
-function updateNotifBadge(){ const b=document.getElementById('pBellBadge'); if(!b) return; const c=computePatientNotifs().length; b.textContent=c>9?'9+':String(c); b.style.display=c?'flex':'none'; }
+function markPatientNotifsRead(){ if(window.MediaiNotif) MediaiNotif.markAllSeen(patientNotifModel().items,NOTIF_SEEN_KEY); updateNotifBadge(); }
+function updateNotifBadge(){
+  const b=document.getElementById('pBellBadge'); if(!b) return;
+  const items=patientNotifModel().items;
+  const c=window.MediaiNotif ? MediaiNotif.unreadCount(items,NOTIF_SEEN_KEY) : items.length;
+  b.textContent=c>9?'9+':String(c); b.style.display=c?'flex':'none';
+}
 function initTopbarBell(){
   const bar=document.querySelector('.p-main .p-topbar'); if(!bar || document.getElementById('pBell')) return;
   const btn=document.createElement('button'); btn.id='pBell'; btn.setAttribute('aria-label','Notifications');
