@@ -76,7 +76,7 @@
 
   <h2 class="sec">Produit &amp; utilisateurs</h2>
   <div class="grid" id="ccMetrics"></div>
-  <div class="note">Ces indicateurs seront alimentés par la couche d'instrumentation (Vague 2 — architecture définie, sans collecte de donnée personnelle). Aucun chiffre n'est affiché tant qu'il n'est pas réellement mesuré.</div>
+  <div class="note">Compteurs agrégés réels issus de la base (aucune donnée personnelle, aucun contenu clinique). Le « temps gagné » et les feedbacks restent « À instrumenter » tant qu'ils ne sont pas réellement mesurés — jamais de chiffre inventé (ADR-003).</div>
 </div>
 
 <script>
@@ -155,11 +155,26 @@ function renderRoadmap(){
     return '<div class="row"><div class="b"><div class="t">'+esc(r.s)+'</div><div class="d">'+esc(r.d)+'</div></div><span class="badge '+b[0]+'">'+b[1]+'</span></div>';
   }).join('');
 }
-function renderMetrics(){
-  const items = ['Utilisateurs actifs','Consultations générées','Ordonnances créées','Documents produits','Temps gagné estimé','Feedbacks'];
-  document.getElementById('ccMetrics').innerHTML = items.map(function(k){
-    return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v todo" style="font-size:16px;">À instrumenter</div><div class="s">Vague 2</div></div>';
-  }).join('');
+async function renderMetrics(){
+  const el = document.getElementById('ccMetrics');
+  let m = null;
+  try{ const r = await fetch(API_BASE+'/api/admin/metrics', { headers:authH() }); if(r.ok) m = (await r.json()).metrics; }catch(e){}
+  function real(k, v, s){ return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v">'+v+'</div><div class="s">'+esc(s)+'</div></div>'; }
+  function todo(k, s){ return '<div class="stat"><div class="k">'+esc(k)+'</div><div class="v todo" style="font-size:16px;">À instrumenter</div><div class="s">'+esc(s)+'</div></div>'; }
+  if(!m){
+    el.innerHTML = todo('Métriques','Connexion admin requise') ;
+    return;
+  }
+  const bt = m.eventsByType || {};
+  el.innerHTML =
+    real('Comptes médecins', m.users, 'Base de données')
+  + real('Patients', m.patients, 'Dossiers créés')
+  + real('Documents produits', m.events, 'Comptes-rendus, ordonnances, résultats…')
+  + real('Comptes-rendus', bt.consultation||0, 'Type : consultation')
+  + real('Ordonnances', bt.ordonnance||0, 'Type : ordonnance')
+  + real('Rendez-vous', m.appointments, 'Planifiés/passés')
+  + todo('Temps gagné estimé', 'Nécessite instrumentation (ADR-003)')
+  + todo('Feedbacks', 'Nécessite instrumentation (ADR-003)');
 }
 boot();
 </script>
