@@ -222,6 +222,14 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
 .trt-meta .lab{ color:var(--ink-faint); }
 .trt-meta .val{ font-weight:600; text-align:right; }
 
+/* ── ⑦ Préparer ma consultation (checklist) ── */
+.prep-check{ display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+.prep-check:last-child{ border-bottom:none; }
+.prep-box{ width:22px; height:22px; border-radius:7px; border:2px solid var(--line); flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fff; transition:all .12s ease; margin-top:1px; }
+.prep-check.done .prep-box{ background:var(--green); border-color:var(--green); }
+.prep-check.done .prep-label{ color:var(--ink-faint); text-decoration:line-through; }
+.prep-label{ font-size:14px; font-weight:600; line-height:1.4; }
+
 .p-sidebar{ display:none; } /* masqué en mobile — la tabbar prend le relais */
 @media (min-width:820px){ body.pa-active .pa-inputbar{ left:220px; } }
 @media (min-width:820px){
@@ -383,6 +391,23 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
         <div id="pResList"></div>
       </div>
 
+      <div class="p-view" id="pview-preparer">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Préparer ma consultation</div>
+        <div class="p-greeting-sub" style="margin-bottom:16px;">Quelques réflexes pour un rendez-vous efficace.</div>
+        <div id="pPrep"></div>
+      </div>
+
+      <div class="p-view" id="pview-notifications">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:16px;">Notifications</div>
+        <div id="pNotifs"></div>
+      </div>
+
+      <div class="p-view" id="pview-historique">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Mon historique</div>
+        <div class="p-greeting-sub" style="margin-bottom:18px;">Tous vos événements de santé, du plus récent au plus ancien.</div>
+        <div class="p-timeline" id="pHisto"></div>
+      </div>
+
       <div class="p-view" id="pview-messages">
         <div class="p-greeting" style="font-size:20px; margin-bottom:16px;">Messagerie</div>
         <div class="p-card" id="pThreadList"></div>
@@ -395,6 +420,11 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
           <div class="sante-row" onclick="switchPatientView('messages')">
             <div class="sante-ico" style="background:#FEF3E2;color:var(--amber);">✉️</div>
             <div class="b"><div class="t">Messagerie</div><div class="s">Échanger avec votre médecin</div></div>
+            <div class="chev">›</div>
+          </div>
+          <div class="sante-row" onclick="switchPatientView('notifications')">
+            <div class="sante-ico" style="background:#FDE7F3;color:var(--pink);">🔔</div>
+            <div class="b"><div class="t">Notifications</div><div class="s">Vos alertes récentes</div></div>
             <div class="chev">›</div>
           </div>
         </div>
@@ -507,6 +537,7 @@ async function enterPatientApp(){
     document.getElementById('patientApp').classList.add('visible');
 
     renderPatientHome();
+    initTopbarBell();
     await loadPatientTimeline();
     await loadPatientAppointments(); // Sprint 9 : mes rendez-vous (lecture seule)
     await loadPatientThreads();      // Sprint 9 : messagerie (lecture seule)
@@ -579,6 +610,7 @@ function renderPatientHomeCards(){
   renderPatientNextRdvTile();
   renderPatientTodayTreatment();
   renderPatientMiniTrends();
+  if (typeof updateNotifBadge === 'function') updateNotifBadge();
 }
 
 function renderPatientHealthState(){
@@ -910,6 +942,79 @@ function renderPatientTimeline(){
 // Certaines vues sont des sous-pages ouvertes depuis le hub « Santé » ou le
 // Profil : on met en surbrillance l'onglet parent correspondant.
 const VIEW_PARENT = { parcours:'sante', rdv:'sante', traitements:'sante', resultats:'sante', evolution:'sante', preparer:'sante', connectee:'sante', messages:'profil', securite:'profil', notifications:'profil' };
+// ── ⑦ Préparer ma consultation (déterministe + notes locales) ──
+const PREP_ITEMS = [
+  { k:'vitale', label:'Carte Vitale et carte de mutuelle' },
+  { k:'id', label:"Pièce d'identité" },
+  { k:'ordo', label:'Vos ordonnances / traitements en cours' },
+  { k:'results', label:'Vos derniers résultats (analyses, imagerie)' },
+  { k:'symptoms', label:'Noter vos symptômes (depuis quand, à quelle fréquence)' },
+  { k:'questions', label:'La liste de vos questions' }
+];
+function prepState(){ try { return JSON.parse(localStorage.getItem('mediai_patient_prep')||'{}'); } catch(e){ return {}; } }
+function togglePrep(k){ const s=prepState(); s[k]=!s[k]; localStorage.setItem('mediai_patient_prep', JSON.stringify(s)); renderPatientPreparer(); if(navigator.vibrate) navigator.vibrate(8); }
+function savePrepNotes(v){ localStorage.setItem('mediai_patient_prep_notes', v); }
+function renderPatientPreparer(){
+  const el=document.getElementById('pPrep'); if(!el) return;
+  const now=Date.now();
+  const next=(patientAppointments||[]).filter(function(a){ return a.status!=='annule' && new Date(a.start_at).getTime()>now; }).sort(function(a,b){ return new Date(a.start_at)-new Date(b.start_at); })[0];
+  const s=prepState(); let html='';
+  if(next){ const dt=new Date(next.start_at); const days=Math.ceil((dt-now)/86400000);
+    html+='<div class="ph-parcours-cta" style="background:linear-gradient(135deg,#F59E0B,#EC4899);cursor:default;"><div class="ico">📅</div><div style="min-width:0;"><div class="t">'+(days<=0?"Aujourd'hui":days===1?'Demain':'Dans '+days+' jours')+'</div><div class="s">'+dt.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' · '+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(next.motif?' — '+escapeHtmlP(next.motif):'')+'</div></div></div>';
+  } else { html+='<div class="p-card" style="text-align:center;color:var(--ink-soft);font-size:13.5px;">Aucun rendez-vous à préparer pour le moment. Ces réflexes restent utiles pour votre prochaine visite.</div>'; }
+  html+='<div class="p-section-label">À apporter</div><div class="p-card">'+PREP_ITEMS.map(function(it){ return '<div class="prep-check '+(s[it.k]?'done':'')+'" onclick="togglePrep(\''+it.k+'\')"><div class="prep-box">'+(s[it.k]?'✓':'')+'</div><div class="prep-label">'+escapeHtmlP(it.label)+'</div></div>'; }).join('')+'</div>';
+  const lastOrd=(patientEvents||[]).find(function(e){ return e.type==='ordonnance'; });
+  const meds=lastOrd&&lastOrd.data&&Array.isArray(lastOrd.data.prescriptions)?lastOrd.data.prescriptions.filter(function(p){return p.medicament;}):[];
+  if(meds.length){ html+='<div class="p-section-label">À signaler à votre médecin</div><div class="p-card"><div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;">Vos traitements en cours :</div>'+meds.map(function(m){ return '<div class="p-treatment-pill"><div class="p-treatment-dot"></div><div class="p-treatment-name">'+escapeHtmlP(m.medicament)+'</div></div>'; }).join('')+'</div>'; }
+  const notes=localStorage.getItem('mediai_patient_prep_notes')||'';
+  html+='<div class="p-section-label">Mes questions</div><div class="p-card"><textarea oninput="savePrepNotes(this.value)" placeholder="Notez ici les questions à poser à votre médecin…" style="width:100%;min-height:90px;border:none;resize:vertical;font-family:inherit;font-size:14px;line-height:1.55;color:var(--ink);background:transparent;outline:none;">'+escapeHtmlP(notes)+'</textarea></div>';
+  el.innerHTML=html;
+}
+
+// ── ⑧ Notifications intelligentes (dérivées, déterministes) ──
+const NOTIF_TYPE = { consultation:['📄','#EAF1FF','#1460FF'], ordonnance:['💊','#EAFBF1','#22C55E'], courrier:['✉️','#FEF3E2','#F59E0B'], analyse_labo:['🔬','#E0F6FF','#0284C7'], imagerie:['🩻','#FDE7F3','#EC4899'] };
+function computePatientNotifs(){
+  const now=Date.now(); const out=[];
+  (patientEvents||[]).forEach(function(e){
+    const t=new Date(e.event_date).getTime(); const age=(now-t)/86400000;
+    if(age>=0 && age<=21){ const isRes=e.type==='analyse_labo'||e.type==='imagerie'; const meta=NOTIF_TYPE[e.type]||['📄','#EEF1F6','#5B6472'];
+      out.push({ ico:meta[0], bg:meta[1], fg:meta[2], t:isRes?'Nouveau résultat disponible':'Nouveau document', s:e.title, ts:t, act:"openPatientDoc('"+e.id+"')" }); }
+  });
+  (patientAppointments||[]).forEach(function(a){
+    const t=new Date(a.start_at).getTime(); const dd=(t-now)/86400000;
+    if(a.status!=='annule' && dd>=0 && dd<=7){ out.push({ ico:'📅', bg:'#E7F0FF', fg:'#1460FF', t:'Rendez-vous à venir', s:new Date(a.start_at).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(a.motif?' · '+a.motif:''), ts:t, act:"switchPatientView('rdv')", future:true }); }
+  });
+  return out.sort(function(a,b){ return (b.future?Number.MAX_SAFE_INTEGER:b.ts) - (a.future?Number.MAX_SAFE_INTEGER:a.ts); });
+}
+function renderPatientNotifications(){
+  const el=document.getElementById('pNotifs'); if(!el) return;
+  const ns=computePatientNotifs();
+  if(!ns.length){ el.innerHTML='<div class="p-empty"><div class="p-empty-icon">🔔</div>Aucune notification pour le moment.</div>'; return; }
+  el.innerHTML='<div class="sante-group">'+ns.map(function(n){ const when=n.future?'À venir':pAgo(n.ts);
+    return '<div class="sante-row" onclick="'+n.act+'"><div class="sante-ico" style="background:'+n.bg+';color:'+n.fg+';">'+n.ico+'</div><div class="b"><div class="t">'+escapeHtmlP(n.t)+'</div><div class="s">'+escapeHtmlP(n.s)+'</div></div><div class="s" style="flex:none;align-self:center;">'+escapeHtmlP(when)+'</div></div>';
+  }).join('')+'</div>';
+}
+function updateNotifBadge(){ const b=document.getElementById('pBellBadge'); if(!b) return; const c=computePatientNotifs().length; b.textContent=c>9?'9+':String(c); b.style.display=c?'flex':'none'; }
+function initTopbarBell(){
+  const bar=document.querySelector('.p-main .p-topbar'); if(!bar || document.getElementById('pBell')) return;
+  const btn=document.createElement('button'); btn.id='pBell'; btn.setAttribute('aria-label','Notifications');
+  btn.style.cssText='position:relative;background:none;border:none;cursor:pointer;color:var(--ink);padding:6px;';
+  btn.onclick=function(){ switchPatientView('notifications'); };
+  btn.innerHTML='<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span id="pBellBadge" style="position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--pink);color:#fff;font-size:10px;font-weight:800;line-height:1;display:none;align-items:center;justify-content:center;"></span>';
+  bar.appendChild(btn);
+}
+
+// ── ⑨ Mon historique (chronologie factuelle, complément du Parcours) ──
+function renderPatientHistorique(){
+  const el=document.getElementById('pHisto'); if(!el) return;
+  if(!(patientEvents||[]).length){ el.innerHTML='<div class="p-empty"><div class="p-empty-icon">🕓</div>Votre historique apparaîtra ici au fil de vos consultations.</div>'; return; }
+  const sorted=patientEvents.slice().sort(function(a,b){ return new Date(b.event_date)-new Date(a.event_date); });
+  el.innerHTML=sorted.map(function(e){ const meta=NOTIF_TYPE[e.type]||['📄','#EEF1F6','#5B6472'];
+    return '<div class="p-tl-item"><div class="p-tl-dot"></div><div class="p-tl-date">'+new Date(e.event_date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</div>'
+      +'<div class="p-card" style="padding:12px 14px;margin-bottom:0;cursor:pointer;" onclick="openPatientDoc(\''+e.id+'\')"><div style="display:flex;align-items:center;gap:11px;"><div class="sante-ico" style="width:34px;height:34px;font-size:16px;background:'+meta[1]+';color:'+meta[2]+';">'+meta[0]+'</div><div style="min-width:0;"><div style="font-weight:700;font-size:14px;">'+escapeHtmlP(e.title)+'</div><div style="font-size:12px;color:var(--ink-faint);">'+(TYPE_LABELS[e.type]||'')+'</div></div></div></div></div>';
+  }).join('');
+}
+
 function switchPatientView(view){
   const target = document.getElementById('pview-' + view);
   if (!target) return; // vue pas encore construite → on ne casse pas la navigation
@@ -925,6 +1030,9 @@ function switchPatientView(view){
   if (view === 'rdv') renderPatientRdv();
   if (view === 'traitements') renderPatientTraitements();
   if (view === 'resultats') renderPatientResultats();
+  if (view === 'preparer') renderPatientPreparer();
+  if (view === 'notifications') renderPatientNotifications();
+  if (view === 'historique') renderPatientHistorique();
 }
 
 // ── Hub « Santé » — point d'accès unique au suivi (façon réglages Apple) ──
@@ -942,8 +1050,9 @@ function renderSanteHub(){
     { view:'rdv', ready:true, ico:'📅', bg:'#E7F0FF', fg:'var(--blue)', t:'Mes rendez-vous', s:rdvSub },
     { view:'traitements', ready:true, ico:'💊', bg:'#EAFBF1', fg:'var(--green)', t:'Mes traitements', s: medCount ? medCount+' médicament'+(medCount>1?'s':'')+' en cours' : 'Aucun traitement' },
     { view:'resultats', ready:true, ico:'🔬', bg:'#E0F6FF', fg:'#0284C7', t:'Mes résultats', s: resCount ? resCount+' résultat'+(resCount>1?'s':'') : 'Aucun résultat' },
+    { view:'historique', ready:true, ico:'🕓', bg:'#EEF1F6', fg:'var(--ink-soft)', t:'Mon historique', s: (patientEvents||[]).length ? (patientEvents.length+' événement'+(patientEvents.length>1?'s':'')) : 'Votre chronologie' },
     { view:'evolution', ready:false, ico:'📈', bg:'#FDE7F3', fg:'var(--pink)', t:'Mon évolution', s:'Poids, tension, pouls…' },
-    { view:'preparer', ready:false, ico:'📋', bg:'#FEF3E2', fg:'var(--amber)', t:'Préparer ma consultation', s:'Avant votre prochain rendez-vous' },
+    { view:'preparer', ready:true, ico:'📋', bg:'#FEF3E2', fg:'var(--amber)', t:'Préparer ma consultation', s:'Avant votre prochain rendez-vous' },
     { view:'connectee', ready:false, ico:'⌚', bg:'#EEF1F6', fg:'var(--ink-soft)', t:'Santé connectée', s:'Montre, Apple Santé, Google Fit' }
   ];
   el.innerHTML = '<div class="sante-group">' + items.map(function(it){
@@ -1068,6 +1177,7 @@ async function loadPatientAppointments(){
   try { const res = await fetch(API_BASE + '/api/patient/appointments', { headers: authHeaders() }); const d = await res.json(); patientAppointments = d.items || []; }
   catch(e){ patientAppointments = []; }
   renderPatientNextRdvTile(); renderNextRdv(); renderPatientRdv();
+  if (typeof updateNotifBadge === 'function') updateNotifBadge();
 }
 function renderNextRdv(){
   const el = document.getElementById('pNextRdv'); if(!el) return;
