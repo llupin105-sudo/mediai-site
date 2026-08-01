@@ -377,6 +377,12 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
         <div id="pTrtList"></div>
       </div>
 
+      <div class="p-view" id="pview-resultats">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Mes résultats</div>
+        <div class="p-greeting-sub" style="margin-bottom:16px;">Analyses et imagerie transmises par votre médecin.</div>
+        <div id="pResList"></div>
+      </div>
+
       <div class="p-view" id="pview-messages">
         <div class="p-greeting" style="font-size:20px; margin-bottom:16px;">Messagerie</div>
         <div class="p-card" id="pThreadList"></div>
@@ -724,10 +730,10 @@ function renderPatientRecentDocs(){
     return;
   }
   el.innerHTML = recent.map(function(e){
-    return '<div class="p-doc-row" onclick="switchPatientView(\'documents\')">' +
+    return '<div class="p-doc-row" onclick="openPatientDoc(\'' + e.id + '\')">' +
       '<div class="p-doc-icon tp-' + e.type + '">' + (TYPE_ICONS[e.type] || 'Doc') + '</div>' +
       '<div class="p-doc-body">' +
-        '<div class="p-doc-title">' + e.title + '</div>' +
+        '<div class="p-doc-title">' + escapeHtmlP(e.title) + '</div>' +
         '<div class="p-doc-sub">' + (TYPE_LABELS[e.type] || '') + '</div>' +
       '</div>' +
       '<div class="p-doc-date">' + new Date(e.event_date).toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) + '</div>' +
@@ -755,10 +761,10 @@ function renderPatientDocuments(){
     return;
   }
   listEl.innerHTML = filtered.map(function(e){
-    return '<div class="p-doc-row">' +
+    return '<div class="p-doc-row" onclick="openPatientDoc(\'' + e.id + '\')">' +
       '<div class="p-doc-icon tp-' + e.type + '">' + (TYPE_ICONS[e.type] || 'Doc') + '</div>' +
       '<div class="p-doc-body">' +
-        '<div class="p-doc-title">' + e.title + '</div>' +
+        '<div class="p-doc-title">' + escapeHtmlP(e.title) + '</div>' +
         '<div class="p-doc-sub">' + (TYPE_LABELS[e.type] || '') + '</div>' +
       '</div>' +
       '<div class="p-doc-date">' + new Date(e.event_date).toLocaleDateString('fr-FR') + '</div>' +
@@ -766,6 +772,120 @@ function renderPatientDocuments(){
   }).join('');
 }
 function setDocFilter(t){ currentDocFilter = t; renderPatientDocuments(); }
+
+// ── ⑤⑥ Détail d'un document + Résultats médicaux ──
+// On affiche le CONTENU réel du dossier. Pour analyses/imagerie, on reporte
+// fidèlement ce que le document indique (valeurs, normes du labo, mentions
+// « signalé » du labo) sans JAMAIS ajouter d'interprétation : seul le
+// médecin établit le diagnostic (rappel affiché).
+function pCap(s){ s=String(s||''); return s.charAt(0).toUpperCase()+s.slice(1); }
+function pBlock(label, html){ return '<div style="margin-bottom:13px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-faint);margin-bottom:3px;">'+escapeHtmlP(label)+'</div><div style="font-size:14px;line-height:1.55;">'+html+'</div></div>'; }
+function pResDisclaimer(){ return '<div class="pp-disclaimer" style="margin-top:14px;"><span>\u{1FA7A}</span><span>Ces informations sont à interpréter par votre médecin. Seul votre médecin établit le diagnostic.</span></div>'; }
+function pLabRows(resultats){
+  return '<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;">'
+    + resultats.map(function(r,i){
+      const flag = r.signale_par_labo ? '<span style="font-size:10px;font-weight:700;color:#B45309;background:#FEF3E2;border-radius:999px;padding:2px 8px;margin-left:8px;white-space:nowrap;">signalé par le labo</span>' : '';
+      return '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:11px 13px;'+(i?'border-top:1px solid var(--line);':'')+'">'
+        +'<div style="min-width:0;"><div style="font-size:13.5px;font-weight:600;">'+escapeHtmlP(r.parametre||'')+flag+'</div>'
+        + (r.valeurs_reference?'<div style="font-size:11.5px;color:var(--ink-faint);margin-top:1px;">Référence : '+escapeHtmlP(r.valeurs_reference)+'</div>':'')
+        +'</div>'
+        +'<div style="font-size:14px;font-weight:800;white-space:nowrap;">'+escapeHtmlP((r.valeur!=null?r.valeur:'')+(r.unite?' '+r.unite:''))+'</div></div>';
+    }).join('') + '</div>';
+}
+function eventDetailHtml(e){
+  const d = e.data || {}; const parts = [];
+  parts.push('<div style="font-size:12px;color:var(--ink-faint);margin-bottom:14px;">'+(TYPE_LABELS[e.type]||'')+' · '+new Date(e.event_date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</div>');
+  if (e.type === 'consultation') {
+    const s = d.sections || {};
+    if (d.resume_1_ligne) parts.push(pBlock('En résumé', escapeHtmlP(d.resume_1_ligne)));
+    const motif = s.subjectif && (s.subjectif.motif_principal || s.subjectif.motif); if (motif) parts.push(pBlock('Motif', escapeHtmlP(motif)));
+    const c = s.objectif && s.objectif.constantes;
+    if (c) { const cs = Object.entries(c).filter(function(x){ return x[1]!=null && x[1]!==''; }).map(function(x){ return pCap(x[0])+' : '+x[1]; }).join(' · '); if (cs) parts.push(pBlock('Constantes', escapeHtmlP(cs))); }
+    const diag = s.assessment && (s.assessment.diagnostic_principal || s.assessment.diagnostic); if (diag) parts.push(pBlock('Conclusion du médecin', escapeHtmlP(diag)));
+    const plan = s.plan && (s.plan.suivi || s.plan.conduite_a_tenir || s.plan.conduite); if (plan) parts.push(pBlock('Suite prévue', escapeHtmlP(plan)));
+  } else if (e.type === 'ordonnance') {
+    const meds = (d.prescriptions || []).filter(function(p){ return p.medicament; });
+    parts.push('<div style="display:flex;flex-direction:column;gap:8px;">'+meds.map(function(m){ return '<div style="border:1px solid var(--line);border-radius:12px;padding:11px 13px;"><div style="font-weight:700;font-size:14px;">'+escapeHtmlP(m.medicament)+'</div><div style="font-size:12.5px;color:var(--ink-soft);margin-top:1px;">'+escapeHtmlP([m.posologie,m.duree].filter(Boolean).join(' · '))+'</div></div>'; }).join('')+'</div>');
+  } else if (e.type === 'analyse_labo') {
+    const rs = (d.resultats || []).filter(function(r){ return r.parametre; });
+    parts.push(rs.length ? pLabRows(rs) : '<div style="color:var(--ink-faint);font-size:13.5px;">Le détail de ce document est disponible auprès de votre médecin.</div>');
+    parts.push(pResDisclaimer());
+  } else if (e.type === 'imagerie') {
+    if (d.indication) parts.push(pBlock('Indication', escapeHtmlP(d.indication)));
+    const ccl = d.conclusion_radiologue || d.conclusion; if (ccl) parts.push(pBlock('Conclusion du radiologue', escapeHtmlP(ccl)));
+    parts.push(pResDisclaimer());
+  } else if (e.type === 'courrier') {
+    if (d.objet) parts.push(pBlock('Objet', escapeHtmlP(d.objet)));
+    const corps = d.corps || d.contenu; if (corps) parts.push('<div style="font-size:13.5px;line-height:1.6;white-space:pre-wrap;">'+escapeHtmlP(corps)+'</div>');
+  }
+  parts.push('<button onclick="downloadDoc(\''+e.id+'\')" style="width:100%;height:44px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px;">⬇️ Télécharger (.txt)</button>');
+  return parts.join('');
+}
+function openPatientDoc(id){
+  const e = (patientEvents||[]).find(function(x){ return String(x.id)===String(id); }); if(!e) return;
+  pModal(e.title || TYPE_LABELS[e.type] || 'Document', eventDetailHtml(e));
+}
+function eventPlainText(e){
+  const d = e.data || {}; const L = [];
+  L.push((e.title || TYPE_LABELS[e.type] || 'Document').toUpperCase());
+  L.push((TYPE_LABELS[e.type]||'') + ' — ' + new Date(e.event_date).toLocaleDateString('fr-FR'));
+  L.push('');
+  if (e.type === 'consultation') {
+    const s = d.sections || {};
+    if (d.resume_1_ligne) L.push('Résumé : ' + d.resume_1_ligne);
+    const c = s.objectif && s.objectif.constantes; if (c) L.push('Constantes : ' + Object.entries(c).filter(function(x){return x[1];}).map(function(x){return x[0]+' '+x[1];}).join(', '));
+    const diag = s.assessment && (s.assessment.diagnostic_principal || s.assessment.diagnostic); if (diag) L.push('Conclusion : ' + diag);
+  } else if (e.type === 'ordonnance') {
+    (d.prescriptions||[]).filter(function(p){return p.medicament;}).forEach(function(m){ L.push('- ' + [m.medicament, m.posologie, m.duree].filter(Boolean).join(' — ')); });
+  } else if (e.type === 'analyse_labo') {
+    (d.resultats||[]).filter(function(r){return r.parametre;}).forEach(function(r){ L.push('- ' + r.parametre + ' : ' + (r.valeur!=null?r.valeur:'') + (r.unite?' '+r.unite:'') + (r.valeurs_reference?' (réf. '+r.valeurs_reference+')':'') + (r.signale_par_labo?' [signalé]':'')); });
+    L.push(''); L.push('Ces résultats sont à interpréter par votre médecin.');
+  } else if (e.type === 'imagerie') {
+    if (d.indication) L.push('Indication : ' + d.indication);
+    const ccl = d.conclusion_radiologue || d.conclusion; if (ccl) L.push('Conclusion : ' + ccl);
+    L.push(''); L.push('Ce compte-rendu est à interpréter par votre médecin.');
+  } else if (e.type === 'courrier') {
+    if (d.objet) L.push('Objet : ' + d.objet);
+    if (d.corps || d.contenu) L.push('', d.corps || d.contenu);
+  }
+  L.push(''); L.push('— Document issu de votre espace MediAI');
+  return L.join('\n');
+}
+function downloadDoc(id){
+  const e = (patientEvents||[]).find(function(x){ return String(x.id)===String(id); }); if(!e) return;
+  const blob = new Blob([eventPlainText(e)], { type:'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob); const link = document.createElement('a');
+  const safe = (e.title || e.type || 'document').replace(/[^\wÀ-ſ -]/g,'').trim().slice(0,40) || 'document';
+  link.href = url; link.download = safe + '.txt'; document.body.appendChild(link); link.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); link.remove(); }, 120);
+  if (navigator.vibrate) navigator.vibrate(10);
+}
+
+function renderPatientResultats(){
+  const el = document.getElementById('pResList'); if(!el) return;
+  const res = (patientEvents||[]).filter(function(e){ return e.type==='analyse_labo' || e.type==='imagerie'; }).sort(function(a,b){ return new Date(b.event_date)-new Date(a.event_date); });
+  if (!res.length) { el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">\u{1F52C}</div>Aucun résultat pour le moment. Vos analyses et imageries apparaîtront ici.</div>'; return; }
+  el.innerHTML = '<div class="pp-disclaimer" style="margin:0 0 16px;"><span>\u{1FA7A}</span><span>Vos résultats sont présentés tels que transmis. Leur interprétation revient à votre médecin — seul lui établit le diagnostic.</span></div>'
+    + res.map(function(e){
+      const d = e.data || {};
+      let preview = '';
+      if (e.type==='analyse_labo') {
+        const rs = (d.resultats||[]).filter(function(r){ return r.parametre; });
+        const flagged = rs.filter(function(r){ return r.signale_par_labo; }).length;
+        preview = rs.length ? (rs.length+' paramètre'+(rs.length>1?'s':'')+(flagged?' · '+flagged+' signalé'+(flagged>1?'s':'')+' par le labo':'')) : 'Résultats disponibles';
+      } else {
+        preview = (d.conclusion_radiologue || d.conclusion || 'Compte-rendu disponible');
+        if (preview.length > 90) preview = preview.slice(0,90)+'…';
+      }
+      const ic = e.type==='analyse_labo' ? '🔬' : '🩻';
+      const bg = e.type==='analyse_labo' ? '#E0F6FF' : '#FDE7F3';
+      const fg = e.type==='analyse_labo' ? '#0284C7' : 'var(--pink)';
+      return '<div class="sante-group" style="margin-bottom:12px;"><div class="sante-row" onclick="openPatientDoc(\''+e.id+'\')">'
+        +'<div class="sante-ico" style="background:'+bg+';color:'+fg+';">'+ic+'</div>'
+        +'<div class="b"><div class="t">'+escapeHtmlP(e.title||TYPE_LABELS[e.type])+'</div><div class="s">'+new Date(e.event_date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+' · '+escapeHtmlP(preview)+'</div></div>'
+        +'<div class="chev">›</div></div></div>';
+    }).join('');
+}
 
 function renderPatientTimeline(){
   const el = document.getElementById('pTimeline');
@@ -804,6 +924,7 @@ function switchPatientView(view){
   if (view === 'assistant') initPatientAssistant();
   if (view === 'rdv') renderPatientRdv();
   if (view === 'traitements') renderPatientTraitements();
+  if (view === 'resultats') renderPatientResultats();
 }
 
 // ── Hub « Santé » — point d'accès unique au suivi (façon réglages Apple) ──
@@ -820,7 +941,7 @@ function renderSanteHub(){
     { view:'parcours', ready:true, ico:'📖', bg:'#F3EEFF', fg:'var(--violet)', t:'Mon Parcours Santé', s:'Votre histoire de soin, expliquée' },
     { view:'rdv', ready:true, ico:'📅', bg:'#E7F0FF', fg:'var(--blue)', t:'Mes rendez-vous', s:rdvSub },
     { view:'traitements', ready:true, ico:'💊', bg:'#EAFBF1', fg:'var(--green)', t:'Mes traitements', s: medCount ? medCount+' médicament'+(medCount>1?'s':'')+' en cours' : 'Aucun traitement' },
-    { view:'resultats', ready:false, ico:'🔬', bg:'#E0F6FF', fg:'#0284C7', t:'Mes résultats', s: resCount ? resCount+' résultat'+(resCount>1?'s':'') : 'Aucun résultat' },
+    { view:'resultats', ready:true, ico:'🔬', bg:'#E0F6FF', fg:'#0284C7', t:'Mes résultats', s: resCount ? resCount+' résultat'+(resCount>1?'s':'') : 'Aucun résultat' },
     { view:'evolution', ready:false, ico:'📈', bg:'#FDE7F3', fg:'var(--pink)', t:'Mon évolution', s:'Poids, tension, pouls…' },
     { view:'preparer', ready:false, ico:'📋', bg:'#FEF3E2', fg:'var(--amber)', t:'Préparer ma consultation', s:'Avant votre prochain rendez-vous' },
     { view:'connectee', ready:false, ico:'⌚', bg:'#EEF1F6', fg:'var(--ink-soft)', t:'Santé connectée', s:'Montre, Apple Santé, Google Fit' }
