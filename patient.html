@@ -110,6 +110,31 @@ a{color:inherit;text-decoration:none;}
 .p-tab svg{ width:22px; height:22px; }
 .p-tab span{ font-size:10.5px; font-weight:600; }
 
+/* ── Sprint 15 · Accueil « compagnon santé » ── */
+.ph-hero{ background:var(--card); border-radius:var(--r-lg); padding:20px; box-shadow:var(--shadow-sm); margin:8px 0 4px; }
+.ph-hero-top{ display:flex; align-items:center; gap:14px; margin-bottom:2px; }
+.ph-hero-ico{ width:46px; height:46px; border-radius:14px; background:#FFEDF1; color:var(--pink); display:flex; align-items:center; justify-content:center; font-size:23px; flex:none; }
+.ph-hero-status{ font-size:17px; font-weight:800; letter-spacing:-.02em; line-height:1.25; }
+.ph-hero-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:1px; }
+.ph-vitals{ display:flex; gap:9px; overflow-x:auto; margin-top:16px; padding-bottom:2px; -webkit-overflow-scrolling:touch; }
+.ph-vitals::-webkit-scrollbar{ display:none; }
+.ph-vital{ flex:none; min-width:82px; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:10px 13px; }
+.ph-vital-k{ font-size:11px; color:var(--ink-faint); font-weight:700; text-transform:uppercase; letter-spacing:.02em; }
+.ph-vital-v{ font-size:19px; font-weight:800; letter-spacing:-.02em; margin-top:3px; line-height:1.1; }
+.ph-vital-u{ font-size:11px; color:var(--ink-faint); font-weight:600; }
+
+.ph-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:12px 0 4px; }
+.ph-tile{ background:var(--card); border-radius:var(--r-lg); padding:16px; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; min-height:130px; cursor:pointer; border:1px solid transparent; transition:transform .12s ease, box-shadow .15s ease; }
+.ph-tile:hover{ box-shadow:var(--shadow-md); }
+.ph-tile:active{ transform:scale(.985); }
+.ph-tile-ico{ width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:19px; flex:none; }
+.ph-tile-label{ font-size:11.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; }
+.ph-tile-main{ font-size:17px; font-weight:800; letter-spacing:-.02em; line-height:1.2; margin-top:1px; }
+.ph-tile-sub{ font-size:12.5px; color:var(--ink-faint); margin-top:1px; }
+
+.ph-trend-row{ display:flex; align-items:center; gap:14px; padding:13px 0; border-bottom:1px solid var(--line); }
+.ph-trend-row:last-child{ border-bottom:none; }
+
 .p-sidebar{ display:none; } /* masqué en mobile — la tabbar prend le relais */
 @media (min-width:820px){
   .p-tabbar{ display:none; }
@@ -189,24 +214,19 @@ a{color:inherit;text-decoration:none;}
       <div class="p-view visible" id="pview-accueil">
         <div class="p-greeting" id="pGreeting">Bonjour</div>
         <div class="p-greeting-sub" id="pGreetingSub"></div>
-        <div id="pBriefing"></div>
 
-        <div class="p-card p-card-warm p-rdv-card" id="pNextRdv" onclick="switchPatientView('rdv')" style="cursor:pointer;">
-          <div class="p-rdv-icon">Cal</div>
-          <div>
-            <div class="p-rdv-title">Aucun rendez-vous programme</div>
-            <div class="p-rdv-sub">Voir mes rendez-vous</div>
-          </div>
+        <!-- ❤️ État de santé -->
+        <div class="ph-hero" id="phHero"></div>
+
+        <!-- 📅 Prochain RDV · 💊 Traitement du jour -->
+        <div class="ph-grid">
+          <div class="ph-tile" id="phRdv" onclick="switchPatientView('rdv')"></div>
+          <div class="ph-tile" id="phTreat" onclick="setDocFilter('ordonnance'); switchPatientView('documents');"></div>
         </div>
 
-        <div class="p-quick-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:16px 0 4px;">
-          <button class="p-quick" onclick="setDocFilter('ordonnance'); switchPatientView('documents');" style="border:1px solid var(--line,#E7ECF3); background:#fff; border-radius:13px; padding:14px 8px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ink,#0A1128); cursor:pointer;">Rx<br>Ordonnances</button>
-          <button class="p-quick" onclick="setDocFilter('analyse_labo'); switchPatientView('documents');" style="border:1px solid var(--line,#E7ECF3); background:#fff; border-radius:13px; padding:14px 8px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ink,#0A1128); cursor:pointer;">Lab<br>Resultats</button>
-          <button class="p-quick" onclick="switchPatientView('timeline');" style="border:1px solid var(--line,#E7ECF3); background:#fff; border-radius:13px; padding:14px 8px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ink,#0A1128); cursor:pointer;">Cal<br>Parcours</button>
-        </div>
-
-        <div class="p-section-label">Traitements en cours</div>
-        <div class="p-card" id="pTreatments"></div>
+        <!-- 📈 Mon suivi -->
+        <div class="p-section-label">Mon suivi</div>
+        <div class="p-card" id="phTrends"></div>
 
         <div class="p-section-label">Documents recents</div>
         <div class="p-card" id="pRecentDocs"></div>
@@ -369,6 +389,130 @@ function renderPatientHome(){
   document.getElementById('pProfileMedecin').textContent = medecinInfo.nom || 'Non renseigne';
   document.getElementById('pProfileCabinet').textContent = medecinInfo.cabinet || 'Non renseigne';
   document.getElementById('pProfileEmail').textContent = document.getElementById('loginEmail').value || '-';
+  renderPatientHomeCards();
+}
+
+// ── Sprint 15 · Accueil compagnon santé — helpers déterministes ──
+// Aucune donnée inventée : constantes lues sur les consultations réelles,
+// traitement lu sur la dernière ordonnance. Rien n'est interprété médicalement.
+function pNum(v){ if(v==null) return null; const m=String(v).replace(',','.').match(/-?\d+(\.\d+)?/); return m?parseFloat(m[0]):null; }
+function pSys(v){ if(v==null) return null; const m=String(v).match(/(\d+)\s*[\/xX]\s*(\d+)/); if(m) return parseInt(m[1],10); return pNum(v); }
+function pConstOf(e){ const d = e && e.data; if(!d) return null; return (d.sections && d.sections.objectif && d.sections.objectif.constantes) || d.constantes || null; }
+function pLatestConst(){
+  const rows = (patientEvents||[]).filter(function(e){ return e.type==='consultation'; })
+    .map(function(e){ return { date:new Date(e.event_date), c:pConstOf(e) }; })
+    .filter(function(x){ return x.c; }).sort(function(a,b){ return b.date-a.date; });
+  return rows[0] || null;
+}
+function pVitalSeries(){
+  const rows = (patientEvents||[]).filter(function(e){ return e.type==='consultation'; })
+    .map(function(e){ return { date:new Date(e.event_date), c:pConstOf(e) }; })
+    .filter(function(x){ return x.c; }).sort(function(a,b){ return a.date-b.date; });
+  const s = { poids:[], tension:[], pouls:[] };
+  rows.forEach(function(r){
+    const p=pNum(r.c.poids); if(p!=null) s.poids.push({date:r.date,v:p});
+    const t=pSys(r.c.tension); if(t!=null) s.tension.push({date:r.date,v:t});
+    const pu=pNum(r.c.pouls); if(pu!=null) s.pouls.push({date:r.date,v:pu});
+  });
+  return s;
+}
+function pSpark(vals,color){
+  if(!vals || vals.length<2) return '';
+  const w=88,h=30,min=Math.min.apply(null,vals),max=Math.max.apply(null,vals),rng=(max-min)||1;
+  const pts=vals.map(function(v,i){ const x=(i/(vals.length-1))*w; const y=h-((v-min)/rng)*(h-6)-3; return x.toFixed(1)+','+y.toFixed(1); }).join(' ');
+  const lx=w, ly=(h-((vals[vals.length-1]-min)/rng)*(h-6)-3).toFixed(1);
+  return '<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" fill="none">'
+    +'<polyline points="'+pts+'" stroke="'+color+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+    +'<circle cx="'+lx+'" cy="'+ly+'" r="3" fill="'+color+'"/></svg>';
+}
+function pAgo(ts){
+  const days=Math.floor((Date.now()-ts)/86400000);
+  if(days<=0) return "aujourd'hui";
+  if(days===1) return 'hier';
+  if(days<7) return 'il y a '+days+' jours';
+  if(days<31){ const wk=Math.round(days/7); return 'il y a '+wk+' semaine'+(wk>1?'s':''); }
+  if(days<365){ const mo=Math.round(days/30); return 'il y a '+mo+' mois'; }
+  const y=Math.floor(days/365); return 'il y a '+y+' an'+(y>1?'s':'');
+}
+
+function renderPatientHomeCards(){
+  renderPatientHealthState();
+  renderPatientNextRdvTile();
+  renderPatientTodayTreatment();
+  renderPatientMiniTrends();
+}
+
+function renderPatientHealthState(){
+  const el=document.getElementById('phHero'); if(!el) return;
+  const now=Date.now();
+  const lastConsult=(patientEvents||[]).filter(function(e){ return e.type==='consultation'; })
+    .map(function(e){ return new Date(e.event_date).getTime(); }).sort(function(a,b){ return b-a; })[0];
+  let status, sub;
+  if(lastConsult && (now-lastConsult)/86400000 <= 183){ status='Votre suivi est à jour'; sub='Dernière consultation '+pAgo(lastConsult); }
+  else if(lastConsult){ status='Un point avec votre médecin ?'; sub='Dernière consultation '+pAgo(lastConsult); }
+  else { status='Bienvenue \u{1F44B}'; sub='Votre suivi santé apparaîtra ici au fil de vos consultations.'; }
+
+  const latest=pLatestConst();
+  let vitals='';
+  if(latest && latest.c){
+    const c=latest.c, chips=[];
+    if(c.tension) chips.push(['Tension', String(c.tension).replace(/\s*mmhg/i,'').trim(), 'mmHg']);
+    if(c.poids!=null && pNum(c.poids)!=null) chips.push(['Poids', pNum(c.poids), 'kg']);
+    if(c.pouls!=null && pNum(c.pouls)!=null) chips.push(['Pouls', pNum(c.pouls), 'bpm']);
+    if(c.saturation!=null && pNum(c.saturation)!=null) chips.push(['SpO₂', pNum(c.saturation), '%']);
+    if(c.temperature!=null && pNum(c.temperature)!=null) chips.push(['Temp.', pNum(c.temperature), '°C']);
+    if(chips.length){
+      vitals='<div class="ph-vitals">'+chips.map(function(ch){
+        return '<div class="ph-vital"><div class="ph-vital-k">'+escapeHtmlP(ch[0])+'</div><div class="ph-vital-v">'+escapeHtmlP(ch[1])+'</div><div class="ph-vital-u">'+escapeHtmlP(ch[2])+'</div></div>';
+      }).join('')+'</div>'
+      +'<div style="font-size:11px;color:var(--ink-faint);margin-top:9px;">Dernières mesures · '+new Date(latest.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</div>';
+    }
+  }
+  el.innerHTML='<div class="ph-hero-top"><div class="ph-hero-ico">❤️</div><div style="min-width:0;"><div class="ph-hero-status">'+escapeHtmlP(status)+'</div><div class="ph-hero-sub">'+escapeHtmlP(sub)+'</div></div></div>'+vitals;
+}
+
+function renderPatientNextRdvTile(){
+  const el=document.getElementById('phRdv'); if(!el) return;
+  const now=Date.now();
+  const next=(patientAppointments||[]).filter(function(a){ return a.status!=='annule' && new Date(a.start_at).getTime()>now; })
+    .sort(function(a,b){ return new Date(a.start_at)-new Date(b.start_at); })[0];
+  const ico='<div class="ph-tile-ico" style="background:#E7F0FF;color:var(--blue);">\u{1F4C5}</div>';
+  if(!next){ el.innerHTML=ico+'<div style="margin-top:auto;"><div class="ph-tile-label">Prochain RDV</div><div class="ph-tile-main">Aucun prévu</div><div class="ph-tile-sub">Voir mes rendez-vous</div></div>'; return; }
+  const dt=new Date(next.start_at), days=Math.ceil((dt.getTime()-now)/86400000);
+  const quand=days<=0?"Aujourd'hui":days===1?'Demain':'Dans '+days+' j';
+  el.innerHTML=ico+'<div style="margin-top:auto;"><div class="ph-tile-label">Prochain RDV</div><div class="ph-tile-main">'+quand+'</div><div class="ph-tile-sub">'+dt.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})+' · '+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</div></div>';
+}
+
+function renderPatientTodayTreatment(){
+  const el=document.getElementById('phTreat'); if(!el) return;
+  const lastOrd=(patientEvents||[]).find(function(e){ return e.type==='ordonnance'; });
+  const meds=lastOrd && lastOrd.data && Array.isArray(lastOrd.data.prescriptions) ? lastOrd.data.prescriptions.filter(function(p){ return p.medicament; }) : [];
+  const ico='<div class="ph-tile-ico" style="background:#EAFBF1;color:var(--green);">\u{1F48A}</div>';
+  if(!meds.length){ el.innerHTML=ico+'<div style="margin-top:auto;"><div class="ph-tile-label">Traitement</div><div class="ph-tile-main">Aucun</div><div class="ph-tile-sub">Aucun traitement enregistré</div></div>'; return; }
+  const main=meds.length===1?meds[0].medicament:meds.length+' médicaments';
+  const sub=meds.length===1?(meds[0].posologie||"Voir l'ordonnance"):meds.slice(0,2).map(function(m){ return m.medicament; }).join(', ')+(meds.length>2?'…':'');
+  el.innerHTML=ico+'<div style="margin-top:auto;min-width:0;"><div class="ph-tile-label">Traitement du jour</div><div class="ph-tile-main" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHtmlP(main)+'</div><div class="ph-tile-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHtmlP(sub)+'</div></div>';
+}
+
+function renderPatientMiniTrends(){
+  const el=document.getElementById('phTrends'); if(!el) return;
+  const s=pVitalSeries();
+  const defs=[{k:'poids',label:'Poids',unit:'kg',color:'#1460FF'},{k:'tension',label:'Tension (sys.)',unit:'mmHg',color:'#8B5CF6'},{k:'pouls',label:'Pouls',unit:'bpm',color:'#EC4899'}];
+  const avail=defs.filter(function(d){ return s[d.k].length>=2; });
+  if(!avail.length){
+    el.innerHTML='<div class="p-empty"><div class="p-empty-icon">\u{1F4C8}</div>Vos mesures (poids, tension, pouls) apparaîtront ici au fil de vos consultations.</div>';
+    return;
+  }
+  el.innerHTML=avail.map(function(d){
+    const arr=s[d.k], vals=arr.map(function(x){ return x.v; });
+    const last=vals[vals.length-1], delta=Math.round((last-vals[0])*10)/10;
+    const arrow=delta>0?'▲':delta<0?'▼':'–';
+    return '<div class="ph-trend-row">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:700;">'+d.label+'</div><div style="font-size:11.5px;color:var(--ink-faint);">'+arr.length+' mesures</div></div>'
+      +'<div style="flex:none;">'+pSpark(vals,d.color)+'</div>'
+      +'<div style="flex:none;text-align:right;min-width:58px;"><div style="font-size:16px;font-weight:800;letter-spacing:-.02em;">'+last+'</div><div style="font-size:11px;color:var(--ink-soft);font-weight:600;">'+arrow+' '+Math.abs(delta)+' '+d.unit+'</div></div>'
+      +'</div>';
+  }).join('');
 }
 
 async function loadPatientTimeline(){
@@ -376,11 +520,10 @@ async function loadPatientTimeline(){
     const res = await fetch(API_BASE + '/api/patient/timeline', { headers: authHeaders() });
     const data = await res.json();
     patientEvents = data.events || [];
-    renderPatientTreatments();
+    renderPatientHomeCards();
     renderPatientRecentDocs();
     renderPatientDocuments();
     renderPatientTimeline();
-    renderPatientBriefing();
   } catch {
     document.getElementById('pRecentDocs').innerHTML = '<div class="p-empty">Impossible de charger vos documents pour le moment.</div>';
   }
@@ -422,8 +565,9 @@ function renderPatientBriefing(){
     + '</div>';
 }
 function renderPatientTreatments(){
-  const lastOrdonnance = patientEvents.find(function(e){ return e.type === 'ordonnance'; });
   const el = document.getElementById('pTreatments');
+  if (!el) return;
+  const lastOrdonnance = patientEvents.find(function(e){ return e.type === 'ordonnance'; });
   if (!lastOrdonnance || !lastOrdonnance.data.prescriptions || lastOrdonnance.data.prescriptions.length === 0) {
     el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">Rx</div>Aucun traitement en cours enregistre.</div>';
     return;
@@ -533,7 +677,7 @@ function showComingSoon(title, text){ pModal(title, '<div style="font-size:14px;
 async function loadPatientAppointments(){
   try { const res = await fetch(API_BASE + '/api/patient/appointments', { headers: authHeaders() }); const d = await res.json(); patientAppointments = d.items || []; }
   catch(e){ patientAppointments = []; }
-  renderNextRdv(); renderPatientRdv(); renderPatientBriefing();
+  renderPatientNextRdvTile(); renderNextRdv(); renderPatientRdv();
 }
 function renderNextRdv(){
   const el = document.getElementById('pNextRdv'); if(!el) return;
@@ -615,7 +759,7 @@ async function pollPatientUpdates(){
       const fresh = evs.filter(function(e){ return !patientSeen.events.has(e.id); });
       if (fresh.length) {
         patientEvents = evs;
-        renderPatientTreatments(); renderPatientRecentDocs(); renderPatientDocuments(); renderPatientTimeline(); renderPatientBriefing();
+        renderPatientHomeCards(); renderPatientRecentDocs(); renderPatientDocuments(); renderPatientTimeline();
         fresh.forEach(function(e){ patientSeen.events.add(e.id); });
         pToast(fresh.length > 1 ? (fresh.length + ' nouveaux documents de votre médecin') : 'Nouveau document de votre médecin');
       }
@@ -626,7 +770,7 @@ async function pollPatientUpdates(){
     if (res.ok) {
       const items = (await res.json()).items || [];
       const fresh = items.filter(function(a){ return !patientSeen.appts.has(a.id); });
-      patientAppointments = items; renderNextRdv(); renderPatientRdv(); renderPatientBriefing();
+      patientAppointments = items; renderPatientNextRdvTile(); renderNextRdv(); renderPatientRdv();
       if (fresh.length) { fresh.forEach(function(a){ patientSeen.appts.add(a.id); }); pToast('Nouveau rendez-vous programmé'); }
     }
   } catch(e){}
