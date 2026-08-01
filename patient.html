@@ -135,6 +135,26 @@ a{color:inherit;text-decoration:none;}
 .ph-trend-row{ display:flex; align-items:center; gap:14px; padding:13px 0; border-bottom:1px solid var(--line); }
 .ph-trend-row:last-child{ border-bottom:none; }
 
+/* ⭐ Mon Parcours Santé — carte d'entrée + récit */
+.ph-parcours-cta{ display:flex; align-items:center; gap:14px; background:linear-gradient(135deg,#6D5DF6,#1460FF); color:#fff; border-radius:var(--r-lg); padding:18px; box-shadow:var(--shadow-md); cursor:pointer; margin:4px 0; transition:transform .12s ease; }
+.ph-parcours-cta:active{ transform:scale(.99); }
+.ph-parcours-cta .ico{ width:44px; height:44px; border-radius:14px; background:rgba(255,255,255,.18); display:flex; align-items:center; justify-content:center; font-size:22px; flex:none; }
+.ph-parcours-cta .t{ font-size:15.5px; font-weight:800; letter-spacing:-.01em; }
+.ph-parcours-cta .s{ font-size:12.5px; opacity:.92; margin-top:1px; }
+.ph-parcours-cta .chev{ margin-left:auto; opacity:.85; font-size:22px; flex:none; }
+
+.pp-synthese{ background:var(--blue-tint); border-radius:var(--r-md); padding:15px 17px; font-size:14px; color:var(--navy); line-height:1.55; margin-bottom:22px; }
+.pp-tl{ position:relative; padding-left:26px; }
+.pp-tl::before{ content:''; position:absolute; left:7px; top:8px; bottom:8px; width:2px; background:linear-gradient(var(--violet),var(--blue)); opacity:.35; }
+.pp-chap{ position:relative; margin-bottom:22px; }
+.pp-chap-dot{ position:absolute; left:-26px; top:3px; width:14px; height:14px; border-radius:50%; background:#fff; border:3px solid var(--blue); box-shadow:0 0 0 3px var(--paper); }
+.pp-chap-date{ font-size:11.5px; font-weight:700; color:var(--blue); text-transform:uppercase; letter-spacing:.03em; }
+.pp-chap-title{ font-size:15.5px; font-weight:800; letter-spacing:-.01em; margin:2px 0 5px; line-height:1.3; }
+.pp-chap-text{ font-size:14px; color:var(--ink-soft); line-height:1.6; }
+.pp-disclaimer{ display:flex; gap:10px; align-items:flex-start; background:#FFF8EC; border:1px solid #FCE9C7; border-radius:var(--r-md); padding:13px 15px; font-size:12.5px; color:#7A5A12; line-height:1.5; margin-top:14px; }
+.pp-skel{ height:14px; border-radius:7px; background:linear-gradient(90deg,#EEF1F6 25%,#F6F8FB 37%,#EEF1F6 63%); background-size:400% 100%; animation:ppShimmer 1.4s ease infinite; }
+@keyframes ppShimmer{ from{background-position:100% 0;} to{background-position:0 0;} }
+
 .p-sidebar{ display:none; } /* masqué en mobile — la tabbar prend le relais */
 @media (min-width:820px){
   .p-tabbar{ display:none; }
@@ -194,9 +214,9 @@ a{color:inherit;text-decoration:none;}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       <span>Messages</span>
     </button>
-    <button class="p-tab" data-view="timeline" onclick="switchPatientView('timeline')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <span>Chronologie</span>
+    <button class="p-tab" data-view="parcours" onclick="switchPatientView('parcours')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      <span>Mon parcours</span>
     </button>
     <button class="p-tab" data-view="profil" onclick="switchPatientView('profil')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
@@ -228,6 +248,17 @@ a{color:inherit;text-decoration:none;}
         <div class="p-section-label">Mon suivi</div>
         <div class="p-card" id="phTrends"></div>
 
+        <!-- ⭐ Mon Parcours Santé -->
+        <div class="p-section-label">Mon histoire de soin</div>
+        <div class="ph-parcours-cta" onclick="switchPatientView('parcours')">
+          <div class="ico">📖</div>
+          <div style="min-width:0;">
+            <div class="t">Mon Parcours Santé</div>
+            <div class="s">Votre histoire de soin, expliquée simplement</div>
+          </div>
+          <div class="chev">›</div>
+        </div>
+
         <div class="p-section-label">Documents recents</div>
         <div class="p-card" id="pRecentDocs"></div>
       </div>
@@ -242,9 +273,10 @@ a{color:inherit;text-decoration:none;}
         <div class="p-card" id="pDocList"></div>
       </div>
 
-      <div class="p-view" id="pview-timeline">
-        <div class="p-greeting" style="font-size:20px; margin-bottom:20px;">Votre chronologie</div>
-        <div class="p-timeline" id="pTimeline"></div>
+      <div class="p-view" id="pview-parcours">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:2px;">Mon Parcours Santé</div>
+        <div class="p-greeting-sub" style="margin-bottom:20px;">Votre histoire de soin, racontée simplement.</div>
+        <div id="pParcours"></div>
       </div>
 
       <div class="p-view" id="pview-rdv">
@@ -636,6 +668,7 @@ function setDocFilter(t){ currentDocFilter = t; renderPatientDocuments(); }
 
 function renderPatientTimeline(){
   const el = document.getElementById('pTimeline');
+  if (!el) return; // vue « chronologie » remplacée par « Mon Parcours Santé »
   if (patientEvents.length === 0) {
     el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">Cal</div>Votre parcours apparaitra ici au fil de vos consultations.</div>';
     return;
@@ -659,6 +692,52 @@ function switchPatientView(view){
   if (target) target.classList.add('visible');
   document.querySelectorAll('.p-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.view === view); });
   window.scrollTo({ top:0, behavior:'auto' });
+  if (view === 'parcours') loadPatientParcours();
+}
+
+// ── ⭐ Mon Parcours Santé (Sprint 15) — récit IA du dossier, langage clair ──
+// Chargé à la demande (un appel IA par ouverture, mis en cache côté serveur
+// tant que le dossier ne change pas). L'IA reformule le dossier : elle ne
+// pose jamais de diagnostic — d'où le rappel explicite en bas de page.
+let parcoursLoaded = false;
+function pParcoursSkeleton(){
+  const bar = function(w){ return '<div class="pp-skel" style="width:'+w+';margin-bottom:9px;"></div>'; };
+  let s = '';
+  for (let i=0;i<3;i++){ s += '<div style="margin-bottom:24px;">'+bar('42%')+bar('88%')+bar('66%')+'</div>'; }
+  return s;
+}
+async function loadPatientParcours(force){
+  const el = document.getElementById('pParcours'); if(!el) return;
+  if (parcoursLoaded && !force) return;
+  parcoursLoaded = true;
+  el.innerHTML = pParcoursSkeleton();
+  try {
+    const res = await fetch(API_BASE + '/api/patient/parcours' + (force ? '?refresh=1' : ''), { headers: authHeaders() });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || '');
+    renderPatientParcours(d);
+  } catch(e) {
+    parcoursLoaded = false;
+    el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">\u{1F615}</div>Impossible de générer votre parcours pour le moment.<br><button onclick="loadPatientParcours(true)" style="margin-top:12px;border:none;background:var(--blue);color:#fff;border-radius:10px;padding:9px 16px;font-family:inherit;font-weight:600;cursor:pointer;">Réessayer</button></div>';
+  }
+}
+function renderPatientParcours(d){
+  const el = document.getElementById('pParcours'); if(!el) return;
+  const chaps = (d && d.chapitres) || [];
+  if (!chaps.length) {
+    el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">\u{1F4D6}</div>Votre parcours santé apparaîtra ici après votre première consultation.</div>';
+    return;
+  }
+  let html = '';
+  if (d.synthese) html += '<div class="pp-synthese">'+escapeHtmlP(d.synthese)+'</div>';
+  html += '<div class="pp-tl">'+chaps.map(function(c){
+    return '<div class="pp-chap"><div class="pp-chap-dot"></div>'
+      +'<div class="pp-chap-date">'+escapeHtmlP(c.date||'')+'</div>'
+      +'<div class="pp-chap-title">'+escapeHtmlP(c.titre||'')+'</div>'
+      +'<div class="pp-chap-text">'+escapeHtmlP(c.recit||'')+'</div></div>';
+  }).join('')+'</div>';
+  html += '<div class="pp-disclaimer"><span>\u{1FA7A}</span><span>Ce récit reformule votre dossier pour vous aider à le comprendre. Il ne remplace pas l\'avis de votre médecin — seul votre médecin établit le diagnostic.</span></div>';
+  el.innerHTML = html;
 }
 
 // ── Portail patient (Sprint 9) — rendez-vous & messagerie (lecture seule) ──
@@ -759,6 +838,7 @@ async function pollPatientUpdates(){
       const fresh = evs.filter(function(e){ return !patientSeen.events.has(e.id); });
       if (fresh.length) {
         patientEvents = evs;
+        parcoursLoaded = false; // le dossier a changé → le parcours sera régénéré à la prochaine ouverture
         renderPatientHomeCards(); renderPatientRecentDocs(); renderPatientDocuments(); renderPatientTimeline();
         fresh.forEach(function(e){ patientSeen.events.add(e.id); });
         pToast(fresh.length > 1 ? (fresh.length + ' nouveaux documents de votre médecin') : 'Nouveau document de votre médecin');
