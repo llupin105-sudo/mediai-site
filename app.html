@@ -3834,12 +3834,62 @@ async function renderPatientsList() {
     });
     return;
   }
+  ensureQuickActionStyles();
   grid.innerHTML = list.map(p => `
     <div class="patient-card" onclick="openPatientDetail('${p.id}')">
-      <div class="patient-card-name">${p.prenom} ${p.nom}</div>
+      <button class="qa-btn" aria-label="Actions rapides" onclick="event.stopPropagation();qaToggle(this,'${p.id}')">•••</button>
+      <div class="patient-card-name">${escapeHtml(p.prenom + ' ' + p.nom)}</div>
       <div class="patient-card-meta">${p.events_count || 0} événement(s)${p.last_event_date ? ' · dernier : ' + new Date(p.last_event_date).toLocaleDateString('fr-FR') : ''}</div>
     </div>
   `).join('');
+}
+
+// Sprint 17 · Vague B — Quick Actions : agir sur un patient sans ouvrir le
+// dossier (moins de clics). Le menu apparaît au survol / au clic sur •••.
+function ensureQuickActionStyles() {
+  if (document.getElementById('qaStyles')) return;
+  const st = document.createElement('style'); st.id = 'qaStyles';
+  st.textContent = `
+  .patient-card{position:relative}
+  .qa-btn{position:absolute;top:12px;right:10px;width:30px;height:30px;border:none;background:transparent;color:var(--ink-faint);border-radius:8px;cursor:pointer;font-size:15px;line-height:1;opacity:0;transition:opacity .14s var(--ease),background .14s var(--ease)}
+  .patient-card:hover .qa-btn,.qa-btn.open{opacity:1}
+  .qa-btn:hover{background:var(--paper);color:var(--ink)}
+  .qa-menu{position:absolute;top:40px;right:10px;z-index:60;background:var(--card);border:1px solid var(--paper-line);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;min-width:210px;display:none;animation:qaIn .12s var(--ease-out) both}
+  .qa-menu.open{display:block}
+  @keyframes qaIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .qa-mi{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;font-size:13.5px;color:var(--ink);cursor:pointer}
+  .qa-mi:hover{background:var(--paper)}
+  .qa-mi .em{width:20px;text-align:center}`;
+  document.head.appendChild(st);
+}
+function qaClose() { document.querySelectorAll('.qa-menu.open').forEach(m => m.remove()); document.querySelectorAll('.qa-btn.open').forEach(b => b.classList.remove('open')); }
+function qaToggle(btn, id) {
+  const wasOpen = btn.classList.contains('open');
+  qaClose();
+  if (wasOpen) return;
+  btn.classList.add('open');
+  const card = btn.closest('.patient-card');
+  const menu = document.createElement('div'); menu.className = 'qa-menu open';
+  menu.onclick = (e) => e.stopPropagation();
+  menu.innerHTML = `
+    <div class="qa-mi" onclick="qaClose();openPatientDetail('${id}')"><span class="em">📂</span> Ouvrir le dossier</div>
+    <div class="qa-mi" onclick="qaClose();qaAction('${id}','copilote')"><span class="em">✦</span> Demander au Copilote</div>
+    <div class="qa-mi" onclick="qaClose();qaAction('${id}','preparer')"><span class="em">🗓️</span> Préparer la consultation</div>`;
+  card.appendChild(menu);
+}
+document.addEventListener('click', qaClose);
+// Ouvre le dossier puis déclenche l'intention une fois le dossier prêt.
+function qaAction(id, intent) {
+  openPatientDetail(id);
+  let tries = 0;
+  const iv = setInterval(function () {
+    tries++;
+    if (currentDetailPatientId === id) {
+      clearInterval(iv);
+      if (intent === 'copilote') { if (typeof openCopilote === 'function') openCopilote(); }
+      else if (intent === 'preparer') { const el = document.getElementById('ckptPreparer') || document.querySelector('[data-preparer]'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    } else if (tries > 40) { clearInterval(iv); }
+  }, 60);
 }
 
 function showPatientsListView() {
