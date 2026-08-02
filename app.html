@@ -1112,7 +1112,7 @@
 
     <div class="divider-or">ou coller la transcription</div>
 
-    <textarea class="transcript-box" id="transcriptBox" placeholder="Consultation du... Le patient se plaint de... À l'examen... Je prescris..."></textarea>
+    <textarea class="transcript-box" id="transcriptBox" data-autosave="consultation-dictee" placeholder="Consultation du... Le patient se plaint de... À l'examen... Je prescris..."></textarea>
 
     <button type="button" class="btn-export" style="width:100%; margin-top:10px; margin-bottom:4px;" onclick="suggestSymptomQuestions()" id="symptomQuestionsBtn">💡 Suggestions de questions à poser</button>
     <div id="symptomQuestionsResult" style="display:none; margin-top:8px; margin-bottom:8px; background:var(--clinical-tint); border-radius:8px; padding:14px 16px; font-size:13px; line-height:1.6;"></div>
@@ -1836,6 +1836,10 @@ function switchAppView(viewName) {
   }
   if (viewName === 'journal') { renderJournal(); }
   if (viewName === 'queue') { renderSmartQueue(); }
+  if (viewName === 'consultation' && window.MediaiAutosave) {
+    const b = document.getElementById('transcriptBox');
+    if (b && MediaiAutosave.restore(b)) { b.dispatchEvent(new Event('input', { bubbles: true })); if (typeof showToast === 'function') showToast('Brouillon de consultation restauré.', 'info'); }
+  }
   if (viewName === 'actions-center') { renderActionsCenter(); }
   if (viewName === 'labs') { renderLabs(); }
   if (viewName === 'marketplace') { renderMarketplace(); }
@@ -7861,6 +7865,30 @@ async function suggestSymptomQuestions() {
   }
 }
 
+// ══ Sprint 18 · Vague C — Auto-save universel ══
+// « Plus jamais un texte perdu. » Tout champ portant [data-autosave="clé"]
+// sauvegarde son brouillon en continu (localStorage) et le restaure s'il est
+// vide. clear() efface après un envoi réussi.
+const MediaiAutosave = (function () {
+  const PFX = 'mediai_draft_';
+  let timer = null;
+  document.addEventListener('input', function (e) {
+    const el = e.target;
+    if (!el || !el.matches || !el.matches('[data-autosave]')) return;
+    const k = el.getAttribute('data-autosave'), v = el.value;
+    clearTimeout(timer);
+    timer = setTimeout(function () { try { if (v && v.trim()) localStorage.setItem(PFX + k, v); else localStorage.removeItem(PFX + k); } catch (_) {} }, 400);
+  });
+  function restore(el) {
+    if (!el) return false;
+    const k = el.getAttribute('data-autosave'); if (!k) return false;
+    try { const v = localStorage.getItem(PFX + k); if (v && !el.value) { el.value = v; return true; } } catch (_) {}
+    return false;
+  }
+  function clear(k) { try { localStorage.removeItem(PFX + k); } catch (_) {} }
+  return { restore: restore, clear: clear };
+})();
+
 async function generate() {
   const transcription = box.value.trim();
   if (transcription.length < 50) return;
@@ -7920,6 +7948,7 @@ async function generate() {
     lastMeta = data.meta;
     lastEventId = data.id;
     renderChart(data.compteRendu, data.meta);
+    MediaiAutosave.clear('consultation-dictee'); // CR généré → le brouillon n'est plus utile
 
   } catch (err) {
     errorMsg.textContent = '⚠️ ' + (err.message || 'Impossible de contacter le serveur.');
