@@ -322,6 +322,9 @@ body.pa-active .pa-inputbar{ display:flex; position:fixed; left:0; right:0; bott
         <div class="p-greeting" id="pGreeting">Bonjour</div>
         <div class="p-greeting-sub" id="pGreetingSub"></div>
 
+        <!-- Sprint 17 · Patient Companion — digest du jour -->
+        <div id="pDigest" style="font-size:14px;color:var(--ink-soft);line-height:1.55;margin:6px 0 2px;"></div>
+
         <!-- ⑮ Bannière proactive contextuelle -->
         <div id="pCareBanner"></div>
 
@@ -686,7 +689,25 @@ function renderPatientHomeCards(){
   renderPatientTodayTreatment();
   renderPatientMiniTrends();
   renderPatientCareBanner();
+  renderPatientDigest();
   if (typeof updateNotifBadge === 'function') updateNotifBadge();
+}
+
+// Sprint 17 · Patient Companion — digest du jour en une phrase humaine,
+// composée à partir de faits réels (jamais d'interprétation médicale).
+function renderPatientDigest(){
+  const el = document.getElementById('pDigest'); if(!el) return;
+  const now = Date.now(); const bits = [];
+  const lastOrd = (patientEvents||[]).find(function(e){ return e.type==='ordonnance'; });
+  const hasTreat = lastOrd && lastOrd.data && Array.isArray(lastOrd.data.prescriptions) && lastOrd.data.prescriptions.some(function(p){ return p.medicament; });
+  if (hasTreat) bits.push('pensez à votre traitement');
+  const next = (patientAppointments||[]).filter(function(a){ return a.status!=='annule' && new Date(a.start_at).getTime()>now; }).sort(function(a,b){ return new Date(a.start_at)-new Date(b.start_at); })[0];
+  if (next){ const d = Math.ceil((new Date(next.start_at).getTime()-now)/86400000); bits.push(d<=0?"un rendez-vous aujourd'hui":d===1?'un rendez-vous demain':'un rendez-vous dans '+d+' jours'); }
+  const newDoc = (patientEvents||[]).some(function(e){ return (now-new Date(e.event_date).getTime())/86400000 <= 3; });
+  if (newDoc) bits.push('un nouveau document vous attend');
+  if (!bits.length){ el.textContent = 'Rien de particulier aujourd’hui. Prenez soin de vous.'; return; }
+  const cap = bits[0].charAt(0).toUpperCase() + bits[0].slice(1);
+  el.textContent = 'Aujourd’hui : ' + [cap].concat(bits.slice(1)).join(' · ') + '.';
 }
 
 // ⑮ Carte blanche — une seule attention proactive, la plus utile du moment,

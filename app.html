@@ -2530,6 +2530,13 @@ function auroraGreeting() {
   const name = currentUser?.profile?.nom || currentUser?.email?.split('@')[0] || '';
   return `${g}${name ? ', ' + name : ''}`;
 }
+// Sprint 17 · Workspace adaptatif — indice contextuel selon l'heure.
+function auroraTimeHint() {
+  const h = new Date().getHours();
+  if (h < 12) return '🌅 Matinée — vos consultations vous attendent.';
+  if (h < 18) return '☀️ Après-midi — pensez aux ordonnances et renouvellements.';
+  return '🌙 Fin de journée — un bon moment pour vos comptes-rendus.';
+}
 function auroraDateLine() {
   const c = (cockpitState.data && cockpitState.data.compteurs) || {};
   let d = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -2570,6 +2577,7 @@ function renderAuroraBand() {
   el.innerHTML = `<div class="dsh-hero">
     <div class="dsh-dt">${auroraDateLine()}</div>
     <h1 class="dsh-hi">${escapeHtml(auroraGreeting())}.</h1>
+    <div style="font-size:13.5px;color:var(--ink-soft);margin-top:6px;">${auroraTimeHint()}</div>
     <div class="dsh-brief-lead">Aujourd'hui</div>
     ${countsHtml}
     ${prioHtml}
