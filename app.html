@@ -923,6 +923,10 @@
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 2v5h5"/><path d="M8 13h8M8 17h5"/></svg></span>
       <span class="label">Journal</span>
     </button>
+    <button class="sidebar-link" data-view="queue" data-tooltip="File du jour" onclick="switchAppView('queue')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/></svg></span>
+      <span class="label">File du jour</span>
+    </button>
     <button class="sidebar-link" data-view="patients" data-tooltip="Patients" onclick="switchAppView('patients')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
       <span class="label">Patients</span>
@@ -1233,6 +1237,9 @@
 
     <!-- Sprint 17 — Journal du cabinet -->
     <div id="view-journal" class="app-view"></div>
+
+    <!-- Sprint 18 — Smart Queue (file du jour) -->
+    <div id="view-queue" class="app-view"></div>
 
     <!-- Sprint 13 — pages plateforme -->
     <div id="view-actions-center" class="app-view"></div>
@@ -1795,7 +1802,7 @@ const APP_VIEW_IDS = {
   dashboard: 'view-dashboard', patients: 'patientsSection', consultation: 'view-consultation',
   'ia-hub': 'view-ia-hub', 'parametres': 'view-parametres', documents: 'view-documents',
   'actions-center': 'view-actions-center', labs: 'view-labs', marketplace: 'view-marketplace',
-  journal: 'view-journal',
+  journal: 'view-journal', queue: 'view-queue',
 };
 
 // Sprint 11 Étape 5 — les anciens sous-onglets Documents deviennent des
@@ -1825,6 +1832,7 @@ function switchAppView(viewName) {
     renderDocumentCenter();
   }
   if (viewName === 'journal') { renderJournal(); }
+  if (viewName === 'queue') { renderSmartQueue(); }
   if (viewName === 'actions-center') { renderActionsCenter(); }
   if (viewName === 'labs') { renderLabs(); }
   if (viewName === 'marketplace') { renderMarketplace(); }
@@ -1893,6 +1901,61 @@ function paintJournal() {
       <b style="color:var(--ink-soft);">Estimation à titre indicatif</b> — calculée sur le nombre de documents produits, <b>non mesurée</b>.<br>Hypothèses : ${hypLine}.
     </div>
   </div>`;
+}
+
+// ══ Sprint 18 · Vague B — Smart Queue (file du jour) ══
+// Les patients du jour triés/colorés selon la complexité, dérivée des signaux
+// (déterministe) + présence d'un résultat récent. Le médecin sait où porter
+// son attention. Sert aussi d'ordre au « Terminer → patient suivant ».
+let smartQueueOrder = [];
+function ensureSmartQueueStyles() {
+  if (document.getElementById('sqStyles')) return;
+  const st = document.createElement('style'); st.id = 'sqStyles';
+  st.textContent = `.sq-list{display:flex;flex-direction:column;gap:10px;max-width:820px}
+  .sq-row{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--paper-line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-xs);cursor:pointer;transition:transform .1s var(--ease),box-shadow .15s var(--ease)}
+  .sq-row:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+  .sq-time{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink);min-width:52px}
+  .sq-dot{width:12px;height:12px;border-radius:50%;flex:none}
+  .sq-b{flex:1;min-width:0}
+  .sq-n{font-size:14.5px;font-weight:700;color:var(--ink)}
+  .sq-s{font-size:12.5px;color:var(--ink-faint)}
+  .sq-tag{font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;border:1px solid;flex:none}`;
+  document.head.appendChild(st);
+}
+async function renderSmartQueue() {
+  const el = document.getElementById('view-queue'); if (!el) return;
+  ensureAuroraStyles(); ensureSmartQueueStyles();
+  const head = `<div style="max-width:820px;margin:0 auto;"><div style="font-size:13px;color:var(--ink-faint);font-weight:500;">File du jour</div><h1 style="font-size:28px;font-weight:800;letter-spacing:-.025em;margin:4px 0 4px;">Où porter votre attention</h1>`;
+  const legend = `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin:2px 0 18px;">${['🟢 Simple', '🟠 À surveiller', '🔴 Complexe', '⚡ Résultat arrivé', '📄 Imagerie'].map((x) => `<span>${x}</span>`).join('')}</div>`;
+  el.innerHTML = head + legend + `<div class="skel" style="height:64px;border-radius:14px;max-width:820px;margin-bottom:10px"></div><div class="skel" style="height:64px;border-radius:14px;max-width:820px"></div></div>`;
+  let d = cockpitState.data; try { if (!d) d = await fetchCockpit(); } catch { d = null; } d = d || {};
+  const agenda = d.agenda || [];
+  const prioMap = {}; (d.priorites || []).forEach((p) => { if (p.patient_id) prioMap[p.patient_id] = p; });
+  const resSet = new Set((d.resultats_recents || []).filter((r) => r.patient_id).map((r) => r.patient_id));
+  const imgSet = new Set((d.resultats_recents || []).filter((r) => r.patient_id && r.type === 'imagerie').map((r) => r.patient_id));
+  smartQueueOrder = agenda.filter((a) => a.patient_id).map((a) => a.patient_id);
+  if (!agenda.length) {
+    el.innerHTML = head + legend + `<div class="ac-card" style="max-width:820px;text-align:center;padding:40px 22px;"><div style="font-size:34px;margin-bottom:8px;">🗓️</div><div style="font-size:16px;font-weight:800;">Aucune consultation aujourd'hui</div><div style="font-size:13px;color:var(--ink-soft);margin-top:4px;">Votre file apparaîtra ici dès qu'un rendez-vous est planifié.</div></div></div>`;
+    return;
+  }
+  const rows = agenda.map((a) => {
+    const pid = a.patient_id, prio = pid ? prioMap[pid] : null;
+    let color, txt;
+    if (prio && prio.severite === 'important') { color = 'var(--rose)'; txt = 'Complexe'; }
+    else if ((prio && prio.severite === 'attention') || (pid && resSet.has(pid))) { color = 'var(--amber)'; txt = 'À surveiller'; }
+    else { color = 'var(--green)'; txt = 'Simple'; }
+    const heure = new Date(a.start_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const name = a.patient_label || (prio ? `${prio.prenom || ''} ${prio.nom || ''}`.trim() : 'Patient');
+    const badges = []; if (pid && resSet.has(pid)) badges.push('⚡'); if (pid && imgSet.has(pid)) badges.push('📄');
+    const open = pid ? `onclick="ckptOpenPatient('${pid}')"` : '';
+    return `<div class="sq-row" ${open}>
+      <div class="sq-time">${heure}</div>
+      <div class="sq-dot" style="background:${color}"></div>
+      <div class="sq-b"><div class="sq-n">${escapeHtml(name)}</div><div class="sq-s">${escapeHtml(a.motif || 'Consultation')}${badges.length ? ' · ' + badges.join(' ') : ''}</div></div>
+      <span class="sq-tag" style="color:${color};border-color:${color}55;background:${color}14">${txt}</span>
+    </div>`;
+  }).join('');
+  el.innerHTML = head + legend + `<div class="sq-list">${rows}</div></div>`;
 }
 
 function toggleSidebar() {
