@@ -107,10 +107,12 @@ async function boot(){
   let me;
   try{ const r = await fetch(API_BASE+'/api/auth/me', { headers:authH() }); if(!r.ok) throw 0; me = await r.json(); }
   catch(e){ return showGate('Session expirée. Reconnectez-vous.'); }
-  if(!me || !me.isAdmin){
-    return showGate('Ce compte n\'est pas administrateur. Ajoutez votre email à la variable ADMIN_EMAILS du backend pour accéder au Command Center.');
+  // /api/auth/me renvoie { user: {…, isAdmin} } — on lit l'objet utilisateur.
+  const u = (me && me.user) || me || {};
+  if(!u.isAdmin){
+    return showGate('Ce compte n\'est pas administrateur. Vérifiez que votre email figure dans ADMIN_EMAILS (backend Render) et que c\'est bien le compte avec lequel vous êtes connecté.');
   }
-  document.getElementById('ccWho').textContent = me.email + ' · admin';
+  document.getElementById('ccWho').textContent = (u.email || '') + ' · admin';
   document.getElementById('cc').style.display = 'block';
   renderHealth(); renderAi(); renderFlags(); renderRoadmap(); renderMetrics();
   // Rafraîchissement léger de la santé système (cockpit « temps réel »).
