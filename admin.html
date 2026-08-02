@@ -60,12 +60,16 @@
 
 <div id="cc" class="wrap" style="display:none;">
   <div class="cc-top">
-    <div class="cc-brand"><span class="logo">✦</span> MediAI <span class="tag">Command Center</span></div>
+    <div class="cc-brand"><span class="logo">✦</span> MediAI <span class="tag">Mission Control</span></div>
     <div class="cc-who" id="ccWho"></div>
   </div>
 
   <h2 class="sec">Santé du système</h2>
   <div class="grid" id="ccHealth"></div>
+
+  <h2 class="sec">Intelligence artificielle · usage réel</h2>
+  <div class="grid" id="ccAi"></div>
+  <div class="note">Agrégats réels de consommation IA (tokens) par source, sans aucune donnée personnelle ni contenu clinique.</div>
 
   <h2 class="sec">Feature flags · activation sans redéploiement</h2>
   <div class="card" id="ccFlags"></div>
@@ -108,7 +112,23 @@ async function boot(){
   }
   document.getElementById('ccWho').textContent = me.email + ' · admin';
   document.getElementById('cc').style.display = 'block';
-  renderHealth(); renderFlags(); renderRoadmap(); renderMetrics();
+  renderHealth(); renderAi(); renderFlags(); renderRoadmap(); renderMetrics();
+  // Rafraîchissement léger de la santé système (cockpit « temps réel »).
+  setInterval(renderHealth, 20000);
+}
+
+function fmtTokens(n){ n = n||0; if(n>=1e6) return (n/1e6).toFixed(1)+' M'; if(n>=1e3) return (n/1e3).toFixed(1)+' k'; return String(n); }
+async function renderAi(){
+  const el = document.getElementById('ccAi'); if(!el) return;
+  let ai = null;
+  try{ const r = await fetch(API_BASE+'/api/admin/ai-stats', { headers:authH() }); if(r.ok) ai = (await r.json()).ai; }catch(e){}
+  if(!ai){ el.innerHTML = '<div class="stat"><div class="k">Stats IA</div><div class="v todo" style="font-size:16px;">Indisponibles</div></div>'; return; }
+  let html = '<div class="stat"><div class="k">Tokens consommés</div><div class="v">'+fmtTokens(ai.totalTokens)+'</div><div class="s">Toutes sources</div></div>'
+    + '<div class="stat"><div class="k">Appels IA</div><div class="v">'+ (ai.totalCalls||0) +'</div><div class="s">Générations enregistrées</div></div>';
+  (ai.bySource||[]).forEach(function(s){
+    html += '<div class="stat"><div class="k">'+esc(s.source)+'</div><div class="v" style="font-size:19px;">'+fmtTokens(s.tokens)+'</div><div class="s">'+(s.calls||0)+' appel'+((s.calls>1)?'s':'')+'</div></div>';
+  });
+  el.innerHTML = html;
 }
 function showGate(msg){ document.getElementById('gateMsg').textContent = msg; document.getElementById('gate').style.display = 'block'; }
 
