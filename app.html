@@ -1464,7 +1464,10 @@
 <!-- Mode Focus : barre minimale -->
 <div id="focusBar">
   <div class="fb-left"><span class="fb-dot"></span><span id="focusPatientLabel">Consultation</span><span style="color:var(--ink-faint); font-weight:400; font-size:12px;">· Mode Focus</span></div>
-  <button class="focus-exit" onclick="exitFocusMode()">Quitter · Échap</button>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button class="focus-finish" onclick="finishAndNext()">✓ Terminer → suivant</button>
+    <button class="focus-exit" onclick="exitFocusMode()">Quitter · Échap</button>
+  </div>
 </div>
 
 <!-- MODALE : sélection rapide d'un patient avant génération -->
@@ -2430,7 +2433,9 @@ function ensureFocusStyles() {
     + '#focusBar .fb-left{display:flex;align-items:center;gap:10px;font-weight:600;color:var(--ink);font-size:14px}'
     + '#focusBar .fb-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px var(--blue-tint)}'
     + '.focus-exit{background:var(--paper);border:1px solid var(--paper-line);border-radius:8px;height:34px;padding:0 14px;cursor:pointer;font-size:13px;color:var(--ink-soft);transition:border-color var(--dur-2,.16s),color var(--dur-2,.16s)}'
-    + '.focus-exit:hover{border-color:var(--accent);color:var(--accent-deep)}';
+    + '.focus-exit:hover{border-color:var(--accent);color:var(--accent-deep)}'
+    + '.focus-finish{background:var(--green);border:none;border-radius:8px;height:34px;padding:0 15px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;transition:background .16s}'
+    + '.focus-finish:hover{background:var(--green-deep)}';
   document.head.appendChild(st);
 }
 function isFocusMode() { return document.body.classList.contains('focus-mode'); }
@@ -2509,6 +2514,30 @@ function enterFocusMode() {
 }
 function exitFocusMode() { document.body.classList.remove('focus-mode'); }
 function toggleFocusMode() { isFocusMode() ? exitFocusMode() : enterFocusMode(); }
+// Sprint 18 · Vague B — « Terminer → patient suivant » : enchaîne sur le
+// patient suivant de la file du jour (smartQueueOrder), sans retour manuel.
+function finishAndNext() {
+  const currId = (typeof selectedPatient !== 'undefined' && selectedPatient) ? selectedPatient.id : null;
+  showToast('Consultation terminée ✓', 'success');
+  let nextId = null;
+  const q = Array.isArray(smartQueueOrder) ? smartQueueOrder : [];
+  if (currId) { const i = q.indexOf(currId); if (i !== -1 && i + 1 < q.length) nextId = q[i + 1]; }
+  else if (q.length) { nextId = q[0]; }
+  if (nextId) {
+    const p = (typeof patientsCache !== 'undefined' ? patientsCache : []).find((x) => x.id === nextId);
+    if (p) {
+      selectedPatient = { id: p.id, nom: p.nom, prenom: p.prenom };
+      if (typeof renderPatientSelectorBar === 'function') renderPatientSelectorBar();
+      if (typeof fetchPrepBriefing === 'function') fetchPrepBriefing();
+      updateFocusBar();
+      window.scrollTo({ top: 0 });
+      showToast('Patient suivant : ' + ((p.prenom || '') + ' ' + (p.nom || '')).trim(), 'info');
+      return;
+    }
+  }
+  exitFocusMode();
+  showToast('File du jour terminée 🎉', 'success');
+}
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isFocusMode()) exitFocusMode(); });
 ensureFocusStyles();
 
