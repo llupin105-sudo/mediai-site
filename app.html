@@ -4988,6 +4988,7 @@ function renderPatientHeader(patient, events) {
         <button class="btn-export" style="width:42px;padding:0;" onclick="pwToggleMenu(event,'pwMoreMenu')" aria-label="Plus d'actions">•••</button>
         <div class="pw-menu" id="pwMoreMenu">
           <div class="pw-mi" onclick="togglePatientFavorite(); pwCloseMenus();"><span class="em">${fav ? '★' : '☆'}</span> ${fav ? 'Épinglé' : 'Épingler le patient'}</div>
+          <div class="pw-mi" onclick="pwCloseMenus(); openConsultationSnapshot();"><span class="em">📸</span> Snapshot de la consultation</div>
           <div class="pw-mi" onclick="pwCloseMenus(); var n=document.querySelector('.patient-notes'); if(n)n.scrollIntoView({behavior:'smooth',block:'center'});"><span class="em">📝</span> Notes du dossier</div>
         </div>
       </div>
@@ -5390,6 +5391,61 @@ function cjDownload() {
   const url = URL.createObjectURL(blob); const a = document.createElement('a');
   a.href = url; a.download = 'journal-clinique.txt'; document.body.appendChild(a); a.click();
   setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 120);
+}
+
+// ══ Sprint 18 · Vague B — Consultation Snapshot ══
+// Fiche visuelle de la dernière consultation (déterministe). Champs affichés
+// seulement s'ils existent — jamais inventés (durée non suivie → masquée).
+function ensureSnapshotModal() {
+  if (document.getElementById('csModal')) return;
+  const st = document.createElement('style'); st.id = 'csStyles';
+  st.textContent = `
+  #csScrim{position:fixed;inset:0;z-index:300;background:rgba(10,17,40,.42);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .2s var(--ease)}
+  #csScrim.open{opacity:1;pointer-events:auto}
+  #csModal{position:fixed;z-index:310;left:50%;top:50%;transform:translate(-50%,-48%) scale(.98);opacity:0;pointer-events:none;width:560px;max-width:96vw;max-height:90vh;overflow:auto;background:var(--card);border:1px solid var(--paper-line);border-radius:22px;box-shadow:var(--shadow-lg);transition:opacity .2s var(--ease),transform .2s var(--ease)}
+  #csModal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+  .cs-top{padding:22px 24px 6px}
+  .cs-k{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+  .cs-h{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-top:2px}
+  .cs-motif{font-size:13.5px;color:var(--ink-soft);margin-top:3px}
+  .cs-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 24px}
+  .cs-tile{background:var(--paper);border:1px solid var(--paper-line);border-radius:14px;padding:14px}
+  .cs-tile.full{grid-column:1/-1}
+  .cs-tk{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-faint);display:flex;align-items:center;gap:6px}
+  .cs-tv{font-size:15px;font-weight:700;color:var(--ink);margin-top:5px;line-height:1.4}
+  .cs-chip{display:inline-block;font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--paper-line);border-radius:999px;padding:3px 10px;margin:4px 4px 0 0;color:var(--ink-soft)}
+  .cs-foot{padding:12px 24px 20px;font-size:11px;color:var(--ink-faint);display:flex;align-items:center;gap:10px}
+  .cs-x{margin-left:auto;border:1.5px solid var(--paper-line);background:var(--card);border-radius:9px;height:34px;padding:0 15px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;color:var(--ink)}`;
+  document.head.appendChild(st);
+  const scrim = document.createElement('div'); scrim.id = 'csScrim'; scrim.onclick = closeConsultationSnapshot;
+  const modal = document.createElement('div'); modal.id = 'csModal';
+  document.body.appendChild(scrim); document.body.appendChild(modal);
+}
+function closeConsultationSnapshot() { document.getElementById('csScrim')?.classList.remove('open'); document.getElementById('csModal')?.classList.remove('open'); }
+function openConsultationSnapshot() {
+  const c = (currentPatientEvents || []).find((e) => e.type === 'consultation');
+  if (!c) { showToast('Aucune consultation dans ce dossier.', 'info'); return; }
+  ensureSnapshotModal();
+  const d = c.data || {}, s = d.sections || {};
+  const diag = (s.assessment && (s.assessment.diagnostic_principal || s.assessment.diagnostic)) || '—';
+  const motif = (s.subjectif && s.subjectif.motif_principal) || d.resume_1_ligne || 'Consultation';
+  const meds = ((s.plan && Array.isArray(s.plan.prescriptions)) ? s.plan.prescriptions.map((p) => p.medicament) : deriveTreatments(currentPatientEvents)).filter(Boolean);
+  const suivi = (s.plan && s.plan.suivi) || '';
+  const consts = (s.objectif && s.objectif.constantes) ? Object.entries(s.objectif.constantes).filter(([, v]) => v && v !== 'null') : [];
+  const duree = d.duree_consultation_estimee;
+  const date = new Date(c.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  let tiles = '';
+  tiles += `<div class="cs-tile full"><div class="cs-tk">🩺 Diagnostic</div><div class="cs-tv">${escapeHtml(diag)}</div></div>`;
+  tiles += `<div class="cs-tile"><div class="cs-tk">💊 Traitement</div><div class="cs-tv">${meds.length ? escapeHtml(meds.slice(0, 3).join(', ')) + (meds.length > 3 ? '…' : '') : 'Aucun'}</div></div>`;
+  tiles += `<div class="cs-tile"><div class="cs-tk">🗓️ Suivi</div><div class="cs-tv">${suivi ? escapeHtml(suivi) : '—'}</div></div>`;
+  if (duree) tiles += `<div class="cs-tile"><div class="cs-tk">⏱️ Durée</div><div class="cs-tv">${escapeHtml(String(duree))}</div></div>`;
+  if (consts.length) tiles += `<div class="cs-tile full"><div class="cs-tk">📊 Constantes</div><div style="margin-top:4px">${consts.map(([k, v]) => `<span class="cs-chip">${escapeHtml(k)} ${escapeHtml(String(v))}</span>`).join('')}</div></div>`;
+  document.getElementById('csModal').innerHTML = `
+    <div class="cs-top"><div class="cs-k">Consultation Snapshot · ${date}</div><div class="cs-h">${escapeHtml((currentPatientInfo && (currentPatientInfo.prenom + ' ' + currentPatientInfo.nom).trim()) || 'Patient')}</div><div class="cs-motif">${escapeHtml(motif)}</div></div>
+    <div class="cs-grid">${tiles}</div>
+    <div class="cs-foot"><span>Fiche générée depuis le dossier — à vérifier.</span><button class="cs-x" onclick="closeConsultationSnapshot()">Fermer</button></div>`;
+  document.getElementById('csScrim').classList.add('open');
+  document.getElementById('csModal').classList.add('open');
 }
 
 function renderCockpit(patient, events) {
