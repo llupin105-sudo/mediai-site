@@ -381,6 +381,40 @@ body{ background:
 .story-title{ font-size:27px; font-weight:800; letter-spacing:-.035em; line-height:1.1; margin-bottom:16px; }
 .story-lead{ font-size:18.5px; line-height:1.62; letter-spacing:-.01em; color:var(--ink); font-weight:450; }
 .story-lead::first-letter{ font-size:46px; font-weight:800; float:left; line-height:.82; padding:6px 11px 0 0; color:var(--violet); }
+
+/* ── Sprint 20 · Vague D — Messagerie (Phases 2, 14) + Conversations intelligentes (5) ── */
+.conv-cards{ display:flex; flex-direction:column; gap:14px; }
+.conv-card{ display:flex; align-items:center; gap:15px; background:var(--card); border-radius:var(--hos-r); padding:18px; box-shadow:var(--hos-shadow-soft); border:1px solid var(--hos-hair); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .16s var(--hos-ease); }
+.conv-card:active{ transform:scale(.985); }
+.conv-card .cav{ width:54px; height:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:25px; flex:none; color:#fff; }
+.conv-card .ct{ font-size:16px; font-weight:800; letter-spacing:-.01em; }
+.conv-card .cs{ font-size:13px; color:var(--ink-soft); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.conv-card .cbadge{ margin-left:auto; min-width:22px; height:22px; padding:0 7px; border-radius:999px; background:var(--pink); color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex:none; }
+.conv-card .chev{ margin-left:auto; color:var(--ink-faint); font-size:22px; flex:none; }
+/* Conversation façon iMessage */
+.conv-head{ display:flex; align-items:center; gap:12px; margin:2px 0 10px; }
+.conv-head .cav{ width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:800; color:#fff; flex:none; }
+.conv-head .cn{ font-size:16px; font-weight:800; letter-spacing:-.01em; }
+.conv-head .cspec{ font-size:12.5px; color:var(--ink-soft); }
+.conv-list{ display:flex; flex-direction:column; padding-bottom:84px; }
+.imsg-day{ text-align:center; font-size:11.5px; font-weight:700; color:var(--ink-faint); margin:18px 0 12px; }
+.imw{ display:flex; flex-direction:column; max-width:100%; }
+.imw.me{ align-items:flex-end; }
+.imw.them, .imw.ia{ align-items:flex-start; }
+.imsg{ max-width:80%; padding:11px 15px; border-radius:20px; font-size:14.5px; line-height:1.45; word-wrap:break-word; white-space:pre-wrap; }
+.imsg.them{ background:#EDEFF3; color:var(--ink); border-bottom-left-radius:6px; }
+.imsg.me{ background:linear-gradient(160deg,#1F6BFF,#0FA6FF); color:#fff; border-bottom-right-radius:6px; }
+.imsg.ia{ background:linear-gradient(160deg,#7C5CFC,#9D7BFF); color:#fff; border-bottom-left-radius:6px; }
+.imsg-sign{ font-size:11px; color:var(--ink-faint); margin:2px 4px 0; }
+.imsg-time{ font-size:10.5px; color:var(--ink-faint); margin:2px 4px 12px; }
+.conv-inputbar{ position:fixed; left:0; right:0; bottom:0; display:flex; gap:9px; align-items:center; padding:10px 16px calc(10px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.85); backdrop-filter:blur(14px); border-top:1px solid var(--line); z-index:60; }
+.conv-inputbar .inwrap{ display:flex; gap:9px; align-items:center; width:100%; max-width:640px; margin:0 auto; }
+.conv-inputbar input{ flex:1; height:44px; border:1.5px solid var(--line); border-radius:var(--r-full); padding:0 16px; font-size:14.5px; background:var(--card); font-family:inherit; }
+.conv-inputbar button{ width:44px; height:44px; border-radius:50%; border:none; background:var(--blue); color:#fff; font-size:20px; cursor:pointer; flex:none; }
+body.conv-active .p-tabbar{ display:none; }
+/* Assistant — Transmettre au médecin (Phase 5) */
+.pa-forward{ align-self:flex-start; margin:1px 0 12px; display:inline-flex; align-items:center; gap:8px; background:#F3EEFF; color:var(--violet); border:1px solid #E4D9FF; border-radius:999px; padding:9px 15px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; }
+.pa-forward:active{ transform:scale(.97); }
 </style>
 </head>
 <body>
@@ -581,8 +615,20 @@ body{ background:
       </div>
 
       <div class="p-view" id="pview-messages">
-        <div class="p-greeting" style="font-size:20px; margin-bottom:16px;">Messagerie</div>
-        <div class="p-card" id="pThreadList"></div>
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Messages</div>
+        <div class="p-greeting-sub" style="margin-bottom:18px;">Vos échanges avec le cabinet.</div>
+        <div class="conv-cards" id="pConvCards"></div>
+      </div>
+
+      <!-- Sprint 20 · Phase 2+14 — conversation façon iMessage -->
+      <div class="p-view" id="pview-conversation">
+        <button class="p-back" onclick="switchPatientView('messages')">‹ Messages</button>
+        <div class="conv-head" id="pConvHead"></div>
+        <div class="conv-list" id="pConvList"></div>
+        <div class="conv-inputbar"><div class="inwrap">
+          <input id="pConvInput" placeholder="Votre message…" onkeydown="if(event.key==='Enter')sendConversationMessage()" maxlength="2000">
+          <button onclick="sendConversationMessage()" aria-label="Envoyer">↑</button>
+        </div></div>
       </div>
 
       <div class="p-view" id="pview-profil">
@@ -1168,7 +1214,7 @@ function renderPatientTimeline(){
 
 // Certaines vues sont des sous-pages ouvertes depuis le hub « Santé » ou le
 // Profil : on met en surbrillance l'onglet parent correspondant.
-const VIEW_PARENT = { parcours:'sante', rdv:'sante', traitements:'sante', resultats:'sante', evolution:'sante', preparer:'sante', connectee:'sante', messages:'profil', securite:'profil', notifications:'profil', monmedecin:'profil' };
+const VIEW_PARENT = { parcours:'sante', rdv:'sante', traitements:'sante', resultats:'sante', evolution:'sante', preparer:'sante', connectee:'sante', messages:'profil', conversation:'profil', securite:'profil', notifications:'profil', monmedecin:'profil' };
 // ── ⑦ Préparer ma consultation (déterministe + notes locales) ──
 const PREP_ITEMS = [
   { k:'vitale', label:'Carte Vitale et carte de mutuelle' },
@@ -1347,6 +1393,7 @@ function switchPatientView(view){
   const tabKey = VIEW_PARENT[view] || view;
   document.querySelectorAll('.p-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.view === tabKey); });
   document.body.classList.toggle('pa-active', view === 'assistant');
+  document.body.classList.toggle('conv-active', view === 'conversation');
   window.scrollTo({ top:0, behavior:'auto' });
   if (navigator.vibrate) navigator.vibrate(5);
   if (view === 'parcours') loadPatientParcours();
@@ -1361,6 +1408,7 @@ function switchPatientView(view){
   if (view === 'evolution') renderPatientEvolution();
   if (view === 'securite') renderPatientSecurite();
   if (view === 'monmedecin') renderPatientMonMedecin();
+  if (view === 'messages') loadPatientThreads();
 }
 
 // Sprint 20 · Phase 6 — Mon Médecin. Uniquement le réel (jamais de fausse
@@ -1455,6 +1503,9 @@ async function sendPatientChat(){
     const d=await res.json(); if(typing) typing.remove();
     if(!res.ok) throw new Error(d.error||'');
     paAppend('assistant', d.reponse); patientChatHistory.push({ role:'assistant', content:d.reponse });
+    // Phase 5 — proposer de transmettre la question au médecin (avec contexte).
+    const box=document.getElementById('paMessages');
+    if(box){ const fwd=document.createElement('button'); fwd.className='pa-forward'; fwd.textContent='➦ Transmettre au médecin'; fwd.onclick=function(){ forwardToDoctor(q, fwd); }; box.appendChild(fwd); }
   } catch(e) {
     if(typing) typing.remove();
     paAppend('assistant', "Désolé, je n'ai pas pu analyser votre dossier pour le moment. Réessayez dans un instant.");
@@ -1651,33 +1702,115 @@ function renderPatientTraitements(){
     }).join('');
   ptJustToggled = null;
 }
+// ── Sprint 20 · Vague D — messagerie bidirectionnelle (2 types + iMessage) ──
+let convCurrent = { category:null, threadId:null };
 async function loadPatientThreads(){
   try { const res = await fetch(API_BASE + '/api/patient/threads', { headers: authHeaders() }); const d = await res.json(); patientThreads = d.items || []; }
   catch(e){ patientThreads = []; }
   renderPatientMessages();
 }
+function threadOf(category){ return (patientThreads||[]).find(function(t){ return (t.category||'medical')===category; }); }
 function renderPatientMessages(){
-  const el = document.getElementById('pThreadList'); if(!el) return;
-  if(!patientThreads.length){ el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">Msg</div>Aucun message. Votre medecin pourra vous ecrire ici.</div>'; return; }
-  el.innerHTML = patientThreads.map(function(t){
-    return '<div class="p-doc-row" onclick="openPatientThread(\''+t.id+'\')">'+
-      '<div class="p-doc-icon tp-courrier">Msg</div>'+
-      '<div class="p-doc-body"><div class="p-doc-title">'+escapeHtmlP(t.subject||'Conversation')+'</div>'+
-      '<div class="p-doc-sub">'+(t.unread?t.unread+' non lu(s)':'A jour')+'</div></div>'+
-      '<div class="p-doc-date">'+new Date(t.last_message_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+'</div>'+
-    '</div>';
+  const el = document.getElementById('pConvCards'); if(!el) return;
+  const med = threadOf('medical'), adm = threadOf('admin');
+  const medName = (medecinInfo && medecinInfo.nom) || 'Votre médecin';
+  const cards = [
+    { cat:'medical', grad:'linear-gradient(150deg,#1460FF,#00C6FF)', ico:'\u{1FA7A}', t:medName, s: med ? 'Conversation médicale' : 'Posez une question à votre médecin', unread: med ? med.unread : 0 },
+    { cat:'admin',   grad:'linear-gradient(150deg,#F59E0B,#FBBF24)', ico:'\u{1F5C2}️', t:'Secrétariat', s: adm ? 'Rendez-vous, documents, horaires' : 'Rendez-vous, documents, horaires…', unread: adm ? adm.unread : 0 }
+  ];
+  el.innerHTML = cards.map(function(c){
+    const right = c.unread ? '<span class="cbadge">'+(c.unread>9?'9+':c.unread)+'</span>' : '<span class="chev">›</span>';
+    return '<div class="conv-card" onclick="openConversation(\''+c.cat+'\')"><div class="cav" style="background:'+c.grad+'">'+c.ico+'</div>'
+      +'<div style="min-width:0;flex:1;"><div class="ct">'+escapeHtmlP(c.t)+'</div><div class="cs">'+escapeHtmlP(c.s)+'</div></div>'+right+'</div>';
   }).join('');
 }
-async function openPatientThread(id){
+async function openConversation(category){
+  convCurrent = { category:category, threadId:null };
+  switchPatientView('conversation');
+  const head = document.getElementById('pConvHead');
+  if(category==='medical'){
+    const nom = (medecinInfo && medecinInfo.nom) || 'Votre médecin';
+    const init = (nom.replace(/^(dr|docteur)\s+/i,'').trim()[0] || 'M').toUpperCase();
+    head.innerHTML = '<div class="cav" style="background:linear-gradient(150deg,#1460FF,#00C6FF)">'+escapeHtmlP(init)+'</div><div><div class="cn">'+escapeHtmlP(nom)+'</div><div class="cspec">'+escapeHtmlP((medecinInfo && medecinInfo.specialite) || 'Médecin')+'</div></div>';
+  } else {
+    head.innerHTML = '<div class="cav" style="background:linear-gradient(150deg,#F59E0B,#FBBF24)">\u{1F5C2}️</div><div><div class="cn">Secrétariat</div><div class="cspec">'+escapeHtmlP((medecinInfo && medecinInfo.cabinet) || 'Cabinet')+'</div></div>';
+  }
+  const list = document.getElementById('pConvList');
+  list.innerHTML = '<div style="text-align:center;color:var(--ink-faint);font-size:13px;padding:24px;">Chargement…</div>';
+  const thread = threadOf(category);
+  if(!thread){ renderConversation([], category); return; }
+  convCurrent.threadId = thread.id;
   try {
-    const res = await fetch(API_BASE + '/api/patient/threads/' + id + '/messages', { headers: authHeaders() });
+    const res = await fetch(API_BASE + '/api/patient/threads/' + thread.id + '/messages', { headers: authHeaders() });
     const d = await res.json(); if(!res.ok) throw new Error();
-    const msgs = (d.messages||[]).map(function(m){
-      const mine = m.sender_type === 'patient';
-      return '<div style="background:'+(mine?'var(--accent-tint,#E6F2FF)':'#F2F5FA')+';border-radius:12px;padding:10px 13px;margin-bottom:8px;font-size:14px;line-height:1.5;max-width:88%;'+(mine?'margin-left:auto;':'')+'">'+escapeHtmlP(m.body)+'</div>';
-    }).join('');
-    pModal((d.thread&&d.thread.subject)||'Conversation', msgs || '<div class="p-empty">Aucun message.</div>');
-  } catch(e){ pModal('Conversation', '<div class="p-empty">Impossible d\'ouvrir la conversation.</div>'); }
+    renderConversation(d.messages||[], category);
+    if (typeof updateNotifBadge === 'function') updateNotifBadge();
+  } catch(e){ renderConversation([], category); }
+}
+function renderConversation(messages, category){
+  const list = document.getElementById('pConvList'); if(!list) return;
+  if(!messages.length){
+    const hint = category==='medical'
+      ? 'Écrivez à votre médecin. Sa réponse apparaîtra ici.'
+      : 'Écrivez au secrétariat pour un rendez-vous, un document ou une question pratique.';
+    list.innerHTML = '<div style="text-align:center;color:var(--ink-faint);font-size:13.5px;padding:34px 20px;line-height:1.6;">'+hint+'</div>';
+    return;
+  }
+  const docName = (medecinInfo && medecinInfo.nom) || 'Votre médecin';
+  let html='', lastDay='';
+  messages.forEach(function(m){
+    const d = new Date(m.created_at); const day = feedDayLabel(d);
+    if(day!==lastDay){ html += '<div class="imsg-day">'+day+'</div>'; lastDay=day; }
+    const mine = m.sender_type==='patient', ia = m.sender_type==='ia';
+    const cls = mine ? 'me' : (ia ? 'ia' : 'them');
+    const time = d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    const sign = (!mine && !ia && category==='medical') ? '<div class="imsg-sign">— '+escapeHtmlP(docName)+'</div>' : '';
+    html += '<div class="imw '+cls+'"><div class="imsg '+cls+'">'+escapeHtmlP(m.body)+'</div>'+sign+'<div class="imsg-time">'+time+'</div></div>';
+  });
+  list.innerHTML = html;
+  window.scrollTo({ top: document.body.scrollHeight });
+}
+function appendConvBubble(cls, body){
+  const list = document.getElementById('pConvList'); if(!list) return;
+  if(!list.querySelector('.imw')) list.innerHTML='';
+  const time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  const div = document.createElement('div'); div.className='imw '+cls;
+  div.innerHTML = '<div class="imsg '+cls+'">'+escapeHtmlP(body)+'</div><div class="imsg-time">'+time+'</div>';
+  list.appendChild(div); window.scrollTo({ top: document.body.scrollHeight });
+}
+async function sendConversationMessage(){
+  const input = document.getElementById('pConvInput'); if(!input) return;
+  const body = (input.value||'').trim(); if(!body) return;
+  input.value=''; appendConvBubble('me', body);
+  try {
+    let url, payload;
+    if(convCurrent.threadId){ url = API_BASE + '/api/patient/threads/' + convCurrent.threadId + '/messages'; payload = { body }; }
+    else { url = API_BASE + '/api/patient/threads'; payload = { category: convCurrent.category, body }; }
+    const res = await fetch(url, { method:'POST', headers:Object.assign({ 'Content-Type':'application/json' }, authHeaders()), body:JSON.stringify(payload) });
+    const d = await res.json(); if(!res.ok) throw new Error();
+    if(d.thread && d.thread.id) convCurrent.threadId = d.thread.id;
+    loadPatientThreads(); // rafraîchit le hub (silencieux)
+  } catch(e){
+    appendConvBubble('them', "Message non envoyé. Vérifiez votre connexion et réessayez.");
+  }
+}
+// Phase 5 — transmettre au médecin une question posée à l'assistant, avec le contexte.
+async function forwardToDoctor(question, btn){
+  const lastOrd = (patientEvents||[]).find(function(e){ return e.type==='ordonnance'; });
+  const meds = lastOrd && lastOrd.data && Array.isArray(lastOrd.data.prescriptions) ? lastOrd.data.prescriptions.filter(function(p){ return p.medicament; }) : [];
+  const ctx = meds.length ? '\n\n(Traitement en cours : '+meds.map(function(m){ return m.medicament; }).join(', ')+')' : '';
+  const body = 'Question transmise via l’assistant MediAI :\n« '+question+' »'+ctx;
+  if(btn){ btn.disabled=true; btn.textContent='Transmission…'; }
+  try {
+    const res = await fetch(API_BASE + '/api/patient/threads', { method:'POST', headers:Object.assign({ 'Content-Type':'application/json' }, authHeaders()), body:JSON.stringify({ category:'medical', subject:'Question via l’assistant', body }) });
+    if(!res.ok) throw new Error();
+    if(btn){ btn.textContent='✓ Transmis à votre médecin'; btn.style.background='#EAFBF1'; btn.style.color='#0F7A3D'; btn.style.borderColor='#BBE9CC'; }
+    loadPatientThreads();
+    pModal('Transmis à votre médecin', '<div style="font-size:14px;color:var(--ink-soft);line-height:1.55;">Votre question a été envoyée à votre médecin avec le contexte utile. Vous retrouverez sa réponse dans vos messages.</div><button onclick="this.closest(\'.p-modal-ov\').remove();switchPatientView(\'messages\');" style="width:100%;height:46px;border:none;border-radius:12px;background:var(--blue);color:#fff;font-family:inherit;font-weight:700;margin-top:14px;cursor:pointer;">Ouvrir mes messages</button>');
+  } catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='➦ Transmettre au médecin'; }
+    alert("La transmission a échoué. Réessayez dans un instant.");
+  }
 }
 
 // ── Sprint 11 Étape 7 — liaison patient ⇄ médecin en quasi temps réel ──
