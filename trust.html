@@ -17,7 +17,7 @@
 
   header{ display:flex; align-items:center; justify-content:space-between; padding:22px 0; }
   .brand{ display:flex; align-items:center; gap:9px; font-weight:800; font-size:17px; letter-spacing:-.01em; }
-  .brand .logo{ width:30px; height:30px; border-radius:9px; background:var(--grad-primary); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; }
+  .brand .logo{ width:30px; height:30px; border-radius:9px; display:block; }
   .lang{ display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:var(--r-full); padding:3px; }
   .lang button{ border:none; background:none; font-family:inherit; font-size:12.5px; font-weight:700; color:var(--ink-soft); padding:6px 12px; border-radius:var(--r-full); cursor:pointer; }
   .lang button.on{ background:var(--blue); color:#fff; }
@@ -46,7 +46,7 @@
 <body>
 <div class="wrap">
   <header>
-    <a class="brand" href="/"><span class="logo">✦</span> MediAI</a>
+    <a class="brand" href="/"><img class="logo" src="/logo.svg" alt="MediAI"> MediAI</a>
     <div class="lang" id="langSwitch" role="group" aria-label="Langue / Language">
       <button data-lang="fr" class="on">FR</button>
       <button data-lang="en">EN</button>
