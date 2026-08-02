@@ -4888,6 +4888,7 @@ function renderPatientHeader(patient, events) {
         </div>
       </div>
       <button class="btn-export" style="width:auto;padding:0 15px;background:var(--violet-tint);color:var(--violet-deep);border-color:var(--violet-tint);font-weight:600;" onclick="openCopilote()">✦ Discuter</button>
+      <button class="btn-export" style="width:auto;padding:0 15px;" onclick="openClinicalJournal()">📖 Journal clinique</button>
       <button class="btn-export" style="width:auto;padding:0 15px;" onclick="openHealthGraph()">🗺️ Graphe</button>
       <button class="btn-export" style="width:auto;padding:0 15px;" onclick="openPatientPortalModal()">Accès patient</button>
       <button class="btn-export" style="width:auto;padding:0 15px;" onclick="pwShare()">↗ Partager</button>
@@ -5214,6 +5215,89 @@ function renderHealthGraph() {
   stage.innerHTML = `<svg class="hg-links" viewBox="0 0 860 560" preserveAspectRatio="xMidYMid meet">${lines}</svg>`
     + `<div class="hg-center"><div class="av">${escapeHtml(initials)}</div><div class="nm">${escapeHtml(((p.prenom || '') + ' ' + (p.nom || '')).trim() || 'Patient')}</div><div class="mt">${evs.length} événement${evs.length > 1 ? 's' : ''}</div></div>`
     + nodes;
+}
+
+// ══ Sprint 18 · Vague A — Le Journal Clinique ══
+// L'histoire du patient en prose (médecin), exportable. Récit IA « à vérifier ».
+let cjRecit = '';
+function ensureClinicalJournalModal() {
+  if (document.getElementById('cjModal')) return;
+  const st = document.createElement('style'); st.id = 'cjStyles';
+  st.textContent = `
+  #cjScrim{position:fixed;inset:0;z-index:300;background:rgba(10,17,40,.42);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .2s var(--ease)}
+  #cjScrim.open{opacity:1;pointer-events:auto}
+  #cjModal{position:fixed;z-index:310;left:50%;top:50%;transform:translate(-50%,-48%) scale(.98);opacity:0;pointer-events:none;width:720px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--paper-line);border-radius:22px;box-shadow:var(--shadow-lg);transition:opacity .2s var(--ease),transform .2s var(--ease)}
+  #cjModal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+  .cj-head{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--paper-line)}
+  .cj-mk{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;background:linear-gradient(135deg,var(--violet),var(--blue));color:#fff;flex:none}
+  .cj-title{font-size:16px;font-weight:800;letter-spacing:-.01em}
+  .cj-sub{font-size:12px;color:var(--ink-faint)}
+  .cj-x{margin-left:auto;width:32px;height:32px;border:none;background:none;font-size:22px;color:var(--ink-faint);cursor:pointer;border-radius:8px;line-height:1}
+  .cj-x:hover{background:var(--paper)}
+  .cj-body{padding:22px 24px;overflow-y:auto;font-size:15px;line-height:1.7;color:var(--ink)}
+  .cj-body p{margin:0 0 14px}
+  .cj-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--violet-deep);background:var(--violet-tint);padding:3px 9px;border-radius:999px;margin-bottom:14px}
+  .cj-skel{height:13px;border-radius:7px;background:linear-gradient(90deg,var(--paper-line) 25%,var(--paper) 37%,var(--paper-line) 63%);background-size:400% 100%;animation:cjSh 1.4s ease infinite;margin-bottom:10px}
+  @keyframes cjSh{from{background-position:100% 0}to{background-position:0 0}}
+  .cj-foot{display:flex;gap:9px;align-items:center;padding:14px 22px;border-top:1px solid var(--paper-line);flex-wrap:wrap}
+  .cj-btn{height:38px;padding:0 15px;border:1.5px solid var(--paper-line);background:var(--card);border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer}
+  .cj-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .cj-disc{font-size:10.5px;color:var(--ink-faint);margin-left:auto;max-width:280px;text-align:right;line-height:1.4}
+  @media(max-width:520px){.cj-disc{display:none}}`;
+  document.head.appendChild(st);
+  const scrim = document.createElement('div'); scrim.id = 'cjScrim'; scrim.onclick = closeClinicalJournal;
+  const modal = document.createElement('div'); modal.id = 'cjModal';
+  modal.innerHTML = `
+    <div class="cj-head"><div class="cj-mk">📖</div><div style="min-width:0;"><div class="cj-title">Le Journal Clinique</div><div class="cj-sub" id="cjSub"></div></div><button class="cj-x" onclick="closeClinicalJournal()" aria-label="Fermer">&times;</button></div>
+    <div class="cj-body" id="cjBody"></div>
+    <div class="cj-foot">
+      <button class="cj-btn primary" onclick="cjCopy()">Copier</button>
+      <button class="cj-btn" onclick="cjDownload()">Télécharger</button>
+      <button class="cj-btn" onclick="loadClinicalJournal(true)">↻ Régénérer</button>
+      <div class="cj-disc">Récit IA établi à partir des seules données du dossier — à vérifier, jamais un avis médical.</div>
+    </div>`;
+  document.body.appendChild(scrim); document.body.appendChild(modal);
+}
+function openClinicalJournal() {
+  if (!currentDetailPatientId) return;
+  ensureClinicalJournalModal();
+  const p = currentPatientInfo || {};
+  document.getElementById('cjSub').textContent = ((p.prenom || '') + ' ' + (p.nom || '')).trim();
+  document.getElementById('cjScrim').classList.add('open');
+  document.getElementById('cjModal').classList.add('open');
+  loadClinicalJournal(false);
+}
+function closeClinicalJournal() {
+  document.getElementById('cjScrim')?.classList.remove('open');
+  document.getElementById('cjModal')?.classList.remove('open');
+}
+async function loadClinicalJournal(force) {
+  const body = document.getElementById('cjBody'); if (!body || !currentDetailPatientId) return;
+  body.innerHTML = ['70%', '96%', '92%', '88%', '40%'].map((w) => `<div class="cj-skel" style="width:${w}"></div>`).join('');
+  try {
+    const res = await fetch(API_BASE + '/api/patients/' + currentDetailPatientId + '/journal-clinique' + (force ? '?refresh=1' : ''), { headers: authHeaders() });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || '');
+    cjRecit = (d.recit || '').trim();
+    if (!cjRecit) { body.innerHTML = '<div style="color:var(--ink-soft);text-align:center;padding:20px 0;">Le dossier est encore trop mince pour un récit. Ajoutez une consultation.</div>'; return; }
+    const paras = cjRecit.split(/\n{2,}/).map((p) => '<p>' + escapeHtml(p) + '</p>').join('');
+    body.innerHTML = '<span class="cj-badge">✦ IA · à vérifier</span>' + paras;
+  } catch (e) {
+    body.innerHTML = '<div style="color:var(--ink-soft);text-align:center;padding:20px 0;">Génération indisponible pour le moment. <button class="cj-btn" style="margin-top:10px" onclick="loadClinicalJournal(true)">Réessayer</button></div>';
+  }
+}
+function cjCopy() {
+  if (!cjRecit) return;
+  navigator.clipboard.writeText(cjRecit).then(function () { showToast('Journal clinique copié.', 'success'); }, function () { showToast('Copie impossible.', 'error'); });
+}
+function cjDownload() {
+  if (!cjRecit) return;
+  const p = currentPatientInfo || {};
+  const header = 'JOURNAL CLINIQUE — ' + ((p.prenom || '') + ' ' + (p.nom || '')).trim() + '\n' + new Date().toLocaleDateString('fr-FR') + '\n\n';
+  const blob = new Blob([header + cjRecit + '\n\n— Récit généré via MediAI, à vérifier.'], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href = url; a.download = 'journal-clinique.txt'; document.body.appendChild(a); a.click();
+  setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 120);
 }
 
 function renderCockpit(patient, events) {
