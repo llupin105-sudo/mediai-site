@@ -943,9 +943,9 @@
     </button>
 
     <div class="sidebar-divider"></div>
-    <button class="sidebar-link" data-view="actions-center" data-tooltip="Centre d'actions" onclick="switchAppView('actions-center')">
+    <button class="sidebar-link" data-view="actions-center" data-tooltip="AI Inbox" onclick="switchAppView('actions-center')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.8L18.7 9l-4.8 1.9L12 15.7l-1.9-4.8L5.3 9l4.8-1.2L12 3z"/><path d="M19 15l.7 1.8L21.5 17.5l-1.8.7L19 20l-.7-1.8L16.5 17.5l1.8-.7L19 15z"/></svg></span>
-      <span class="label">Centre d'actions</span>
+      <span class="label">AI Inbox</span>
     </button>
     <button class="sidebar-link" data-view="labs" data-tooltip="MediAI Labs" onclick="switchAppView('labs')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v5.5L4.8 18a1.5 1.5 0 0 0 1.3 2.3h11.8A1.5 1.5 0 0 0 19.2 18L14 8.5V3"/><path d="M7.5 14h9"/></svg></span>
@@ -6626,28 +6626,67 @@ function ensurePlatformStyles() {
 function platHeader(title, sub) {
   return `<div class="dash-header"><div class="dash-greeting">${title}</div><div class="dash-date">${sub}</div></div>`;
 }
+// ══ Sprint 18 · Vague A — AI Inbox ══
+// Le Centre d'actions devient une boîte que le médecin VIDE (comme Gmail).
+// Items dérivés de la journée (résultats, renouvellements, signaux). « Traité »
+// persisté par jour (localStorage) — remise à zéro naturelle chaque matin.
+function inboxNm(o) { return `${(o.prenom || '')} ${(o.nom || '')}`.trim() || 'Patient'; }
+function inboxDoneKey() { return 'mediai_inbox_done_' + new Date().toISOString().slice(0, 10); }
+function inboxDoneSet() { try { return new Set(JSON.parse(localStorage.getItem(inboxDoneKey()) || '[]')); } catch (e) { return new Set(); } }
+function inboxSaveDone(s) { localStorage.setItem(inboxDoneKey(), JSON.stringify([...s])); }
+function inboxItems(d) {
+  const out = [];
+  (d.resultats_recents || []).forEach((r) => out.push({ id: 'res:' + r.patient_id, pid: r.patient_id, ico: '🔬', color: 'var(--amber)', bg: 'var(--amber-tint)', name: inboxNm(r), desc: 'Résultat de laboratoire à vérifier' }));
+  (d.ordonnances_a_renouveler || []).forEach((r) => out.push({ id: 'renew:' + r.patient_id, pid: r.patient_id, ico: '💊', color: 'var(--blue)', bg: 'var(--blue-tint)', name: inboxNm(r), desc: r.jours_restants <= 0 ? 'Ordonnance échue' : 'Ordonnance à renouveler' }));
+  (d.priorites || []).forEach((p) => out.push({ id: 'sig:' + p.patient_id, pid: p.patient_id, ico: '⚠️', color: 'var(--rose)', bg: 'var(--rose-tint)', name: inboxNm(p), desc: (p.signals && p.signals[0] ? p.signals[0].titre : 'Signal détecté') }));
+  return out;
+}
+function inboxClear(id) { const s = inboxDoneSet(); s.add(id); inboxSaveDone(s); renderActionsCenter(); }
+function inboxClearAll() { const s = inboxDoneSet(); inboxItems(cockpitState.data || {}).forEach((i) => s.add(i.id)); inboxSaveDone(s); renderActionsCenter(); }
 async function renderActionsCenter() {
   const el = document.getElementById('view-actions-center');
   if (!el) return;
   ensurePlatformStyles();
-  el.innerHTML = platHeader("Centre d'actions", 'Tout ce qui requiert votre attention, au même endroit') + `<div class="ac-grid">${skeletonRows(3)}</div>`;
+  ensureInboxStyles();
+  el.innerHTML = platHeader('AI Inbox', 'Votre boîte de réception intelligente — videz-la, comme vos mails') + `<div class="ac-grid">${skeletonRows(3)}</div>`;
   let d = cockpitState.data;
   try { if (!d) d = await fetchCockpit(); } catch { d = null; }
   d = d || {};
-  const nm = (o) => `${(o.prenom || '')} ${(o.nom || '')}`.trim() || 'Patient';
-  const results = d.resultats_recents || [], renew = d.ordonnances_a_renouveler || [], prio = d.priorites || [];
-  const rowsHtml = (arr, icon, bg, fg, subFn) => arr.length
-    ? arr.slice(0, 6).map((r) => `<div class="ac-row" onclick="ckptOpenPatient('${r.patient_id}')"><div class="ac-ic" style="background:${bg};color:${fg}">${icon}</div><div class="ac-b"><div class="ac-n">${escapeHtml(nm(r))}</div><div class="ac-s">${escapeHtml(subFn(r))}</div></div><span class="ac-arw">→</span></div>`).join('')
-    : '<div class="ac-empty">Rien à traiter.</div>';
-  const card = (icon, title, count, body) => `<section class="ac-card"><div class="ac-head"><span class="ac-title"><span>${icon}</span> ${title}</span>${count != null && count > 0 ? `<span class="ac-count">${count}</span>` : ''}</div>${body}</section>`;
-  const soon = '<div class="ac-soon">Bientôt — la file sera alimentée par un prochain sprint.</div>';
-  el.innerHTML = platHeader("Centre d'actions", 'Tout ce qui requiert votre attention, au même endroit') + `<div class="ac-grid">
-    ${card('📈', 'Résultats & examens arrivés', results.length, rowsHtml(results, '📈', 'var(--green-tint)', 'var(--green-deep)', () => 'Résultat de laboratoire à revoir'))}
-    ${card('💊', 'Renouvellements', renew.length, rowsHtml(renew, '💊', 'var(--violet-tint)', 'var(--violet-deep)', (r) => r.jours_restants <= 0 ? 'Ordonnance échue' : 'Ordonnance à renouveler'))}
-    ${card('✦', 'Notifications IA', prio.length, rowsHtml(prio, '⚠️', 'var(--rose-tint)', '#B4322F', (p) => (p.signals && p.signals[0] ? p.signals[0].titre : 'Signal détecté')))}
-    ${card('✍️', 'Ordonnances à signer', null, soon)}
-    ${card('📞', 'Patients à rappeler', null, soon)}
-  </div>`;
+  const done = inboxDoneSet();
+  const items = inboxItems(d).filter((i) => !done.has(i.id));
+  const header = platHeader('AI Inbox', 'Votre boîte de réception intelligente — videz-la, comme vos mails');
+  if (!items.length) {
+    el.innerHTML = header + `<div class="ac-card" style="max-width:640px;text-align:center;padding:44px 22px;">
+      <div style="font-size:38px;margin-bottom:8px;">🎉</div>
+      <div style="font-size:17px;font-weight:800;">Boîte vide</div>
+      <div style="font-size:13.5px;color:var(--ink-soft);margin-top:4px;">Rien à traiter — vous êtes à jour. Belle journée.</div></div>`;
+    return;
+  }
+  const rows = items.map((i) => `
+    <div class="ac-row">
+      <button class="inbox-check" title="Marquer comme traité" onclick="event.stopPropagation();inboxClear('${i.id}')" aria-label="Traité"></button>
+      <div class="ac-ic" style="background:${i.bg};color:${i.color}">${i.ico}</div>
+      <div class="ac-b" onclick="ckptOpenPatient('${i.pid}')" style="cursor:pointer"><div class="ac-n">${escapeHtml(i.name)}</div><div class="ac-s">${escapeHtml(i.desc)}</div></div>
+      <span class="ac-arw" onclick="ckptOpenPatient('${i.pid}')" style="cursor:pointer">→</span>
+    </div>`).join('');
+  el.innerHTML = header + `
+    <div class="ac-card" style="max-width:660px;">
+      <div class="ac-head"><span class="ac-title"><span>📥</span> À traiter <span class="ac-count">${items.length}</span></span>
+        <button class="inbox-clearall" onclick="inboxClearAll()">Tout marquer comme traité</button></div>
+      ${rows}
+    </div>
+    <div class="ac-soon" style="max-width:660px;margin-top:12px;">Ordonnances à signer et patients à rappeler : bientôt (nécessite la signature électronique et une liste de rappels).</div>`;
+  ensureInboxStyles();
+}
+function ensureInboxStyles() {
+  if (document.getElementById('inboxStyles')) return;
+  const st = document.createElement('style'); st.id = 'inboxStyles';
+  st.textContent = `.inbox-check{width:24px;height:24px;border-radius:7px;border:2px solid var(--paper-line);background:var(--card);cursor:pointer;flex:none;transition:all .12s var(--ease);position:relative}
+  .inbox-check:hover{border-color:var(--green);background:var(--green-tint)}
+  .inbox-check:hover::after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:var(--green-deep);font-size:13px;font-weight:800}
+  .inbox-clearall{height:32px;padding:0 12px;font-size:12.5px;font-weight:700;font-family:inherit;border:1.5px solid var(--paper-line);background:var(--card);color:var(--ink);border-radius:9px;cursor:pointer}
+  .inbox-clearall:hover{background:var(--paper)}`;
+  document.head.appendChild(st);
 }
 function renderLabs() {
   const el = document.getElementById('view-labs');
