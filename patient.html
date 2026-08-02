@@ -362,6 +362,25 @@ body{ background:
 .md-act{ flex:1; display:flex; flex-direction:column; align-items:center; gap:7px; background:var(--card); border:1px solid var(--hos-hair); border-radius:var(--hos-r); padding:18px 10px; font-family:inherit; font-size:13.5px; font-weight:700; color:var(--ink); cursor:pointer; box-shadow:var(--hos-shadow-soft); transition:transform .15s var(--hos-ease); }
 .md-act:active{ transform:scale(.96); }
 .md-act span{ font-size:22px; }
+
+/* ── Sprint 20 · Vague C — Fil de santé façon Apple Fitness (Phase 4) ── */
+.feed-day{ font-size:13px; font-weight:800; color:var(--ink-soft); letter-spacing:-.01em; margin:24px 2px 12px; }
+.feed-day:first-child{ margin-top:2px; }
+.feed-item{ display:flex; align-items:center; gap:14px; background:var(--card); border-radius:var(--hos-r); padding:16px 18px; margin-bottom:12px; box-shadow:var(--hos-shadow-soft); border:1px solid var(--hos-hair); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .16s var(--hos-ease), box-shadow .2s; }
+.feed-item:hover{ box-shadow:var(--hos-shadow); }
+.feed-item:active{ transform:scale(.985); }
+.feed-item .fi{ width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:21px; flex:none; }
+.feed-item .fb{ min-width:0; flex:1; }
+.feed-item .ft{ font-size:15px; font-weight:700; letter-spacing:-.01em; line-height:1.3; }
+.feed-item .fs{ font-size:12.5px; color:var(--ink-faint); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.feed-item .chev{ margin-left:auto; color:var(--ink-faint); font-size:20px; flex:none; }
+
+/* ── Sprint 20 · Vague C — Mon Histoire, traitement « livre » (Phase 12) ── */
+.story-open{ margin:6px 0 28px; }
+.story-kicker{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.14em; color:var(--violet); margin-bottom:12px; }
+.story-title{ font-size:27px; font-weight:800; letter-spacing:-.035em; line-height:1.1; margin-bottom:16px; }
+.story-lead{ font-size:18.5px; line-height:1.62; letter-spacing:-.01em; color:var(--ink); font-weight:450; }
+.story-lead::first-letter{ font-size:46px; font-weight:800; float:left; line-height:.82; padding:6px 11px 0 0; color:var(--violet); }
 </style>
 </head>
 <body>
@@ -465,8 +484,6 @@ body{ background:
       </div>
 
       <div class="p-view" id="pview-parcours">
-        <div class="p-greeting" style="font-size:20px; margin-bottom:2px;">Mon Parcours Santé</div>
-        <div class="p-greeting-sub" style="margin-bottom:20px;">Votre histoire de soin, racontée simplement.</div>
         <div id="pParcours"></div>
       </div>
 
@@ -522,9 +539,9 @@ body{ background:
       </div>
 
       <div class="p-view" id="pview-historique">
-        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Mon historique</div>
-        <div class="p-greeting-sub" style="margin-bottom:18px;">Tous vos événements de santé, du plus récent au plus ancien.</div>
-        <div class="p-timeline" id="pHisto"></div>
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Fil de santé</div>
+        <div class="p-greeting-sub" style="margin-bottom:18px;">Tout ce qui compte pour votre santé, jour après jour.</div>
+        <div id="pHisto"></div>
       </div>
 
       <div class="p-view" id="pview-evolution">
@@ -1232,15 +1249,47 @@ function initTopbarBell(){
   bar.appendChild(btn);
 }
 
-// ── ⑨ Mon historique (chronologie factuelle, complément du Parcours) ──
+// ── Sprint 20 · Phase 4 — Fil de santé (récit façon Apple Fitness) ──
+// Phrase humaine par type d'événement, regroupée par jour. Rien d'inventé :
+// le libellé décrit fidèlement l'événement réel du dossier.
+function feedPhrase(e){
+  switch(e.type){
+    case 'consultation': return 'Votre consultation est enregistrée';
+    case 'ordonnance':   return 'Votre médecin a partagé une ordonnance';
+    case 'analyse_labo': return 'Vos analyses sont disponibles';
+    case 'imagerie':     return 'Votre imagerie est disponible';
+    case 'courrier':     return 'Un courrier a été ajouté à votre dossier';
+    default:             return (TYPE_LABELS[e.type]||'Nouvel élément')+' ajouté';
+  }
+}
+function feedDayLabel(d){
+  const day=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  const today=new Date(); const t0=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+  const diff=Math.round((t0-day)/86400000);
+  if(diff<=0) return "Aujourd'hui";
+  if(diff===1) return 'Hier';
+  if(diff<7){ const s=day.toLocaleDateString('fr-FR',{weekday:'long'}); return s.charAt(0).toUpperCase()+s.slice(1); }
+  return day.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year: day.getFullYear()!==today.getFullYear()?'numeric':undefined});
+}
 function renderPatientHistorique(){
   const el=document.getElementById('pHisto'); if(!el) return;
-  if(!(patientEvents||[]).length){ el.innerHTML='<div class="p-empty"><div class="p-empty-icon">🕓</div>Votre historique apparaîtra ici au fil de vos consultations.</div>'; return; }
+  el.className='';
+  if(!(patientEvents||[]).length){ el.innerHTML='<div class="p-empty"><div class="p-empty-icon">🕓</div>Votre fil de santé se remplira au fil de vos consultations.</div>'; return; }
   const sorted=patientEvents.slice().sort(function(a,b){ return new Date(b.event_date)-new Date(a.event_date); });
-  el.innerHTML=sorted.map(function(e){ const meta=NOTIF_TYPE[e.type]||['📄','#EEF1F6','#5B6472'];
-    return '<div class="p-tl-item"><div class="p-tl-dot"></div><div class="p-tl-date">'+new Date(e.event_date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</div>'
-      +'<div class="p-card" style="padding:12px 14px;margin-bottom:0;cursor:pointer;" onclick="openPatientDoc(\''+e.id+'\')"><div style="display:flex;align-items:center;gap:11px;"><div class="sante-ico" style="width:34px;height:34px;font-size:16px;background:'+meta[1]+';color:'+meta[2]+';">'+meta[0]+'</div><div style="min-width:0;"><div style="font-weight:700;font-size:14px;">'+escapeHtmlP(e.title)+'</div><div style="font-size:12px;color:var(--ink-faint);">'+(TYPE_LABELS[e.type]||'')+'</div></div></div></div></div>';
-  }).join('');
+  let html='', lastDay='';
+  sorted.forEach(function(e){
+    const d=new Date(e.event_date); const label=feedDayLabel(d);
+    if(label!==lastDay){ html+='<div class="feed-day">'+label+'</div>'; lastDay=label; }
+    const meta=NOTIF_TYPE[e.type]||['📄','#EEF1F6','#5B6472'];
+    const lbl=TYPE_LABELS[e.type]||'';
+    const title=(e.title||'').trim();
+    const sub = (title && title.toLowerCase()!==lbl.toLowerCase()) ? (lbl?lbl+' · ':'')+escapeHtmlP(title) : lbl;
+    html+='<div class="feed-item" onclick="openPatientDoc(\''+e.id+'\')">'
+      +'<div class="fi" style="background:'+meta[1]+';color:'+meta[2]+';">'+meta[0]+'</div>'
+      +'<div class="fb"><div class="ft">'+feedPhrase(e)+'</div><div class="fs">'+sub+'</div></div>'
+      +'<div class="chev">›</div></div>';
+  });
+  el.innerHTML=html;
 }
 
 // ── ⑫ Mon évolution — graphes déterministes des constantes réelles ──
@@ -1448,8 +1497,10 @@ function renderPatientParcours(d){
     el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">\u{1F4D6}</div>Votre parcours santé apparaîtra ici après votre première consultation.</div>';
     return;
   }
-  let html = '';
-  if (d.synthese) html += '<div class="pp-synthese">'+escapeHtmlP(d.synthese)+'</div>';
+  let html = '<div class="story-open"><div class="story-kicker">Votre histoire</div>';
+  html += '<h1 class="story-title">Depuis le début de votre suivi.</h1>';
+  if (d.synthese) html += '<p class="story-lead">'+escapeHtmlP(d.synthese)+'</p>';
+  html += '</div>';
   html += '<div class="pp-tl">'+chaps.map(function(c){
     return '<div class="pp-chap"><div class="pp-chap-dot"></div>'
       +'<div class="pp-chap-date">'+escapeHtmlP(c.date||'')+'</div>'
