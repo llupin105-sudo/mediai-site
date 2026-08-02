@@ -311,6 +311,44 @@ body{ background:
 
 /* espace calme entre les blocs de la Home */
 #pview-accueil .p-section-label{ margin:30px 0 12px; }
+
+/* ── Sprint 20 · Vague B — Traitement vivant (Phase 3 + 8) ── */
+.trt-day{ display:flex; align-items:center; gap:15px; background:linear-gradient(160deg,#FFFFFF,#F1F7FF); border-radius:var(--hos-r); padding:18px 20px; margin-bottom:16px; box-shadow:var(--hos-shadow-soft); border:1px solid var(--hos-hair); }
+.trt-ring{ position:relative; width:56px; height:56px; border-radius:50%; flex:none; background:conic-gradient(var(--green) calc(var(--p,0)*1%), #E7EDF5 0); }
+.trt-ring i{ position:absolute; inset:6px; background:var(--card); border-radius:50%; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:13px; font-weight:800; color:var(--green); }
+.trt-day .t{ font-size:16px; font-weight:800; letter-spacing:-.02em; }
+.trt-day .s{ font-size:13px; color:var(--ink-soft); margin-top:2px; }
+.trt-card{ padding:22px; border-radius:var(--hos-r); box-shadow:var(--hos-shadow-soft); border:1px solid var(--hos-hair); }
+.trt-pill{ width:54px; height:54px; border-radius:17px; font-size:25px; }
+.trt-name{ font-size:17px; }
+.trt-why{ margin-top:15px; font-size:13.5px; color:var(--ink-soft); line-height:1.55; background:var(--paper); border-radius:15px; padding:13px 15px; }
+.trt-why b{ color:var(--ink); font-weight:700; }
+.trt-slots{ display:flex; gap:10px; margin-top:16px; }
+.trt-slot{ flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; border:1.5px solid var(--line); border-radius:18px; padding:13px 6px 11px; cursor:pointer; background:var(--card); -webkit-tap-highlight-color:transparent; transition:transform .15s var(--hos-ease), border-color .2s, background .2s; }
+.trt-slot:active{ transform:scale(.93); }
+.trt-slot .ic{ font-size:19px; }
+.trt-slot .lb{ font-size:11.5px; font-weight:700; color:var(--ink-faint); }
+.trt-slot .st{ font-size:17px; height:22px; display:flex; align-items:center; justify-content:center; color:var(--ink-faint); }
+.trt-slot.done{ border-color:var(--green); background:#EAFBF1; }
+.trt-slot.done .lb{ color:#0F7A3D; } .trt-slot.done .st{ color:var(--green); }
+.trt-slot.now{ border-color:var(--amber); background:#FEF6E7; }
+.trt-slot.now .lb{ color:#9A6700; } .trt-slot.now .st{ color:var(--amber); }
+@keyframes trtPop{ 0%{transform:scale(1);} 40%{transform:scale(1.28);} 100%{transform:scale(1);} }
+.trt-slot.just .st{ animation:trtPop .42s var(--hos-ease); }
+.trt-note{ font-size:12.5px; color:var(--ink-faint); margin-top:14px; display:flex; align-items:center; gap:7px; }
+
+/* ── Sprint 20 · Vague B — Documents façon Fichiers (Phase 7) ── */
+.doc-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.doc-cardx{ background:var(--card); border-radius:var(--hos-r); overflow:hidden; box-shadow:var(--hos-shadow-soft); border:1px solid var(--hos-hair); cursor:pointer; display:flex; flex-direction:column; -webkit-tap-highlight-color:transparent; transition:transform .16s var(--hos-ease), box-shadow .2s; }
+.doc-cardx:hover{ box-shadow:var(--hos-shadow); }
+.doc-cardx:active{ transform:scale(.97); }
+.doc-thumb{ height:96px; display:flex; align-items:center; justify-content:center; font-size:34px; position:relative; color:#fff; }
+.doc-thumb .cat{ position:absolute; top:10px; left:10px; font-size:9.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#fff; background:rgba(255,255,255,.24); padding:3px 8px; border-radius:999px; }
+.doc-thumb .nw{ position:absolute; top:10px; right:10px; width:9px; height:9px; border-radius:50%; background:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.35); }
+.doc-meta{ padding:13px 14px 15px; display:flex; flex-direction:column; gap:3px; flex:1; }
+.doc-meta .ti{ font-size:14px; font-weight:800; letter-spacing:-.01em; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.doc-meta .pv{ font-size:12px; color:var(--ink-soft); line-height:1.4; }
+.doc-meta .dt{ font-size:11.5px; color:var(--ink-faint); margin-top:auto; padding-top:6px; }
 </style>
 </head>
 <body>
@@ -870,6 +908,32 @@ async function loadPatientTimeline(){
 
 const TYPE_ICONS = { consultation:'Doc', ordonnance:'Rx', courrier:'Mail', analyse_labo:'Lab', imagerie:'Img' };
 const TYPE_LABELS = { consultation:'Compte-rendu', ordonnance:'Ordonnance', courrier:'Courrier', analyse_labo:'Analyse', imagerie:'Imagerie' };
+// Sprint 20 · Phase 7 — visuels de document (miniature façon Fichiers)
+const DOC_VIS = {
+  consultation:{ ico:'\u{1FA7A}', grad:'linear-gradient(150deg,#1460FF,#00C6FF)' },
+  ordonnance:  { ico:'\u{1F48A}', grad:'linear-gradient(150deg,#16A34A,#4ADE80)' },
+  courrier:    { ico:'✉️', grad:'linear-gradient(150deg,#F59E0B,#FBBF24)' },
+  analyse_labo:{ ico:'\u{1F52C}', grad:'linear-gradient(150deg,#0284C7,#38BDF8)' },
+  imagerie:    { ico:'\u{1FA7B}', grad:'linear-gradient(150deg,#EC4899,#F472B6)' }
+};
+function docVis(t){ return DOC_VIS[t] || { ico:'\u{1F4C4}', grad:'linear-gradient(150deg,#64748B,#94A3B8)' }; }
+// Aperçu dérivé du contenu RÉEL du document (jamais inventé ; vide si inconnu).
+function docPreview(e){
+  const d = e.data || {};
+  if(e.type==='ordonnance'){ const m=(d.prescriptions||[]).filter(function(p){return p.medicament;}); return m.length? m.length+' médicament'+(m.length>1?'s':'') : ''; }
+  if(e.type==='analyse_labo'){ const r=(d.resultats||[]); const fl=r.filter(function(x){return x.signale_par_labo;}).length; return r.length? r.length+' résultat'+(r.length>1?'s':'')+(fl?' · '+fl+' signalé'+(fl>1?'s':''):'') : ''; }
+  return '';
+}
+function docCardHtml(e){
+  const v=docVis(e.type), now=Date.now();
+  const isNew=(now-new Date(e.event_date).getTime())/86400000 <= 3;
+  const pv=docPreview(e);
+  return '<div class="doc-cardx" onclick="openPatientDoc(\''+e.id+'\')">'
+    + '<div class="doc-thumb" style="background:'+v.grad+'"><span class="cat">'+escapeHtmlP(TYPE_LABELS[e.type]||'Document')+'</span>'+(isNew?'<span class="nw" title="Nouveau"></span>':'')+v.ico+'</div>'
+    + '<div class="doc-meta"><div class="ti">'+escapeHtmlP(e.title||TYPE_LABELS[e.type]||'Document')+'</div>'
+    + (pv?'<div class="pv">'+escapeHtmlP(pv)+'</div>':'')
+    + '<div class="dt">'+new Date(e.event_date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</div></div></div>';
+}
 
 function renderPatientRecentDocs(){
   const el = document.getElementById('pRecentDocs');
@@ -909,16 +973,9 @@ function renderPatientDocuments(){
     listEl.innerHTML = '<div class="p-empty"><div class="p-empty-icon">?</div>Aucun document ne correspond.</div>';
     return;
   }
-  listEl.innerHTML = filtered.map(function(e){
-    return '<div class="p-doc-row" onclick="openPatientDoc(\'' + e.id + '\')">' +
-      '<div class="p-doc-icon tp-' + e.type + '">' + (TYPE_ICONS[e.type] || 'Doc') + '</div>' +
-      '<div class="p-doc-body">' +
-        '<div class="p-doc-title">' + escapeHtmlP(e.title) + '</div>' +
-        '<div class="p-doc-sub">' + (TYPE_LABELS[e.type] || '') + '</div>' +
-      '</div>' +
-      '<div class="p-doc-date">' + new Date(e.event_date).toLocaleDateString('fr-FR') + '</div>' +
-    '</div>';
-  }).join('');
+  // Grille de cartes façon Fichiers (le conteneur .p-card sert d'enveloppe neutre)
+  listEl.className = '';
+  listEl.innerHTML = '<div class="doc-grid">' + filtered.map(docCardHtml).join('') + '</div>';
 }
 function setDocFilter(t){ currentDocFilter = t; renderPatientDocuments(); }
 
@@ -1417,6 +1474,27 @@ function parsePosologie(txt){
   const t = (txt||'').toLowerCase();
   return { matin:/matin/.test(t), midi:/midi/.test(t), soir:/soir/.test(t) };
 }
+// ── Sprint 20 · Vague B — helpers traitement vivant ──
+function ptMedForm(name){
+  const t=(name||'').toLowerCase();
+  if(/injection|inject|stylo|ampoule|sous-cut|insuline/.test(t)) return {ico:'💉',bg:'#FDE7F3',fg:'var(--pink)'};
+  if(/sirop|solution|buvable|gouttes|flacon/.test(t)) return {ico:'🧴',bg:'#E0F6FF',fg:'#0284C7'};
+  if(/patch|transderm|dispositif/.test(t)) return {ico:'🩹',bg:'#FEF6E7',fg:'var(--amber)'};
+  if(/pommade|crème|creme|gel |topique/.test(t)) return {ico:'🧴',bg:'#F3EEFF',fg:'var(--violet)'};
+  if(/spray|inhalat|inhaleur|bouffée|bouffee/.test(t)) return {ico:'🌬️',bg:'#E7F0FF',fg:'var(--blue)'};
+  return {ico:'💊',bg:'#EAFBF1',fg:'var(--green)'};
+}
+function ptIntakeKey(){ const d=new Date(); return 'mediai_pt_intake_'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0'); }
+function ptGetIntake(){ try{ return JSON.parse(localStorage.getItem(ptIntakeKey())||'{}'); }catch(e){ return {}; } }
+function ptSetIntake(o){ try{ localStorage.setItem(ptIntakeKey(), JSON.stringify(o)); }catch(e){} }
+function ptCurrentSlot(){ const h=new Date().getHours(); return h<12?'matin':h<18?'midi':'soir'; }
+let ptJustToggled = null;
+function ptToggle(medIdx, slot){
+  const o=ptGetIntake(); const k=medIdx+'_'+slot; const nowTaken=!o[k];
+  if(nowTaken){ o[k]=1; ptJustToggled=k; } else { delete o[k]; ptJustToggled=null; }
+  ptSetIntake(o); renderPatientTraitements();
+}
+
 function renderPatientTraitements(){
   const el = document.getElementById('pTrtList'); if(!el) return;
   const lastOrd = (patientEvents||[]).find(function(e){ return e.type==='ordonnance'; });
@@ -1424,23 +1502,45 @@ function renderPatientTraitements(){
   if (!meds.length) { el.innerHTML = '<div class="p-empty"><div class="p-empty-icon">\u{1F48A}</div>Aucun traitement en cours enregistré.</div>'; return; }
   const presc = (medecinInfo && medecinInfo.nom) || 'Votre médecin';
   const dateStr = lastOrd.event_date ? new Date(lastOrd.event_date).toLocaleDateString('fr-FR',{ day:'numeric', month:'long', year:'numeric' }) : '';
-  el.innerHTML = '<div class="p-greeting-sub" style="margin:-2px 0 16px;">D\'après votre dernière ordonnance'+(dateStr?' du '+dateStr:'')+'.</div>'
-    + meds.map(function(m){
+  const intake = ptGetIntake(), cur = ptCurrentSlot(), slots = ['matin','midi','soir'];
+  const slotMeta = { matin:['☀️','Matin'], midi:['\u{1F324}️','Midi'], soir:['\u{1F319}','Soir'] };
+
+  // Progression du jour (prises cochées sur cet appareil)
+  let total=0, taken=0;
+  meds.forEach(function(m,i){ const p=parsePosologie(m.posologie); slots.forEach(function(s){ if(p[s]){ total++; if(intake[i+'_'+s]) taken++; } }); });
+  let dayCard='';
+  if(total){
+    const pct=Math.round(taken/total*100);
+    const msg = taken===0 ? 'À prendre aujourd’hui' : taken>=total ? 'Tout est pris. Bravo \u{1F44F}' : taken+' prise'+(taken>1?'s':'')+' sur '+total;
+    dayCard='<div class="trt-day"><div class="trt-ring" style="--p:'+pct+'"><i>'+taken+'/'+total+'</i></div><div><div class="t">'+(taken>=total?'Journée complète':'Votre traitement du jour')+'</div><div class="s">'+msg+'</div></div></div>';
+  }
+
+  el.innerHTML = dayCard
+    + '<div class="p-greeting-sub" style="margin:-2px 0 16px;">D\'après votre dernière ordonnance'+(dateStr?' du '+dateStr:'')+'.</div>'
+    + meds.map(function(m,i){
+      const form = ptMedForm(m.medicament);
       const p = parsePosologie(m.posologie);
       const anyTime = p.matin || p.midi || p.soir;
-      const times = anyTime ? '<div class="trt-times">'
-        + '<div class="trt-time '+(p.matin?'on':'')+'">☀️<br>Matin</div>'
-        + '<div class="trt-time '+(p.midi?'on':'')+'">\u{1F324}️<br>Midi</div>'
-        + '<div class="trt-time '+(p.soir?'on':'')+'">\u{1F319}<br>Soir</div>'
-        + '</div>' : '';
-      return '<div class="trt-card"><div class="trt-head"><div class="trt-pill">\u{1F48A}</div><div style="min-width:0;"><div class="trt-name">'+escapeHtmlP(m.medicament)+'</div><div class="trt-dose">'+escapeHtmlP(m.posologie||"Voir l'ordonnance")+'</div></div></div>'
-        + times
+      const why = m.indication || m.motif || m.pourquoi || m.but; // affiché seulement si renseigné — jamais inventé
+      const slotsHtml = anyTime ? '<div class="trt-slots">'+slots.map(function(s){
+        if(!p[s]) return '<div class="trt-slot" style="opacity:.32;pointer-events:none;"><div class="ic">'+slotMeta[s][0]+'</div><div class="lb">'+slotMeta[s][1]+'</div><div class="st">·</div></div>';
+        const done=!!intake[i+'_'+s], isNow=!done && s===cur, cls=done?'done':(isNow?'now':'');
+        const just=(ptJustToggled===i+'_'+s)?' just':'';
+        const glyph=done?'✔':(isNow?'●':'○');
+        return '<div class="trt-slot '+cls+just+'" role="button" tabindex="0" onclick="ptToggle('+i+',\''+s+'\')"><div class="ic">'+slotMeta[s][0]+'</div><div class="lb">'+slotMeta[s][1]+'</div><div class="st">'+glyph+'</div></div>';
+      }).join('')+'</div>' : '';
+      const whyHtml = why ? '<div class="trt-why"><b>Pourquoi ce médicament ?</b> '+escapeHtmlP(why)+'</div>' : '';
+      return '<div class="trt-card"><div class="trt-head"><div class="trt-pill" style="background:'+form.bg+';color:'+form.fg+'">'+form.ico+'</div><div style="min-width:0;"><div class="trt-name">'+escapeHtmlP(m.medicament)+'</div><div class="trt-dose">'+escapeHtmlP(m.posologie||"Voir l'ordonnance")+'</div></div></div>'
+        + whyHtml + slotsHtml
         + '<div class="trt-meta">'
           + (m.duree ? '<div class="row"><span class="lab">Durée</span><span class="val">'+escapeHtmlP(m.duree)+'</span></div>' : '')
           + '<div class="row"><span class="lab">Prescrit par</span><span class="val">'+escapeHtmlP(presc)+'</span></div>'
           + '<div class="row"><span class="lab">Notice & effets</span><span class="val" style="color:var(--ink-faint);font-weight:500;">À demander à votre pharmacien</span></div>'
-        + '</div></div>';
+        + '</div>'
+        + (anyTime ? '<div class="trt-note">🔒 Vos prises restent sur cet appareil — un simple repère pour vous.</div>' : '')
+        + '</div>';
     }).join('');
+  ptJustToggled = null;
 }
 async function loadPatientThreads(){
   try { const res = await fetch(API_BASE + '/api/patient/threads', { headers: authHeaders() }); const d = await res.json(); patientThreads = d.items || []; }
