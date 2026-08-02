@@ -6,7 +6,19 @@
 <title>MediAI — Moins d'administratif. Plus de médecine.</title>
 <meta name="description" content="MediAI est l'assistant clinique qui prépare vos consultations, rédige vos comptes-rendus et vous aide à vous concentrer sur vos patients.">
 <meta name="theme-color" content="#0A1128">
-<link rel="icon" href="assets/logo.png">
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "MediAI",
+  "url": "https://mediai.fr",
+  "logo": "https://mediai.fr/logo.svg",
+  "description": "Assistant clinique qui prépare les consultations, rédige les comptes-rendus et redonne du temps aux médecins.",
+  "email": "contactmediaifr@gmail.com",
+  "sameAs": ["https://instagram.com"]
+}
+</script>
 <!-- Open Graph / SEO -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MediAI">
@@ -341,13 +353,12 @@
 <!-- ══ HEADER ══ -->
 <header id="hdr">
   <div class="wrap nav">
-    <a href="#top" class="brand"><span class="mk">✚</span> MediAI</a>
+    <a href="#top" class="brand"><img src="/logo.svg" alt="MediAI" style="width:26px;height:26px;vertical-align:middle;margin-right:3px;"> MediAI</a>
     <nav class="nav-links">
-      <a href="#comment">Le produit</a>
-      <a href="#temps">Le temps</a>
-      <a href="#essayer">Essayer</a>
+      <a href="#comment">Produit</a>
       <a href="#pricing">Tarifs</a>
-      <a href="#faq">FAQ</a>
+      <a href="/ressources">Ressources</a>
+      <a href="/entreprise">Entreprise</a>
     </nav>
     <div class="nav-right">
       <a class="nav-login" data-login-choice>Se connecter</a>
@@ -357,7 +368,7 @@
   </div>
 </header>
 <div class="mobile-menu" id="mobileMenu">
-  <a href="#comment">Le produit</a><a href="#temps">Le temps</a><a href="#essayer">Essayer</a><a href="#pricing">Tarifs</a><a href="#faq">FAQ</a>
+  <a href="#comment">Produit</a><a href="#pricing">Tarifs</a><a href="/ressources">Ressources</a><a href="/entreprise">Entreprise</a>
   <a data-login-choice style="color:var(--blue)">Se connecter</a>
   <a href="/app?mode=signup" class="btn btn-primary" style="margin-top:12px;justify-content:center">Demander un accès</a>
 </div>
@@ -570,7 +581,7 @@
       <div class="pcard reveal" data-d="3">
         <div class="pname">Enterprise</div><div class="pprice">Sur devis</div><div class="ptag">Pour les cliniques, centres de santé et hôpitaux.</div>
         <ul class="pfeat"><li>Cliniques</li><li>Centres de santé</li><li>Hôpitaux</li><li>Déploiement dédié</li><li>Accompagnement</li></ul>
-        <a href="#footer" class="btn pbtn-soft">Nous contacter</a>
+        <a href="/entreprise#contact" class="btn pbtn-soft">Nous contacter</a>
       </div>
     </div>
   </div>
@@ -656,17 +667,17 @@
   <div class="wrap">
     <div class="foot-top">
       <div class="foot-brand">
-        <a href="#top" class="brand"><span class="mk">✚</span> MediAI</a>
-        <p>L'assistant clinique qui vous rend du temps pour vos patients.</p>
+        <a href="#top" class="brand"><img src="/logo.svg" alt="MediAI" style="width:26px;height:26px;vertical-align:middle;margin-right:3px;"> MediAI</a>
+        <p>L'assistant clinique qui redonne du temps aux médecins. Anonymisation systématique ; hébergement HDS en cours.</p>
       </div>
-      <div class="foot-col"><h4>Produit</h4><a href="#comment">Le produit</a><a href="#essayer">Essayer</a><a href="#pricing">Tarifs</a><a href="#early-access">Early Access</a><a href="/app?mode=signup">Demander un accès</a></div>
-      <div class="foot-col"><h4>Entreprise</h4><a href="#temps">Notre mission</a><a href="#footer">À propos</a><a href="#footer">Contact</a><a href="#footer">Presse</a></div>
-      <div class="foot-col"><h4>Ressources</h4><a href="#comment">Comment ça marche</a><a href="#faq">FAQ</a><a href="/trust">Centre de confiance</a><a href="/trust">Sécurité</a></div>
-      <div class="foot-col"><h4>Légal</h4><a href="#footer">Mentions légales</a><a href="#footer">Confidentialité</a><a href="#footer">CGU</a><a href="/trust">Centre de confiance</a></div>
+      <div class="foot-col"><h4>Entreprise</h4><a href="/entreprise">À propos</a><a href="/entreprise#mission">Mission</a><a href="/entreprise#presse">Presse</a><a href="/entreprise#contact">Contact</a><a style="opacity:.5;cursor:default">Carrières (Bientôt)</a></div>
+      <div class="foot-col"><h4>Produit</h4><a href="#comment">Fonctionnalités</a><a href="#pricing">Tarifs</a><a href="/enterprise">Demander un devis</a><a href="/app?mode=signup">Demander un accès</a><a style="opacity:.5;cursor:default">Roadmap (Bientôt)</a></div>
+      <div class="foot-col"><h4>Ressources</h4><a href="/ressources#comment">Comment ça marche</a><a href="/ressources#faq">FAQ</a><a href="/trust">Sécurité</a><a href="/trust">Centre de confiance</a><a style="opacity:.5;cursor:default">Documentation (Bientôt)</a></div>
+      <div class="foot-col"><h4>Légal</h4><a href="/legal#mentions">Mentions légales</a><a href="/legal#confidentialite">Confidentialité</a><a href="/legal#cgu">CGU</a><a href="/legal#cookies">Cookies</a></div>
     </div>
     <div class="foot-bottom">
       <span>© 2026 MediAI. Tous droits réservés.</span>
-      <div class="foot-ver"><span class="foot-dot"></span> <span>Version 0.9.14</span> <span class="foot-tag">Sprint 14</span> <span>· 🔶 HDS en cours</span></div>
+      <div class="foot-ver"><span class="foot-dot"></span> <span>🔶 Hébergement HDS en cours · données synthétiques uniquement</span></div>
     </div>
   </div>
 </footer>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ressources — MediAI</title>
+<meta name="description" content="Comment fonctionne MediAI, questions fréquentes, sécurité et nouveautés produit.">
+<meta property="og:title" content="Ressources — MediAI">
+<meta property="og:description" content="Comment fonctionne MediAI, FAQ, sécurité et nouveautés.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/logo.svg">
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/tokens.css">
+<link rel="stylesheet" href="/site.css">
+<style>
+  .faq-item{ border:1px solid var(--line); border-radius:var(--r-md); background:var(--card); margin-bottom:10px; overflow:hidden; }
+  .faq-q{ width:100%; text-align:left; background:none; border:none; font-family:inherit; font-size:15px; font-weight:700; color:var(--ink); padding:16px 18px; cursor:pointer; display:flex; justify-content:space-between; gap:12px; align-items:center; }
+  .faq-a{ padding:0 18px; max-height:0; overflow:hidden; transition:max-height .25s ease, padding .25s ease; font-size:14.5px; color:var(--ink-soft); }
+  .faq-item.open .faq-a{ max-height:320px; padding:0 18px 16px; }
+  .faq-item.open .faq-q .chev{ transform:rotate(180deg); }
+  .faq-q .chev{ transition:transform .2s; color:var(--ink-faint); }
+  .step{ display:flex; gap:14px; }
+  .step .n{ width:30px; height:30px; border-radius:50%; background:var(--blue); color:#fff; font-weight:800; display:grid; place-items:center; flex:none; }
+</style>
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="brand" href="/"><img src="/logo.svg" alt="MediAI"> MediAI</a>
+  <nav class="site-nav">
+    <a href="/#comment">Produit</a><a href="/#features">Fonctionnalités</a><a href="/#pricing">Tarifs</a>
+    <a href="/ressources" aria-current="page">Ressources</a><a href="/entreprise">Entreprise</a>
+  </nav>
+  <div class="header-right"><a class="h-login" href="/app?mode=login">Se connecter</a><a class="btn btn-primary" href="/app?mode=signup">Demander un accès</a></div>
+</div></header>
+
+<main class="wrap">
+  <section class="page-hero"><div class="eyebrow">Ressources</div><h1>Tout comprendre,<br>simplement.</h1><p class="lead">Comment MediAI fonctionne, les réponses aux questions fréquentes, notre approche de la sécurité et les dernières nouveautés.</p></section>
+
+  <section class="section" id="comment">
+    <h2 style="font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:18px;">Comment ça marche</h2>
+    <div class="grid grid-3">
+      <div class="card"><div class="step"><div class="n">1</div><div><div style="font-weight:800">Vous dictez</div><p style="font-size:13.5px;color:var(--ink-soft);margin-top:4px">Racontez la consultation naturellement, à l'oral ou à l'écrit.</p></div></div></div>
+      <div class="card"><div class="step"><div class="n">2</div><div><div style="font-weight:800">MediAI structure</div><p style="font-size:13.5px;color:var(--ink-soft);margin-top:4px">Compte-rendu, ordonnance, courrier — organisés, à vérifier.</p></div></div></div>
+      <div class="card"><div class="step"><div class="n">3</div><div><div style="font-weight:800">Vous validez</div><p style="font-size:13.5px;color:var(--ink-soft);margin-top:4px">Tout reste modifiable. L'IA assiste, vous décidez.</p></div></div></div>
+    </div>
+  </section>
+
+  <section class="section" id="faq">
+    <h2 style="font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:16px;">Questions fréquentes</h2>
+    <div id="faqList">
+      <div class="faq-item"><button class="faq-q" onclick="this.parentNode.classList.toggle('open')">Mes données patient sont-elles en sécurité ?<span class="chev">▾</span></button><div class="faq-a">Toute donnée envoyée à un modèle d'IA est anonymisée au préalable, puis ré-identifiée localement. L'hébergement agréé HDS est en cours ; tant qu'il n'est pas finalisé, seules des données synthétiques sont utilisées. Détail sur notre <a href="/trust" style="color:var(--blue);font-weight:600">Centre de confiance</a>.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="this.parentNode.classList.toggle('open')">L'IA prend-elle des décisions médicales ?<span class="chev">▾</span></button><div class="faq-a">Jamais. MediAI structure et suggère ; le médecin valide et décide. Toute sortie de l'IA est marquée « à vérifier » et reste entièrement modifiable.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="this.parentNode.classList.toggle('open')">Faut-il installer un logiciel ?<span class="chev">▾</span></button><div class="faq-a">Non. MediAI fonctionne dans votre navigateur, sur ordinateur comme sur mobile. Rien à installer.</div></div>
+      <div class="faq-item"><button class="faq-q" onclick="this.parentNode.classList.toggle('open')">Comment obtenir un accès ?<span class="chev">▾</span></button><div class="faq-a">Rejoignez le programme Early Access depuis la page d'accueil, ou <a href="/app?mode=signup" style="color:var(--blue);font-weight:600">demandez un accès</a> directement.</div></div>
+    </div>
+  </section>
+
+  <section class="section prose" id="securite">
+    <h2>Sécurité, en clair</h2>
+    <p>Connexion chiffrée (HTTPS), authentification par jeton, anonymisation systématique avant tout traitement par l'IA. Nous ne traitons aucune vraie donnée patient tant que l'infrastructure n'est pas agréée HDS.</p>
+    <a class="btn btn-ghost" href="/trust" style="margin-top:10px">Voir le Centre de confiance →</a>
+  </section>
+
+  <section class="section" id="nouveautes">
+    <h2 style="font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:14px;">Nouveautés</h2>
+    <div class="card prose">
+      <p style="margin:0 0 4px"><b style="color:var(--ink)">Copilote clinique &amp; Journal Clinique</b> — un copilote joignable partout, et l'histoire du patient rédigée en prose.</p>
+      <p style="margin:0 0 4px"><b style="color:var(--ink)">Espace patient autonome</b> — parcours de soin, traitements, résultats, assistant personnel.</p>
+      <p style="margin:0"><b style="color:var(--ink)">Design System &amp; Centre de confiance</b> — une identité unifiée et une transparence totale sur la sécurité.</p>
+      <div class="status-badge" style="margin-top:14px"><span class="dot"></span>Journal des versions détaillé — bientôt</div>
+    </div>
+  </section>
+
+  <section class="section" id="documentation">
+    <h2 style="font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px;">Documentation</h2>
+    <div class="status-badge"><span class="dot"></span>Documentation développeur — à venir</div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="wrap">
+  <div class="footer-grid">
+    <div class="footer-brand"><a class="brand" href="/"><img src="/logo.svg" alt="MediAI"> MediAI</a><p>L'assistant clinique qui redonne du temps aux médecins. Anonymisation systématique ; hébergement HDS en cours.</p></div>
+    <div class="foot-col"><h4>Entreprise</h4><a href="/entreprise">À propos</a><a href="/entreprise#mission">Mission</a><a href="/entreprise#presse">Presse</a><a href="/entreprise#contact">Contact</a><a class="foot-soon">Carrières (Bientôt)</a></div>
+    <div class="foot-col"><h4>Produit</h4><a href="/#features">Fonctionnalités</a><a href="/#pricing">Tarifs</a><a href="/app?mode=signup">Demander un accès</a><a class="foot-soon">Roadmap (Bientôt)</a></div>
+    <div class="foot-col"><h4>Ressources</h4><a href="/ressources#comment">Comment ça marche</a><a href="/ressources#faq">FAQ</a><a href="/trust">Sécurité</a><a href="/trust">Centre de confiance</a><a class="foot-soon">Documentation (Bientôt)</a></div>
+    <div class="foot-col"><h4>Légal</h4><a href="/legal#mentions">Mentions légales</a><a href="/legal#confidentialite">Confidentialité</a><a href="/legal#cgu">CGU</a><a href="/legal#cookies">Cookies</a></div>
+  </div>
+  <div class="footer-bottom"><span>© 2026 MediAI. Tous droits réservés.</span><span>🔶 Hébergement HDS en cours · données synthétiques uniquement</span></div>
+</div></footer>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demander un devis — MediAI Enterprise</title>
+<meta name="description" content="MediAI pour les groupes, maisons de santé et établissements. Demandez un devis personnalisé.">
+<meta property="og:title" content="MediAI Enterprise — Demander un devis">
+<meta property="og:description" content="MediAI pour les groupes, maisons de santé et établissements.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/logo.svg">
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/tokens.css">
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="brand" href="/"><img src="/logo.svg" alt="MediAI"> MediAI</a>
+  <nav class="site-nav"><a href="/#comment">Produit</a><a href="/#features">Fonctionnalités</a><a href="/#pricing">Tarifs</a><a href="/ressources">Ressources</a><a href="/entreprise">Entreprise</a></nav>
+  <div class="header-right"><a class="h-login" href="/app?mode=login">Se connecter</a><a class="btn btn-primary" href="/app?mode=signup">Demander un accès</a></div>
+</div></header>
+
+<main class="wrap">
+  <section class="page-hero"><div class="eyebrow">Enterprise</div><h1>MediAI pour<br>votre structure.</h1><p class="lead">Groupes médicaux, maisons de santé, établissements : dites-nous en quelques informations où vous en êtes, nous revenons vers vous avec une proposition adaptée.</p></section>
+
+  <section class="section">
+    <div class="grid" style="grid-template-columns:1.5fr 1fr;gap:30px;align-items:start;">
+      <div class="card" id="quoteCard">
+        <form id="quoteForm" onsubmit="submitQuote(event)">
+          <div class="form-row">
+            <div class="field"><label>Prénom *</label><input name="prenom" required></div>
+            <div class="field"><label>Nom *</label><input name="nom" required></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>E-mail professionnel *</label><input type="email" name="email" required></div>
+            <div class="field"><label>Téléphone</label><input name="telephone"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>Nom du cabinet / structure *</label><input name="cabinet" required></div>
+            <div class="field"><label>Logiciel actuel</label><input name="logiciel" placeholder="Ex : Doctolib, Weda…"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>Ville</label><input name="ville"></div>
+            <div class="field"><label>Pays</label><input name="pays" value="France"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>Nombre de médecins</label><input type="number" name="nb_medecins" min="0"></div>
+            <div class="field"><label>Nombre de secrétaires</label><input type="number" name="nb_secretaires" min="0"></div>
+          </div>
+          <div class="field"><label>Nombre approximatif de patients</label><input name="nb_patients" placeholder="Ex : ~4 000"></div>
+          <div class="field"><label>Message</label><textarea name="message" placeholder="Votre besoin, vos contraintes, votre calendrier…"></textarea></div>
+          <button type="submit" class="btn btn-primary" id="quoteSubmit" style="width:100%;height:50px;">Envoyer ma demande</button>
+          <p class="form-note" style="margin-top:10px;text-align:center;">En envoyant, vous acceptez que MediAI vous recontacte au sujet de votre demande.</p>
+        </form>
+      </div>
+      <div>
+        <div class="card" style="background:var(--navy);color:#fff;">
+          <div style="font-weight:800;font-size:16px;margin-bottom:12px;">Ce que vous obtenez</div>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:11px;font-size:14px;color:rgba(255,255,255,.85);">
+            <li>✓ Un interlocuteur dédié</li>
+            <li>✓ Une proposition adaptée à votre volume</li>
+            <li>✓ Un accompagnement au déploiement</li>
+            <li>✓ Des conditions préférentielles pour les groupes</li>
+          </ul>
+        </div>
+        <div class="status-badge" style="margin-top:16px;"><span class="dot"></span>Données synthétiques uniquement jusqu'à l'agrément HDS</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="wrap">
+  <div class="footer-grid">
+    <div class="footer-brand"><a class="brand" href="/"><img src="/logo.svg" alt="MediAI"> MediAI</a><p>L'assistant clinique qui redonne du temps aux médecins. Anonymisation systématique ; hébergement HDS en cours.</p></div>
+    <div class="foot-col"><h4>Entreprise</h4><a href="/entreprise">À propos</a><a href="/entreprise#mission">Mission</a><a href="/entreprise#presse">Presse</a><a href="/entreprise#contact">Contact</a><a class="foot-soon">Carrières (Bientôt)</a></div>
+    <div class="foot-col"><h4>Produit</h4><a href="/#features">Fonctionnalités</a><a href="/#pricing">Tarifs</a><a href="/app?mode=signup">Demander un accès</a><a class="foot-soon">Roadmap (Bientôt)</a></div>
+    <div class="foot-col"><h4>Ressources</h4><a href="/ressources#comment">Comment ça marche</a><a href="/ressources#faq">FAQ</a><a href="/trust">Sécurité</a><a href="/trust">Centre de confiance</a><a class="foot-soon">Documentation (Bientôt)</a></div>
+    <div class="foot-col"><h4>Légal</h4><a href="/legal#mentions">Mentions légales</a><a href="/legal#confidentialite">Confidentialité</a><a href="/legal#cgu">CGU</a><a href="/legal#cookies">Cookies</a></div>
+  </div>
+  <div class="footer-bottom"><span>© 2026 MediAI. Tous droits réservés.</span><span>🔶 Hébergement HDS en cours · données synthétiques uniquement</span></div>
+</div></footer>
+
+<script>
+const API_BASE = 'https://mediai-backend-156u.onrender.com';
+async function submitQuote(e){
+  e.preventDefault();
+  const form = document.getElementById('quoteForm');
+  const btn = document.getElementById('quoteSubmit');
+  const data = Object.fromEntries(new FormData(form).entries());
+  btn.disabled = true; btn.textContent = 'Envoi…';
+  try{
+    const res = await fetch(API_BASE + '/api/enterprise-quote', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+    const d = await res.json();
+    if(!res.ok) throw new Error(d.error || '');
+    document.getElementById('quoteCard').innerHTML =
+      '<div style="text-align:center;padding:30px 10px;"><div style="font-size:40px;margin-bottom:10px;">✅</div>'
+      + '<div style="font-size:20px;font-weight:800;">Demande envoyée</div>'
+      + '<div style="font-size:14.5px;color:var(--ink-soft);margin:8px 0 18px;">Merci ' + escapeH(data.prenom||'') + '. Nous revenons vers vous très vite à ' + escapeH(data.email||'') + '.</div>'
+      + '<button class="btn btn-ghost" onclick="downloadRecap()">⬇︎ Télécharger le récapitulatif</button></div>';
+    window._quoteData = data;
+  }catch(err){
+    btn.disabled = false; btn.textContent = 'Envoyer ma demande';
+    alert("L'envoi a échoué. Réessayez, ou écrivez-nous directement à contactmediaifr@gmail.com.");
+  }
+}
+function escapeH(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+function downloadRecap(){
+  const d = window._quoteData || {};
+  const L = ['DEMANDE DE DEVIS — MediAI Enterprise', new Date().toLocaleString('fr-FR'), '',
+    'Contact : ' + (d.prenom||'') + ' ' + (d.nom||''), 'E-mail : ' + (d.email||''), 'Téléphone : ' + (d.telephone||''),
+    'Structure : ' + (d.cabinet||''), 'Ville : ' + (d.ville||'') + ' — ' + (d.pays||''),
+    'Médecins : ' + (d.nb_medecins||'—') + ' · Secrétaires : ' + (d.nb_secretaires||'—') + ' · Patients : ' + (d.nb_patients||'—'),
+    'Logiciel actuel : ' + (d.logiciel||'—'), '', 'Message :', (d.message||'—')];
+  const blob = new Blob([L.join('\n')], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href = url; a.download = 'demande-devis-mediai.txt'; document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 120);
+}
+</script>
+</body>
+</html>

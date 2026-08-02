@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mentions légales & confidentialité — MediAI</title>
+<meta name="description" content="Mentions légales, politique de confidentialité, CGU et gestion des cookies de MediAI. Clair et sans jargon.">
+<meta property="og:title" content="Légal — MediAI">
+<meta property="og:description" content="Mentions légales, confidentialité, CGU et cookies.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/logo.svg">
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/tokens.css">
+<link rel="stylesheet" href="/site.css">
+<style>.legal-nav{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 26px}.legal-nav a{font-size:13px;font-weight:700;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:var(--r-full);padding:7px 14px}.legal-nav a:hover{border-color:var(--blue);color:var(--blue)}.prose h2{scroll-margin-top:80px}</style>
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="brand" href="/"><img src="/logo.svg" alt="MediAI"> MediAI</a>
+  <nav class="site-nav"><a href="/#comment">Produit</a><a href="/#features">Fonctionnalités</a><a href="/#pricing">Tarifs</a><a href="/ressources">Ressources</a><a href="/entreprise">Entreprise</a></nav>
+  <div class="header-right"><a class="h-login" href="/app?mode=login">Se connecter</a><a class="btn btn-primary" href="/app?mode=signup">Demander un accès</a></div>
+</div></header>
+
+<main class="wrap prose">
+  <section class="page-hero"><div class="eyebrow">Légal</div><h1>Mentions légales<br>&amp; confidentialité</h1><p class="lead">Nos engagements, en clair et sans jargon inutile.</p></section>
+
+  <div class="legal-nav">
+    <a href="#mentions">Mentions légales</a><a href="#confidentialite">Confidentialité</a><a href="#cgu">CGU</a><a href="#cookies">Cookies</a><a href="/trust">Centre de confiance ↗</a>
+  </div>
+
+  <h2 id="mentions">Mentions légales</h2>
+  <p><b>Éditeur :</b> MediAI. <b>Contact :</b> <a href="mailto:contactmediaifr@gmail.com" style="color:var(--blue)">contactmediaifr@gmail.com</a>.</p>
+  <p><b>Hébergement :</b> l'application est déployée sur des infrastructures managées (Render pour le service applicatif, Vercel pour le site). <b>La migration vers un hébergeur agréé HDS est en cours</b> ; aucune vraie donnée patient n'est traitée avant sa finalisation.</p>
+  <p style="font-size:13.5px;color:var(--ink-faint)">Les informations d'immatriculation complètes (raison sociale, numéro d'identification, directeur de la publication) seront ajoutées à la constitution juridique de la société.</p>
+
+  <h2 id="confidentialite">Politique de confidentialité (RGPD)</h2>
+  <h3>Ce que nous protégeons</h3>
+  <p>MediAI est conçu autour d'un principe simple : <b>anonymiser avant, ré-identifier après</b>. Toute donnée envoyée à un modèle d'IA est d'abord débarrassée des éléments nominatifs (remplacés par des jetons), puis ré-identifiée localement dans votre navigateur. Le modèle ne voit jamais de nom de patient.</p>
+  <h3>Vos droits</h3>
+  <ul>
+    <li><b>Accès &amp; portabilité :</b> vous pouvez exporter l'intégralité de vos données depuis l'application (format JSON).</li>
+    <li><b>Rectification &amp; effacement :</b> sur demande à <a href="mailto:contactmediaifr@gmail.com" style="color:var(--blue)">contactmediaifr@gmail.com</a>.</li>
+    <li><b>Aucune revente :</b> vos données ne sont jamais vendues ni utilisées à des fins publicitaires.</li>
+  </ul>
+  <h3>Sous-traitants</h3>
+  <p>Les traitements IA sont réalisés via des fournisseurs de modèles, sur des <b>données anonymisées uniquement</b>. Les sous-traitants sont isolés dans une couche dédiée, prête à être remplacée dans le cadre de l'agrément HDS.</p>
+
+  <h2 id="cgu">Conditions Générales d'Utilisation</h2>
+  <p>MediAI est un <b>outil d'assistance</b> à destination des professionnels de santé. Il structure, prépare et synthétise — <b>il ne pose aucun diagnostic et ne prend aucune décision médicale</b>. Toute sortie de l'IA est indiquée « à vérifier » et reste sous la responsabilité du praticien.</p>
+  <ul>
+    <li>L'usage est réservé aux professionnels de santé habilités.</li>
+    <li>Tant que l'infrastructure n'est pas agréée HDS, seules des <b>données synthétiques</b> sont autorisées.</li>
+    <li>Le service est fourni « en l'état » durant sa phase de pré-lancement ; des évolutions régulières sont apportées.</li>
+  </ul>
+
+  <h2 id="cookies">Gestion des cookies</h2>
+  <p>MediAI utilise le strict nécessaire : un stockage local pour votre session (jeton de connexion) et vos préférences. <b>Aucun cookie publicitaire, aucun traceur tiers.</b> Rien n'est utilisé à des fins marketing.</p>
+
+  <div class="card" style="margin:34px 0 0;background:var(--blue-tint);border-color:transparent;">
+    <p style="margin:0;font-size:14px;color:var(--navy)">Pour le détail de l'hébergement, du chiffrement, des sauvegardes et de la conformité, consultez notre <a href="/trust" style="color:var(--blue);font-weight:700">Centre de confiance</a>.</p>
+  </div>
+</main>
+
+<footer class="site-footer"><div class="wrap">
+  <div class="footer-grid">
+    <div class="footer-brand"><a class="brand" href="/"><img src="/logo.svg" alt="MediAI"> MediAI</a><p>L'assistant clinique qui redonne du temps aux médecins. Anonymisation systématique ; hébergement HDS en cours.</p></div>
+    <div class="foot-col"><h4>Entreprise</h4><a href="/entreprise">À propos</a><a href="/entreprise#mission">Mission</a><a href="/entreprise#presse">Presse</a><a href="/entreprise#contact">Contact</a><a class="foot-soon">Carrières (Bientôt)</a></div>
+    <div class="foot-col"><h4>Produit</h4><a href="/#features">Fonctionnalités</a><a href="/#pricing">Tarifs</a><a href="/app?mode=signup">Demander un accès</a><a class="foot-soon">Roadmap (Bientôt)</a></div>
+    <div class="foot-col"><h4>Ressources</h4><a href="/ressources#comment">Comment ça marche</a><a href="/ressources#faq">FAQ</a><a href="/trust">Sécurité</a><a href="/trust">Centre de confiance</a><a class="foot-soon">Documentation (Bientôt)</a></div>
+    <div class="foot-col"><h4>Légal</h4><a href="/legal#mentions">Mentions légales</a><a href="/legal#confidentialite">Confidentialité</a><a href="/legal#cgu">CGU</a><a href="/legal#cookies">Cookies</a></div>
+  </div>
+  <div class="footer-bottom"><span>© 2026 MediAI. Tous droits réservés.</span><span>🔶 Hébergement HDS en cours · données synthétiques uniquement</span></div>
+</div></footer>
+</body>
+</html>
