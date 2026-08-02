@@ -415,6 +415,67 @@ body.conv-active .p-tabbar{ display:none; }
 /* Assistant — Transmettre au médecin (Phase 5) */
 .pa-forward{ align-self:flex-start; margin:1px 0 12px; display:inline-flex; align-items:center; gap:8px; background:#F3EEFF; color:var(--violet); border:1px solid #E4D9FF; border-radius:999px; padding:9px 15px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; }
 .pa-forward:active{ transform:scale(.97); }
+
+/* ── Sprint 20 · Vague E — Journal Santé (Phase 15, démo locale) ── */
+.jr-hero{ background:linear-gradient(160deg,#FFFFFF,#F5F1FF); border-radius:var(--hos-r-lg); padding:24px 22px; box-shadow:var(--hos-shadow); margin-bottom:16px; }
+.jr-q{ font-size:19px; font-weight:800; letter-spacing:-.02em; margin-bottom:16px; }
+.jr-moods{ display:flex; gap:10px; }
+.jr-mood{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 6px; border:1.5px solid var(--line); border-radius:18px; background:var(--card); cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .14s var(--hos-ease), border-color .2s, background .2s; }
+.jr-mood:active{ transform:scale(.94); }
+.jr-mood .em{ font-size:30px; line-height:1; }
+.jr-mood .lb{ font-size:11.5px; font-weight:700; color:var(--ink-faint); }
+.jr-mood.sel{ border-color:var(--violet); background:#F3EEFF; }
+.jr-mood.sel .lb{ color:var(--violet); }
+.jr-note{ width:100%; margin-top:14px; min-height:74px; border:1.5px solid var(--line); border-radius:16px; padding:13px 15px; font-family:inherit; font-size:14.5px; background:var(--card); resize:vertical; line-height:1.5; }
+.jr-save{ width:100%; height:48px; margin-top:14px; border:none; border-radius:15px; background:var(--violet); color:#fff; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer; }
+.jr-save:disabled{ opacity:.5; }
+.jr-strip{ display:flex; gap:5px; align-items:flex-end; margin:6px 0 4px; }
+.jr-strip .d{ flex:1; height:26px; border-radius:6px; background:#EEF1F6; }
+.jr-entry{ display:flex; gap:13px; align-items:flex-start; padding:15px 0; border-bottom:1px solid var(--line); }
+.jr-entry .em{ font-size:24px; flex:none; }
+.jr-entry .dt{ font-size:12px; color:var(--ink-faint); font-weight:700; }
+.jr-entry .tx{ font-size:14px; color:var(--ink-soft); margin-top:2px; line-height:1.5; white-space:pre-wrap; }
+
+/* ── Sprint 20 · Vague E — Check-in (Phase 13) ── */
+.ck-card{ background:var(--card); border-radius:var(--hos-r); padding:22px 20px; box-shadow:var(--hos-shadow-soft); border:1px solid var(--hos-hair); margin-bottom:14px; }
+.ck-row{ margin-bottom:22px; }
+.ck-row:last-child{ margin-bottom:0; }
+.ck-lab{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
+.ck-lab .k{ font-size:14.5px; font-weight:700; }
+.ck-lab .v{ font-size:15px; font-weight:800; color:var(--blue); }
+.ck-range{ -webkit-appearance:none; appearance:none; width:100%; height:8px; border-radius:999px; background:linear-gradient(90deg,#22C55E,#F59E0B,#EF4444); outline:none; }
+.ck-range::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:26px; height:26px; border-radius:50%; background:#fff; border:2px solid var(--line); box-shadow:0 2px 8px rgba(16,24,40,.2); cursor:pointer; }
+.ck-num{ display:flex; gap:12px; }
+.ck-num .fld{ flex:1; }
+.ck-num label{ font-size:12.5px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:7px; }
+.ck-num input, .ck-note{ width:100%; border:1.5px solid var(--line); border-radius:14px; padding:0 14px; font-family:inherit; font-size:15px; background:var(--card); }
+.ck-num input{ height:46px; }
+.ck-note{ min-height:70px; padding:12px 14px; resize:vertical; line-height:1.5; }
+.ck-send{ width:100%; height:50px; border:none; border-radius:15px; background:var(--blue); color:#fff; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer; }
+
+/* ── Sprint 20 · Vague E — Smart Reminder (Phase 10) ── */
+.rm-when{ font-size:13px; font-weight:800; color:var(--ink-soft); margin:22px 2px 12px; }
+.rm-when:first-child{ margin-top:2px; }
+.rm-item{ display:flex; align-items:center; gap:14px; background:var(--card); border-radius:var(--hos-r); padding:16px 18px; margin-bottom:12px; box-shadow:var(--hos-shadow-soft); border:1px solid var(--hos-hair); }
+.rm-item .ri{ width:44px; height:44px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:20px; flex:none; }
+.rm-item .rt{ font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.rm-item .rs{ font-size:12.5px; color:var(--ink-faint); margin-top:2px; }
+
+/* ── Sprint 20 · Vague E — Mode Famille (Phase 11, sélecteur démo) ── */
+.fm-active{ display:flex; align-items:center; gap:14px; background:linear-gradient(160deg,#FFFFFF,#F1F7FF); border-radius:var(--hos-r-lg); padding:20px; box-shadow:var(--hos-shadow); margin-bottom:8px; }
+.fm-active .av{ width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; color:#fff; flex:none; }
+.fm-active .nm{ font-size:18px; font-weight:800; letter-spacing:-.02em; }
+.fm-active .rl{ font-size:13px; color:var(--ink-soft); margin-top:1px; }
+.fm-list{ display:flex; flex-direction:column; gap:12px; margin-top:14px; }
+.fm-card{ display:flex; align-items:center; gap:14px; background:var(--card); border-radius:var(--hos-r); padding:15px 17px; box-shadow:var(--hos-shadow-soft); border:1px solid var(--hos-hair); cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .15s var(--hos-ease), border-color .2s; }
+.fm-card:active{ transform:scale(.985); }
+.fm-card.on{ border-color:var(--blue); }
+.fm-card .av{ width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; color:#fff; flex:none; }
+.fm-card .nm{ font-size:15px; font-weight:800; }
+.fm-card .rl{ font-size:12.5px; color:var(--ink-soft); margin-top:1px; }
+.fm-badge{ margin-left:auto; font-size:10px; font-weight:800; color:var(--ink-faint); background:var(--paper); border:1px solid var(--line); border-radius:999px; padding:3px 9px; flex:none; }
+.fm-check{ margin-left:auto; color:var(--blue); font-size:20px; flex:none; }
+.fm-add{ display:flex; align-items:center; justify-content:center; gap:8px; background:var(--paper); border:1.5px dashed var(--line); border-radius:var(--hos-r); padding:16px; color:var(--ink-soft); font-size:14px; font-weight:700; margin-top:12px; }
 </style>
 </head>
 <body>
@@ -643,9 +704,14 @@ body.conv-active .p-tabbar{ display:none; }
         </div>
 
         <div class="sante-group">
+          <div class="sante-row" onclick="switchPatientView('famille')">
+            <div class="sante-ico" style="background:#EAF3FF;color:var(--blue);">👨‍👩‍👧</div>
+            <div class="b"><div class="t">Mode Famille</div><div class="s">Gérer les profils de vos proches</div></div>
+            <div class="chev">›</div>
+          </div>
           <div class="sante-row" onclick="switchPatientView('messages')">
             <div class="sante-ico" style="background:#FEF3E2;color:var(--amber);">✉️</div>
-            <div class="b"><div class="t">Messagerie</div><div class="s">Échanger avec votre médecin</div></div>
+            <div class="b"><div class="t">Messages</div><div class="s">Médecin & secrétariat</div></div>
             <div class="chev">›</div>
           </div>
           <div class="sante-row" onclick="switchPatientView('notifications')">
@@ -705,6 +771,35 @@ body.conv-active .p-tabbar{ display:none; }
         </div>
         <div class="p-card" id="mmInfo"></div>
         <div class="trt-note" style="justify-content:center;margin-top:16px;">🔒 Vos échanges passent par la messagerie sécurisée de MediAI.</div>
+      </div>
+
+      <!-- Sprint 20 · Phase 15 — Journal Santé (démo locale) -->
+      <div class="p-view" id="pview-journal">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Journal de santé</div>
+        <div class="p-greeting-sub" style="margin-bottom:18px;">Quelques mots sur votre journée. Pour vous, et pour mieux vous suivre.</div>
+        <div id="pJournal"></div>
+      </div>
+
+      <!-- Sprint 20 · Phase 13 — Check-in intelligent (démo locale) -->
+      <div class="p-view" id="pview-checkin">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Check-in</div>
+        <div class="p-greeting-sub" style="margin-bottom:18px;">Un point rapide sur votre état. Vous pourrez le transmettre à votre médecin.</div>
+        <div id="pCheckin"></div>
+      </div>
+
+      <!-- Sprint 20 · Phase 10 — Smart Reminder -->
+      <div class="p-view" id="pview-rappels">
+        <div class="p-greeting" style="font-size:20px; margin-bottom:4px;">Mes rappels</div>
+        <div class="p-greeting-sub" style="margin-bottom:18px;">Ce qui vous attend, en douceur.</div>
+        <div id="pRappels"></div>
+      </div>
+
+      <!-- Sprint 20 · Phase 11 — Mode Famille (sélecteur de profils démo) -->
+      <div class="p-view" id="pview-famille">
+        <button class="p-back" onclick="switchPatientView('profil')">‹ Profil</button>
+        <div class="p-greeting" style="font-size:20px; margin:4px 0 4px;">Mode Famille</div>
+        <div class="p-greeting-sub" style="margin-bottom:18px;">Gérez la santé de vos proches, comme la vôtre.</div>
+        <div id="pFamille"></div>
       </div>
 
     </div>
@@ -1214,7 +1309,7 @@ function renderPatientTimeline(){
 
 // Certaines vues sont des sous-pages ouvertes depuis le hub « Santé » ou le
 // Profil : on met en surbrillance l'onglet parent correspondant.
-const VIEW_PARENT = { parcours:'sante', rdv:'sante', traitements:'sante', resultats:'sante', evolution:'sante', preparer:'sante', connectee:'sante', messages:'profil', conversation:'profil', securite:'profil', notifications:'profil', monmedecin:'profil' };
+const VIEW_PARENT = { parcours:'sante', rdv:'sante', traitements:'sante', resultats:'sante', evolution:'sante', preparer:'sante', connectee:'sante', journal:'sante', checkin:'sante', rappels:'sante', messages:'profil', conversation:'profil', securite:'profil', notifications:'profil', monmedecin:'profil', famille:'profil' };
 // ── ⑦ Préparer ma consultation (déterministe + notes locales) ──
 const PREP_ITEMS = [
   { k:'vitale', label:'Carte Vitale et carte de mutuelle' },
@@ -1409,6 +1504,10 @@ function switchPatientView(view){
   if (view === 'securite') renderPatientSecurite();
   if (view === 'monmedecin') renderPatientMonMedecin();
   if (view === 'messages') loadPatientThreads();
+  if (view === 'journal') renderPatientJournal();
+  if (view === 'checkin') renderPatientCheckin();
+  if (view === 'rappels') renderPatientRappels();
+  if (view === 'famille') renderPatientFamille();
 }
 
 // Sprint 20 · Phase 6 — Mon Médecin. Uniquement le réel (jamais de fausse
@@ -1432,6 +1531,146 @@ function renderPatientMonMedecin(){
     : '<div style="font-size:13.5px;color:var(--ink-soft);text-align:center;padding:8px 0;">Les coordonnées de votre cabinet apparaîtront ici dès qu’elles seront renseignées.</div>';
 }
 
+// ── Sprint 20 · Phase 15 — Journal Santé (démo locale, jamais envoyé au serveur) ──
+const JR_MOODS = { 3:['\u{1F60A}','Bien','#22C55E'], 2:['\u{1F610}','Moyen','#F59E0B'], 1:['\u{1F614}','Difficile','#EF4444'] };
+let jrDraftMood = null, jrDraftNote = null;
+function jrGet(){ try{ return JSON.parse(localStorage.getItem('mediai_pt_journal')||'[]'); }catch(e){ return []; } }
+function jrSet(a){ try{ localStorage.setItem('mediai_pt_journal', JSON.stringify(a)); }catch(e){} }
+function jrDayKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function jrToday(){ return jrDayKey(new Date()); }
+function jrPickMood(m){ const t=document.getElementById('pJrNote'); if(t) jrDraftNote=t.value; jrDraftMood=m; renderPatientJournal(); }
+function jrSave(){
+  const note=((document.getElementById('pJrNote')||{}).value||'').trim();
+  const arr=jrGet(); const today=jrToday();
+  const existing=arr.find(function(e){ return e.date===today; });
+  const mood = jrDraftMood || (existing && existing.mood) || 2;
+  if(!jrDraftMood && !note && !existing) return;
+  if(existing){ existing.mood=mood; existing.note=note; }
+  else arr.unshift({ date:today, mood:mood, note:note });
+  jrSet(arr); jrDraftMood=null; jrDraftNote=null; renderPatientJournal();
+}
+function renderPatientJournal(){
+  const el=document.getElementById('pJournal'); if(!el) return;
+  const arr=jrGet(); const today=jrToday();
+  const todayEntry=arr.find(function(e){ return e.date===today; });
+  const cur = jrDraftMood || (todayEntry && todayEntry.mood) || null;
+  const moodBtns=[3,2,1].map(function(m){
+    const md=JR_MOODS[m]; const sel=cur===m?' sel':'';
+    return '<button class="jr-mood'+sel+'" onclick="jrPickMood('+m+')"><span class="em">'+md[0]+'</span><span class="lb">'+md[1]+'</span></button>';
+  }).join('');
+  const noteVal = (jrDraftNote!=null ? jrDraftNote : ((todayEntry && todayEntry.note) || ''));
+  let html='<div class="jr-hero"><div class="jr-q">Comment vous sentez-vous aujourd’hui ?</div>'
+    +'<div class="jr-moods">'+moodBtns+'</div>'
+    +'<textarea class="jr-note" id="pJrNote" maxlength="500" placeholder="Aujourd’hui je me sens…">'+escapeHtmlP(noteVal)+'</textarea>'
+    +'<button class="jr-save" onclick="jrSave()">'+(todayEntry?'Mettre à jour ma journée':'Enregistrer ma journée')+'</button></div>';
+  if(arr.length){
+    const byDate={}; arr.forEach(function(e){ byDate[e.date]=e.mood; });
+    let strip='';
+    for(let i=13;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const m=byDate[jrDayKey(d)]; const c=m?JR_MOODS[m][2]:'#EEF1F6'; strip+='<div class="d" style="background:'+c+'"></div>'; }
+    html+='<div class="p-section-label">Votre évolution</div><div class="p-card"><div class="jr-strip">'+strip+'</div><div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;">14 derniers jours · MediAI met en valeur votre ressenti, pas seulement vos analyses.</div></div>';
+    html+='<div class="p-section-label">Vos entrées</div><div class="p-card" style="padding-top:2px;">'+arr.slice(0,30).map(function(e){
+      const md=JR_MOODS[e.mood]||JR_MOODS[2];
+      const dd=new Date(e.date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+      return '<div class="jr-entry"><span class="em">'+md[0]+'</span><div style="min-width:0;"><div class="dt">'+escapeHtmlP(dd)+'</div>'+(e.note?'<div class="tx">'+escapeHtmlP(e.note)+'</div>':'')+'</div></div>';
+    }).join('')+'</div>';
+  }
+  html+='<div class="trt-note" style="justify-content:center;margin-top:16px;">🔒 Votre journal reste sur cet appareil. Vous choisirez plus tard ce que vous partagez avec votre médecin.</div>';
+  el.innerHTML=html;
+}
+
+// ── Sprint 20 · Phase 13 — Check-in intelligent (démo locale + transmission) ──
+function ckGet(){ try{ return JSON.parse(localStorage.getItem('mediai_pt_checkin')||'{}'); }catch(e){ return {}; } }
+function ckSet(o){ try{ localStorage.setItem('mediai_pt_checkin', JSON.stringify(o)); }catch(e){} }
+function ckSliderVal(id){ const el=document.getElementById(id); return el?parseInt(el.value,10):0; }
+function ckSyncLabel(id){ const el=document.getElementById(id), out=document.getElementById(id+'_v'); if(el&&out) out.textContent=el.value+'/10'; }
+function renderPatientCheckin(){
+  const el=document.getElementById('pCheckin'); if(!el) return;
+  const s=ckGet();
+  const slider=function(id,label,val){ return '<div class="ck-row"><div class="ck-lab"><span class="k">'+label+'</span><span class="v" id="'+id+'_v">'+val+'/10</span></div><input type="range" min="0" max="10" value="'+val+'" id="'+id+'" class="ck-range" oninput="ckSyncLabel(\''+id+'\')"></div>'; };
+  el.innerHTML='<div class="ck-card">'
+    + slider('ckDouleur','Douleur', s.douleur!=null?s.douleur:0)
+    + slider('ckFatigue','Fatigue', s.fatigue!=null?s.fatigue:0)
+    + slider('ckSommeil','Qualité du sommeil', s.sommeil!=null?s.sommeil:5)
+    + '<div class="ck-row"><div class="ck-num"><div class="fld"><label>Température (°C)</label><input type="number" step="0.1" id="ckTemp" value="'+escapeHtmlP(s.temperature||'')+'" placeholder="37.0"></div><div class="fld"><label>Poids (kg)</label><input type="number" step="0.1" id="ckPoids" value="'+escapeHtmlP(s.poids||'')+'" placeholder="—"></div></div></div>'
+    + '<div class="ck-row"><label style="font-size:12.5px;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:7px;">Autre chose à signaler ?</label><textarea class="ck-note" id="ckNote" maxlength="500" placeholder="Symptômes, question, ressenti…">'+escapeHtmlP(s.note||'')+'</textarea></div>'
+    + '</div>'
+    + '<button class="ck-send" onclick="ckSubmit()">Enregistrer et transmettre à mon médecin</button>'
+    + '<div class="trt-note" style="justify-content:center;margin-top:14px;">🔒 Vos réponses restent sur cet appareil. Rien n’est envoyé sans votre action.</div>';
+}
+function ckSubmit(){
+  const data={ douleur:ckSliderVal('ckDouleur'), fatigue:ckSliderVal('ckFatigue'), sommeil:ckSliderVal('ckSommeil'),
+    temperature:((document.getElementById('ckTemp')||{}).value||'').trim(), poids:((document.getElementById('ckPoids')||{}).value||'').trim(),
+    note:((document.getElementById('ckNote')||{}).value||'').trim(), date:new Date().toISOString() };
+  ckSet(data);
+  const lines=['Check-in avant consultation :','• Douleur : '+data.douleur+'/10','• Fatigue : '+data.fatigue+'/10','• Qualité du sommeil : '+data.sommeil+'/10'];
+  if(data.temperature) lines.push('• Température : '+data.temperature+' °C');
+  if(data.poids) lines.push('• Poids : '+data.poids+' kg');
+  if(data.note) lines.push('• Remarque : '+data.note);
+  forwardCheckin(lines.join('\n'));
+}
+async function forwardCheckin(body){
+  try{
+    const res=await fetch(API_BASE+'/api/patient/threads',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authHeaders()),body:JSON.stringify({category:'medical',subject:'Check-in avant consultation',body})});
+    if(!res.ok) throw new Error();
+    loadPatientThreads();
+    pModal('Transmis à votre médecin','<div style="font-size:14px;color:var(--ink-soft);line-height:1.55;">Votre check-in a été envoyé à votre médecin. Il en prendra connaissance avant votre consultation.</div><button onclick="this.closest(\'.p-modal-ov\').remove();switchPatientView(\'messages\');" style="width:100%;height:46px;border:none;border-radius:12px;background:var(--blue);color:#fff;font-family:inherit;font-weight:700;margin-top:14px;cursor:pointer;">Ouvrir mes messages</button>');
+  }catch(e){
+    pModal('Check-in enregistré','<div style="font-size:14px;color:var(--ink-soft);line-height:1.55;">Votre check-in est enregistré sur cet appareil. La transmission à votre médecin réessaiera plus tard.</div><button onclick="this.closest(\'.p-modal-ov\').remove();" style="width:100%;height:44px;border:none;border-radius:12px;background:#F2F5FA;font-family:inherit;font-weight:700;margin-top:14px;cursor:pointer;">Fermer</button>');
+  }
+}
+
+// ── Sprint 20 · Phase 10 — Smart Reminder (rappels calmes, dérivés du réel) ──
+function renderPatientRappels(){
+  const el=document.getElementById('pRappels'); if(!el) return;
+  const now=Date.now(); const groups={ soir:[], demain:[], suite:[] };
+  const lastOrd=(patientEvents||[]).find(function(e){ return e.type==='ordonnance'; });
+  const meds=lastOrd&&lastOrd.data&&Array.isArray(lastOrd.data.prescriptions)?lastOrd.data.prescriptions.filter(function(p){return p.medicament;}):[];
+  const intake=ptGetIntake();
+  meds.forEach(function(m,i){ const p=parsePosologie(m.posologie); if(p.soir && !intake[i+'_soir']){ groups.soir.push({ico:'\u{1F48A}',bg:'#EAFBF1',fg:'var(--green)',t:m.medicament,s:'Prise du soir'}); } });
+  (patientAppointments||[]).filter(function(a){ return a.status!=='annule' && new Date(a.start_at).getTime()>now; })
+    .sort(function(a,b){ return new Date(a.start_at)-new Date(b.start_at); }).slice(0,6).forEach(function(a){
+      const dt=new Date(a.start_at), days=Math.ceil((dt.getTime()-now)/86400000);
+      const item={ico:'\u{1F4C5}',bg:'#E7F0FF',fg:'var(--blue)',t:a.motif||'Rendez-vous',s:dt.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' · '+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})};
+      if(days<=1) groups.demain.push(item); else groups.suite.push(item);
+    });
+  const blocks=[['soir','Ce soir'],['demain','Demain'],['suite','Prochainement']];
+  let html='';
+  blocks.forEach(function(b){ if(groups[b[0]].length){ html+='<div class="rm-when">'+b[1]+'</div>'+groups[b[0]].map(function(it){ return '<div class="rm-item"><div class="ri" style="background:'+it.bg+';color:'+it.fg+'">'+it.ico+'</div><div style="min-width:0;"><div class="rt">'+escapeHtmlP(it.t)+'</div><div class="rs">'+escapeHtmlP(it.s)+'</div></div></div>'; }).join(''); } });
+  if(!html) html='<div class="p-empty"><div class="p-empty-icon">⏰</div>Rien de prévu pour l’instant. Profitez-en pour souffler.</div>';
+  el.innerHTML=html;
+}
+
+// ── Sprint 20 · Phase 11 — Mode Famille (sélecteur de profils, démo) ──
+// Décision produit : l'UX du sélecteur est livrée ; les comptes liés réels
+// (invitations, consentement, données de mineurs) feront l'objet d'un chantier
+// dédié (ADR). Les profils de proches sont clairement marqués « Démo ».
+const FM_MEMBERS = [
+  { id:'me',   role:'Titulaire du compte', demo:false, grad:'linear-gradient(150deg,#1460FF,#00C6FF)' },
+  { id:'lea',  name:'Léa',  role:'Ma fille · 8 ans',  demo:true, grad:'linear-gradient(150deg,#EC4899,#F472B6)' },
+  { id:'papa', name:'Papa', role:'Mon père · 71 ans', demo:true, grad:'linear-gradient(150deg,#16A34A,#4ADE80)' }
+];
+let fmActive = 'me';
+function fmName(mb){ if(mb.id==='me'){ return (((patientInfo&&patientInfo.prenom)||'Vous')+' '+((patientInfo&&patientInfo.nom)||'')).trim(); } return mb.name; }
+function fmInit(mb){ const n=fmName(mb).trim(); return (n[0]||'?').toUpperCase(); }
+function fmSwitch(id){ fmActive=id; renderPatientFamille(); if(navigator.vibrate) navigator.vibrate(5); }
+function renderPatientFamille(){
+  const el=document.getElementById('pFamille'); if(!el) return;
+  const active=FM_MEMBERS.find(function(m){ return m.id===fmActive; })||FM_MEMBERS[0];
+  let html='<div class="fm-active"><div class="av" style="background:'+active.grad+'">'+escapeHtmlP(fmInit(active))+'</div><div style="min-width:0;"><div class="nm">'+escapeHtmlP(fmName(active))+'</div><div class="rl">'+escapeHtmlP(active.role)+'</div></div></div>';
+  html += active.demo
+    ? '<div class="trt-note" style="margin:2px 0 0;">👨‍👩‍👧 Profil de démonstration — la gestion réelle des proches (comptes liés, consentement) arrive bientôt.</div>'
+    : '<div class="trt-note" style="margin:2px 0 0;">Vous consultez votre propre espace santé.</div>';
+  html += '<div class="p-section-label">Changer de profil</div><div class="fm-list">';
+  html += FM_MEMBERS.map(function(m){
+    const on=m.id===fmActive;
+    const right = on ? '<span class="fm-check">✓</span>' : (m.demo ? '<span class="fm-badge">DÉMO</span>' : '');
+    return '<div class="fm-card'+(on?' on':'')+'" onclick="fmSwitch(\''+m.id+'\')"><div class="av" style="background:'+m.grad+'">'+escapeHtmlP(fmInit(m))+'</div><div style="min-width:0;"><div class="nm">'+escapeHtmlP(fmName(m))+'</div><div class="rl">'+escapeHtmlP(m.role)+'</div></div>'+right+'</div>';
+  }).join('');
+  html += '</div><div class="fm-add">＋ Ajouter un proche (bientôt)</div>';
+  html += '<div class="trt-note" style="justify-content:center;margin-top:16px;">🔒 Les comptes liés respecteront le consentement de chacun et la protection renforcée des données des mineurs.</div>';
+  el.innerHTML=html;
+}
+
 // ── Hub « Santé » — point d'accès unique au suivi (façon réglages Apple) ──
 function renderSanteHub(){
   const el = document.getElementById('santeHub'); if(!el) return;
@@ -1444,6 +1683,9 @@ function renderSanteHub(){
 
   const items = [
     { view:'parcours', ready:true, ico:'📖', bg:'#F3EEFF', fg:'var(--violet)', t:'Mon Parcours Santé', s:'Votre histoire de soin, expliquée' },
+    { view:'journal', ready:true, ico:'❤️', bg:'#F3EEFF', fg:'var(--violet)', t:'Journal de santé', s:'Comment vous sentez-vous aujourd’hui ?' },
+    { view:'checkin', ready:true, ico:'📝', bg:'#E0F6FF', fg:'#0284C7', t:'Check-in', s:'Un point rapide avant votre consultation' },
+    { view:'rappels', ready:true, ico:'⏰', bg:'#FEF3E2', fg:'var(--amber)', t:'Mes rappels', s:'Ce qui vous attend, en douceur' },
     { view:'rdv', ready:true, ico:'📅', bg:'#E7F0FF', fg:'var(--blue)', t:'Mes rendez-vous', s:rdvSub },
     { view:'traitements', ready:true, ico:'💊', bg:'#EAFBF1', fg:'var(--green)', t:'Mes traitements', s: medCount ? medCount+' médicament'+(medCount>1?'s':'')+' en cours' : 'Aucun traitement' },
     { view:'resultats', ready:true, ico:'🔬', bg:'#E0F6FF', fg:'#0284C7', t:'Mes résultats', s: resCount ? resCount+' résultat'+(resCount>1?'s':'') : 'Aucun résultat' },
