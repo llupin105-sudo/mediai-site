@@ -1008,10 +1008,7 @@
 
     <section class="patients-section app-view" id="patientsSection">
   <div id="patientsListView">
-    <div class="patients-header">
-      <h2 class="section-title" style="margin:0;">Mes patients</h2>
-      <button class="btn-primary" style="padding:10px 18px; font-size:14px;" onclick="openNewPatientModal()">+ Nouveau patient</button>
-    </div>
+    <div id="piwToolbar"></div>
     <div class="patient-grid" id="patientGrid"></div>
   </div>
 
@@ -3939,28 +3936,213 @@ async function submitNewPatient(event) {
 }
 
 // ── Section "Mes patients" (liste + dossier détaillé) ──────────────
-async function renderPatientsList() {
-  const list = await fetchPatients();
-  const grid = document.getElementById('patientGrid');
-  if (list.length === 0) {
-    grid.innerHTML = emptyState({
-      icon: '👤',
-      title: "Aucun patient pour l'instant",
-      text: 'Créez votre premier dossier pour commencer à suivre vos consultations.',
-      actionLabel: '+ Nouveau patient',
-      actionOnclick: 'openNewPatientModal()',
-      style: 'grid-column:1/-1;',
-    });
-    return;
-  }
-  ensureQuickActionStyles();
-  grid.innerHTML = list.map(p => `
-    <div class="patient-card" onclick="openPatientDetail('${p.id}')">
-      <button class="qa-btn" aria-label="Actions rapides" onclick="event.stopPropagation();qaToggle(this,'${p.id}')">•••</button>
-      <div class="patient-card-name">${escapeHtml(p.prenom + ' ' + p.nom)}</div>
-      <div class="patient-card-meta">${p.events_count || 0} événement(s)${p.last_event_date ? ' · dernier : ' + new Date(p.last_event_date).toLocaleDateString('fr-FR') : ''}</div>
+// ══════════════════════════════════════════════════════════════════
+// Sprint 21 · Patient Intelligence Workspace — la page Patients devient
+// le centre nerveux du cabinet. Tous les signaux (priorité, pulse, prochain
+// RDV, dernière consultation) sont DÉRIVÉS des données réelles — jamais
+// inventés. Photos : avatars à initiales ; upload réel différé (ADR).
+// ══════════════════════════════════════════════════════════════════
+let piwView = 'cards';            // cards | list | jour | favoris | suivre
+let piwQuery = '';
+let piwModels = [];
+let piwUpcomingAppts = [];
+let piwThreads = [];
+
+// Avatar déterministe (initiales + couleur stable dérivée du nom)
+const PIW_AVCOLORS = ['#1460FF','#8B5CF6','#EC4899','#0284C7','#16A34A','#F59E0B','#EF4444','#0EA5E9'];
+function piwAvatar(p, size){
+  const init = ((p.prenom||'')[0]||'') + ((p.nom||'')[0]||'');
+  let h=0; const s=(p.id||p.nom||''); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0;
+  const c1=PIW_AVCOLORS[h%PIW_AVCOLORS.length], c2=PIW_AVCOLORS[(h>>3)%PIW_AVCOLORS.length];
+  const grad='linear-gradient(150deg,'+c1+','+(c1===c2?'#00C6FF':c2)+')';
+  const inner = p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="">` : escapeHtml((init||'?').toUpperCase());
+  return `<div class="pcx-av" style="background:${grad}${size?';width:'+size+'px;height:'+size+'px;font-size:'+Math.round(size/2.7)+'px':''}">${inner}</div>`;
+}
+function piwAge(dn){ if(!dn) return null; const d=new Date(dn); if(isNaN(d)) return null; const t=new Date(); let a=t.getFullYear()-d.getFullYear(); const m=t.getMonth()-d.getMonth(); if(m<0||(m===0&&t.getDate()<d.getDate())) a--; return (a>=0&&a<130)?a:null; }
+
+// État du dossier (badge priorité + pulse), strictement déterministe.
+const PIW_STATES = {
+  action:  { dot:'#EF4444', label:'Action recommandée', tint:'#FEECEC', fg:'#B42318' },
+  watch:   { dot:'#F59E0B', label:'À surveiller',        tint:'#FEF6E7', fg:'#9A6700' },
+  stable:  { dot:'#22C55E', label:'Stable',              tint:'#E9F9EF', fg:'#0F7A3D' },
+  nouveau: { dot:'#94A3B8', label:'Nouveau patient',     tint:'#EEF1F6', fg:'#5B6472' },
+};
+function piwState(m){
+  const now=Date.now(), DAY=86400000;
+  if((m.events||[]).length===0 && !m.lastEventDate) return 'nouveau';
+  if(m.unread>0) return 'action';
+  const recentResult=(m.events||[]).some(e=>(e.type==='analyse_labo'||e.type==='imagerie') && (now-new Date(e.event_date))/DAY<=3);
+  if(recentResult) return 'action';
+  const soonRdv = m.nextRdv && (new Date(m.nextRdv.start_at)-now)/DAY<=2;
+  const recentDoc=(m.events||[]).some(e=>(now-new Date(e.event_date))/DAY<=7);
+  if(soonRdv||recentDoc) return 'watch';
+  return 'stable';
+}
+
+async function piwFetchAppointments(){
+  try{ const from=new Date().toISOString(); const to=new Date(Date.now()+90*86400000).toISOString();
+    const res=await fetch(API_BASE+'/api/appointments?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to),{headers:authHeaders()});
+    if(!res.ok) return []; const d=await res.json(); return d.items||[];
+  }catch(e){ return []; }
+}
+async function piwFetchThreads(){
+  try{ const res=await fetch(API_BASE+'/api/threads',{headers:authHeaders()}); if(!res.ok) return []; const d=await res.json(); return d.items||[]; }
+  catch(e){ return []; }
+}
+async function piwBuildModels(){
+  const [patients, events, appts, threads] = await Promise.all([ fetchPatients(), fetchAllEvents(), piwFetchAppointments(), piwFetchThreads() ]);
+  piwUpcomingAppts=appts; piwThreads=threads;
+  const now=Date.now();
+  const evByPat={}; (events||[]).forEach(e=>{ (evByPat[e.patientId]=evByPat[e.patientId]||[]).push(e); });
+  const nextByPat={}; (appts||[]).forEach(a=>{ if(a.patient_id && new Date(a.start_at).getTime()>now && a.status!=='annule'){ if(!nextByPat[a.patient_id] || new Date(a.start_at)<new Date(nextByPat[a.patient_id].start_at)) nextByPat[a.patient_id]=a; } });
+  const unreadByPat={}; (threads||[]).forEach(t=>{ if(t.unread) unreadByPat[t.patient_id]=(unreadByPat[t.patient_id]||0)+t.unread; });
+  piwModels = (patients||[]).map(p=>{
+    const ev=(evByPat[p.id]||[]).slice().sort((a,b)=>new Date(b.event_date)-new Date(a.event_date));
+    const lastConsult=ev.find(e=>e.type==='consultation');
+    const m={ ...p, events:ev, lastEventDate:p.last_event_date, age:piwAge(p.date_naissance),
+      lastConsult:lastConsult?lastConsult.event_date:null, nextRdv:nextByPat[p.id]||null, unread:unreadByPat[p.id]||0 };
+    m.state=piwState(m);
+    return m;
+  });
+  return piwModels;
+}
+
+function piwViewsDef(){ return [
+  { key:'cards',   ico:'◼', label:'Cartes' },
+  { key:'list',    ico:'☰', label:'Liste' },
+  { key:'jour',    ico:'📅', label:'Aujourd’hui' },
+  { key:'favoris', ico:'★', label:'Favoris' },
+  { key:'suivre',  ico:'⚠', label:'À suivre' },
+]; }
+function piwRenderToolbar(){
+  const tb=document.getElementById('piwToolbar'); if(!tb) return;
+  const segs=piwViewsDef().map(v=>{ const n=piwView===v.key?' on':''; const badge=(v.key==='favoris'&&piwFavs().length)?' ('+piwFavs().length+')':''; return `<button class="${'piw-sg'+n}" onclick="piwSetView('${v.key}')">${v.ico} ${v.label}${badge}</button>`; }).join('');
+  tb.innerHTML = `<div class="piw-toolbar">
+      <h2 class="piw-title">Patients<span class="piw-count" id="piwCount"></span></h2>
+      <div class="piw-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="piwSearch" placeholder="Rechercher un patient…" value="${escapeHtml(piwQuery)}" oninput="piwOnSearch(this.value)"></div>
+      <div class="piw-seg">${segs}</div>
+      <button class="btn-primary" style="padding:10px 16px;font-size:14px;" onclick="openNewPatientModal()">+ Patient</button>
+    </div>`;
+}
+function piwSetView(v){ piwView=v; piwRenderToolbar(); piwRenderGrid(); }
+function piwOnSearch(q){ piwQuery=q; piwRenderGrid(); }
+function piwFilteredModels(){
+  const now=Date.now(); let arr=piwModels.slice();
+  const q=piwQuery.trim().toLowerCase();
+  if(q) arr=arr.filter(m=>((m.prenom+' '+m.nom).toLowerCase().includes(q))||((m.nom+' '+m.prenom).toLowerCase().includes(q)));
+  if(piwView==='favoris'){ const f=piwFavs(); arr=arr.filter(m=>f.includes(m.id)); }
+  else if(piwView==='suivre'){ arr=arr.filter(m=>m.state==='action'||m.state==='watch'); arr.sort((a,b)=>piwSevRank(b)-piwSevRank(a)); }
+  else if(piwView==='jour'){ const ids=piwTodayPatientIds(); arr=arr.filter(m=>ids.has(m.id)); }
+  return arr;
+}
+function piwSevRank(m){ return {action:3,watch:2,stable:1,nouveau:0}[m.state]||0; }
+function piwTodayPatientIds(){ const s=new Set(); const t=new Date(); const y=t.getFullYear(),mo=t.getMonth(),d=t.getDate();
+  (piwUpcomingAppts||[]).forEach(a=>{ if(!a.patient_id||a.status==='annule') return; const x=new Date(a.start_at); if(x.getFullYear()===y&&x.getMonth()===mo&&x.getDate()===d) s.add(a.patient_id); }); return s; }
+
+function piwMetaLine(m){
+  const bits=[]; if(m.age!=null) bits.push(m.age+' ans');
+  if(m.sexe) bits.push(m.sexe==='F'?'Femme':m.sexe==='M'?'Homme':escapeHtml(m.sexe));
+  return bits.join(' · ');
+}
+function piwRdvText(m){ if(!m.nextRdv) return null; const dt=new Date(m.nextRdv.start_at); const days=Math.ceil((dt-Date.now())/86400000);
+  const q=days<=0?"aujourd'hui":days===1?'demain':'dans '+days+' j'; return dt.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' · '+q; }
+function piwLastText(m){ if(!m.lastConsult) return m.lastEventDate?('Activité '+new Date(m.lastEventDate).toLocaleDateString('fr-FR')):'Aucune consultation'; return new Date(m.lastConsult).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }
+
+function piwCard(m){
+  const st=PIW_STATES[m.state]; const meta=piwMetaLine(m); const rdv=piwRdvText(m); const fav=piwFavs().includes(m.id);
+  return `<div class="pcx" onclick="openPatientDetail('${m.id}')">
+    <span class="pcx-pulse" style="background:${st.dot}" title="${st.label}"></span>
+    <button class="qa-btn" aria-label="Actions rapides" onclick="event.stopPropagation();qaToggle(this,'${m.id}')" style="right:34px">•••</button>
+    <button class="pcx-fav${fav?' on':''}" title="Favori" onclick="event.stopPropagation();piwToggleFav('${m.id}')">${fav?'★':'☆'}</button>
+    <div class="pcx-top">${piwAvatar(m)}<div style="min-width:0"><div class="pcx-nm">${escapeHtml(m.prenom+' '+m.nom)}</div><div class="pcx-sub">${meta||'Âge non renseigné'}</div></div></div>
+    <div class="pcx-rows">
+      <div class="pcx-row"><span class="k">Dernière consultation</span><span style="margin-left:auto;font-weight:600">${escapeHtml(piwLastText(m))}</span></div>
+      <div class="pcx-row"><span class="k">Prochain RDV</span><span style="margin-left:auto;font-weight:600;color:${rdv?'var(--accent-deep)':'var(--ink-faint)'}">${rdv?escapeHtml(rdv):'—'}</span></div>
     </div>
-  `).join('');
+    <span class="pcx-badge" style="background:${st.tint};color:${st.fg}"><span style="width:7px;height:7px;border-radius:50%;background:${st.dot};display:inline-block"></span>${st.label}${m.unread?' · '+m.unread+' msg':''}</span>
+  </div>`;
+}
+function piwRow(m){
+  const st=PIW_STATES[m.state]; const meta=piwMetaLine(m); const rdv=piwRdvText(m);
+  return `<div class="plx" onclick="openPatientDetail('${m.id}')">
+    <span class="pcx-pulse" style="position:static;background:${st.dot}" title="${st.label}"></span>
+    ${piwAvatar(m,40)}
+    <div style="min-width:0;flex:1"><div class="pcx-nm" style="font-size:15px">${escapeHtml(m.prenom+' '+m.nom)}</div><div class="pcx-sub">${meta||'—'} · ${escapeHtml(piwLastText(m))}</div></div>
+    <div class="plx-rdv">${rdv?escapeHtml(rdv):''}</div>
+    <button class="pcx-fav${piwFavs().includes(m.id)?' on':''}" onclick="event.stopPropagation();piwToggleFav('${m.id}')">${piwFavs().includes(m.id)?'★':'☆'}</button>
+  </div>`;
+}
+function piwEmptyFor(){
+  if(piwView==='favoris') return emptyState({icon:'★',title:'Aucun favori',text:'Épinglez vos patients suivis de près : ils resteront ici, toujours à portée.',style:'grid-column:1/-1;'});
+  if(piwView==='suivre') return emptyState({icon:'✅',title:'Rien à suivre',text:'Aucun patient ne requiert votre attention immédiate. Belle journée !',style:'grid-column:1/-1;'});
+  if(piwView==='jour') return emptyState({icon:'📅',title:'Aucun patient aujourd’hui',text:'Aucun rendez-vous avec dossier n’est prévu ce jour.',style:'grid-column:1/-1;'});
+  if(piwQuery) return emptyState({icon:'🔍',title:'Aucun résultat',text:'Aucun patient ne correspond à « '+escapeHtml(piwQuery)+' ».',style:'grid-column:1/-1;'});
+  return emptyState({icon:'👤',title:"Aucun patient pour l'instant",text:'Créez votre premier dossier pour commencer.',actionLabel:'+ Nouveau patient',actionOnclick:'openNewPatientModal()',style:'grid-column:1/-1;'});
+}
+function piwRenderGrid(){
+  const grid=document.getElementById('patientGrid'); if(!grid) return;
+  const arr=piwFilteredModels();
+  const cnt=document.getElementById('piwCount'); if(cnt) cnt.textContent=' · '+piwModels.length;
+  const isList = piwView==='list';
+  grid.className = 'patient-grid ' + (isList?'piw-list':'piw-cards');
+  if(!arr.length){ grid.innerHTML=piwEmptyFor(); return; }
+  grid.innerHTML = arr.map(isList?piwRow:piwCard).join('');
+}
+
+// Favoris (métadonnée d'organisation — stockée en local sur l'appareil, ADR pour la sync serveur)
+function piwFavs(){ try{ return JSON.parse(localStorage.getItem('mediai_piw_favs')||'[]'); }catch(e){ return []; } }
+function piwToggleFav(id){ const f=piwFavs(); const i=f.indexOf(id); if(i>=0) f.splice(i,1); else f.push(id); try{ localStorage.setItem('mediai_piw_favs',JSON.stringify(f)); }catch(e){} piwRenderToolbar(); piwRenderGrid(); }
+
+function ensurePiwListStyles(){
+  if(document.getElementById('piwListStyles')) return;
+  const st=document.createElement('style'); st.id='piwListStyles';
+  st.textContent=`
+  .piw-toolbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+  .piw-title{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0;margin-right:auto;color:var(--ink)}
+  .piw-count{font-size:14px;color:var(--ink-faint);font-weight:600}
+  .piw-search{position:relative;display:flex;align-items:center}
+  .piw-search svg{position:absolute;left:12px;width:17px;height:17px;color:var(--ink-faint);pointer-events:none}
+  .piw-search input{height:40px;width:230px;max-width:46vw;border:1px solid var(--paper-line);border-radius:11px;padding:0 14px 0 36px;font-family:inherit;font-size:14px;background:var(--card);color:var(--ink);transition:border-color .15s,box-shadow .15s}
+  .piw-search input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+  .piw-seg{display:inline-flex;background:var(--paper);border:1px solid var(--paper-line);border-radius:12px;padding:3px;gap:2px;flex-wrap:wrap}
+  .piw-sg{border:none;background:none;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-soft);padding:7px 12px;border-radius:9px;cursor:pointer;white-space:nowrap;transition:background .14s,color .14s}
+  .piw-sg:hover{color:var(--ink)}
+  .piw-sg.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
+  #patientGrid.piw-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(288px,1fr));gap:16px}
+  #patientGrid.piw-list{display:flex;flex-direction:column;gap:1px}
+  .pcx{position:relative;background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:18px;cursor:pointer;transition:transform .16s var(--ease),box-shadow .2s,border-color .2s}
+  .pcx:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:transparent}
+  .pcx-top{display:flex;align-items:center;gap:13px}
+  .pcx-av{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;flex:none;overflow:hidden}
+  .pcx-av img{width:100%;height:100%;object-fit:cover}
+  .pcx-nm{font-size:16px;font-weight:800;letter-spacing:-.01em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcx-sub{font-size:12.5px;color:var(--ink-faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcx-pulse{position:absolute;top:17px;right:16px;width:11px;height:11px;border-radius:50%;box-shadow:0 0 0 3px var(--card)}
+  .pcx-fav{position:absolute;top:12px;right:10px;background:none;border:none;cursor:pointer;font-size:17px;line-height:1;color:var(--ink-faint);opacity:0;transition:opacity .14s,color .14s}
+  .pcx:hover .pcx-fav,.pcx-fav.on,.plx:hover .pcx-fav,.plx .pcx-fav.on{opacity:1}
+  .pcx-fav.on{color:#F5A623}
+  .pcx-rows{margin-top:14px;display:flex;flex-direction:column;gap:7px}
+  .pcx-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft)}
+  .pcx-row .k{color:var(--ink-faint)}
+  .pcx-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;margin-top:13px}
+  .plx{display:flex;align-items:center;gap:14px;padding:11px 14px;border-radius:12px;cursor:pointer;transition:background .14s;position:relative}
+  .plx:hover{background:var(--paper)}
+  .plx .pcx-fav{position:static;opacity:0}
+  .plx-rdv{font-size:12.5px;color:var(--accent-deep);font-weight:600;white-space:nowrap;margin-left:auto}
+  @media (max-width:640px){ .piw-title{margin-right:0;width:100%} .piw-search input{width:100%;max-width:none} }`;
+  document.head.appendChild(st);
+}
+
+async function renderPatientsList() {
+  ensureQuickActionStyles();
+  ensurePiwListStyles();
+  piwRenderToolbar();
+  const grid=document.getElementById('patientGrid');
+  if(grid && !piwModels.length) grid.innerHTML='<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--ink-faint)">Chargement…</div>';
+  await piwBuildModels();
+  piwRenderToolbar();
+  piwRenderGrid();
 }
 
 // Sprint 17 · Vague B — Quick Actions : agir sur un patient sans ouvrir le
@@ -3987,7 +4169,8 @@ function qaToggle(btn, id) {
   qaClose();
   if (wasOpen) return;
   btn.classList.add('open');
-  const card = btn.closest('.patient-card');
+  const card = btn.closest('.pcx, .plx, .patient-card');
+  if (!card) return;
   const menu = document.createElement('div'); menu.className = 'qa-menu open';
   menu.onclick = (e) => e.stopPropagation();
   menu.innerHTML = `
