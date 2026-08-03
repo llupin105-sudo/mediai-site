@@ -1442,6 +1442,12 @@
         <label>Date de naissance (optionnel)</label>
         <input type="text" id="newPatientDob" placeholder="JJ/MM/AAAA">
       </div>
+      <div class="auth-field">
+        <label>Sexe (optionnel)</label>
+        <select id="newPatientSexe" style="width:100%;height:44px;border:1px solid var(--paper-line);border-radius:11px;padding:0 12px;font-family:inherit;font-size:14px;background:var(--card);color:var(--ink)">
+          <option value="">—</option><option value="F">Femme</option><option value="M">Homme</option><option value="Autre">Autre</option>
+        </select>
+      </div>
       <button type="submit" class="auth-submit" id="newPatientSubmitBtn">Créer le patient</button>
     </form>
     <button class="modal-close" onclick="closeNewPatientModal()">Annuler</button>
@@ -3915,6 +3921,7 @@ async function submitNewPatient(event) {
         prenom: document.getElementById('newPatientPrenom').value.trim(),
         nom: document.getElementById('newPatientNom').value.trim(),
         dateNaissance: document.getElementById('newPatientDob').value.trim(),
+        sexe: document.getElementById('newPatientSexe').value,
       })
     });
     const data = await res.json();
@@ -4029,17 +4036,28 @@ function piwRenderToolbar(){
       <div class="piw-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input id="piwSearch" placeholder="Rechercher (nom, tag…)" value="${escapeHtml(piwQuery)}" oninput="piwOnSearch(this.value)"></div>
       <div class="piw-seg">${segs}${collSegs}<button class="piw-sg" title="Nouvelle collection" onclick="piwPromptNewCollection()">＋</button></div>
-      <button class="btn-primary" style="padding:10px 16px;font-size:14px;" onclick="openNewPatientModal()">+ Patient</button>
+      <button class="btn-primary" style="padding:10px 16px;font-size:14px;" onclick="piwAddPatientChooser()">+ Patient</button>
     </div>
     <div class="piw-filters"><span class="piw-filters-lab">Filtres</span>${smart}<span style="flex:1"></span>
       <button class="piw-chip${piwSelectMode?' on':''}" onclick="piwToggleSelectMode()">${piwSelectMode?'✓ Sélection':'☑︎ Sélectionner'}</button></div>`;
+}
+// Innov 3 — expérience « Ajouter un patient » (chooser façon Apple)
+function piwAddPatientChooser(){
+  if(typeof currentUser!=='undefined' && !currentUser){ if(typeof openAuthModal==='function'){ openAuthModal('signup'); return; } }
+  const inner='<div class="piw-addgrid">'
+    +'<button class="piw-addopt" onclick="piwCloseMini();openNewPatientModal()"><span class="i">➕</span><span class="t">Créer un nouveau patient</span><span class="s">Saisir une nouvelle fiche</span></button>'
+    +'<button class="piw-addopt" onclick="piwCloseMini();piwToast(\'Invitation patient — bientôt\')"><span class="i">📱</span><span class="t">Inviter un patient <span class="soon">Bientôt</span></span><span class="s">Accès à son espace santé</span></button>'
+    +'<button class="piw-addopt" onclick="piwCloseMini();piwToast(\'Import de dossier — bientôt\')"><span class="i">📄</span><span class="t">Importer un dossier <span class="soon">Bientôt</span></span><span class="s">Depuis un fichier ou un confrère</span></button>'
+    +'<button class="piw-addopt" onclick="piwCloseMini();piwToast(\'Scan d’identité — architecture en préparation\')"><span class="i">📷</span><span class="t">Scanner une pièce d’identité <span class="soon">Bientôt</span></span><span class="s">Pré-remplir la fiche</span></button>'
+    +'</div>';
+  piwMini('Ajouter un patient', inner);
 }
 function piwPromptNewCollection(){
   piwMini('Nouvelle collection', `<input id="piwNewColl" placeholder="Nom (ex : Patients diabétiques)" style="width:100%;height:44px;border:1px solid var(--paper-line);border-radius:11px;padding:0 14px;font-family:inherit;font-size:14px">
     <button class="dash-action-btn primary" style="width:100%;margin-top:12px" onclick="const n=document.getElementById('piwNewColl').value;const c=piwCollCreate(n);if(c){piwCloseMini();piwRenderToolbar();piwToast('Collection créée');}else{piwToast('Nom requis');}">Créer la collection</button>`);
 }
-function piwSetView(v){ piwView=v; piwRenderToolbar(); piwRenderGrid(); }
-function piwOnSearch(q){ piwQuery=q; piwRenderGrid(); }
+function piwSetView(v){ piwView=v; piwWindow=60; piwRenderToolbar(); piwRenderGrid(); }
+function piwOnSearch(q){ piwQuery=q; piwWindow=60; piwRenderGrid(); }
 function piwFilteredModels(){
   let arr=piwModels.slice();
   const q=piwQuery.trim().toLowerCase();
@@ -4051,7 +4069,7 @@ function piwFilteredModels(){
   if(piwActiveSmart){ const f=PIW_SMART.find(s=>s.key===piwActiveSmart); if(f) arr=arr.filter(f.test); }
   return arr;
 }
-function piwSetSmart(k){ piwActiveSmart=(piwActiveSmart===k)?null:k; piwRenderToolbar(); piwRenderGrid(); }
+function piwSetSmart(k){ piwActiveSmart=(piwActiveSmart===k)?null:k; piwWindow=60; piwRenderToolbar(); piwRenderGrid(); }
 function piwSevRank(m){ return {action:3,watch:2,stable:1,nouveau:0}[m.state]||0; }
 function piwTodayPatientIds(){ const s=new Set(); const t=new Date(); const y=t.getFullYear(),mo=t.getMonth(),d=t.getDate();
   (piwUpcomingAppts||[]).forEach(a=>{ if(!a.patient_id||a.status==='annule') return; const x=new Date(a.start_at); if(x.getFullYear()===y&&x.getMonth()===mo&&x.getDate()===d) s.add(a.patient_id); }); return s; }
@@ -4124,7 +4142,17 @@ function piwRenderGrid(){
   const isList = piwView==='list';
   grid.className = 'patient-grid ' + (isList?'piw-list':'piw-cards') + (piwSelectMode?' piw-selmode':'');
   if(!arr.length){ grid.innerHTML=piwEmptyFor(); return; }
-  grid.innerHTML = arr.map(isList?piwRow:piwCard).join('');
+  // Rendu progressif : on ne peint qu'une fenêtre, le reste au défilement (gros cabinets).
+  const slice=arr.slice(0,piwWindow);
+  grid.innerHTML = slice.map(isList?piwRow:piwCard).join('') + (arr.length>piwWindow?'<div class="piw-more" id="piwMore">Voir plus… ('+slice.length+' / '+arr.length+')</div>':'');
+  piwSetupInfinite();
+}
+let piwWindow=60, piwIO=null;
+function piwSetupInfinite(){
+  if(piwIO){ piwIO.disconnect(); piwIO=null; }
+  const more=document.getElementById('piwMore'); if(!more || !('IntersectionObserver' in window)) return;
+  piwIO=new IntersectionObserver(function(ents){ if(ents[0].isIntersecting){ piwWindow+=60; piwRenderGrid(); } }, { rootMargin:'500px' });
+  piwIO.observe(more);
 }
 
 // Favoris (métadonnée d'organisation — stockée en local sur l'appareil, ADR pour la sync serveur)
@@ -4368,7 +4396,15 @@ function ensurePiwListStyles(){
   .piw-actionbar button{border:none;background:rgba(255,255,255,.14);color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:10px;cursor:pointer;white-space:nowrap}
   .piw-actionbar button:hover:not(:disabled){background:rgba(255,255,255,.26)}
   .piw-actionbar button:disabled{opacity:.4;cursor:default}
-  .piw-actionbar .pab-x{background:transparent}`;
+  .piw-actionbar .pab-x{background:transparent}
+  .piw-addgrid{display:flex;flex-direction:column;gap:10px}
+  .piw-addopt{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:13px;text-align:left;background:var(--card);border:1px solid var(--paper-line);border-radius:14px;padding:13px 14px;cursor:pointer;font-family:inherit;transition:background .14s,border-color .14s}
+  .piw-addopt:hover{background:var(--paper);border-color:var(--accent)}
+  .piw-addopt .i{grid-row:1/3;align-self:center;font-size:22px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--accent-tint);border-radius:12px}
+  .piw-addopt .t{font-size:14px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:7px}
+  .piw-addopt .s{font-size:12px;color:var(--ink-faint)}
+  .piw-addopt .soon{font-size:9px;font-weight:800;color:var(--ink-faint);background:var(--paper);border:1px solid var(--paper-line);border-radius:999px;padding:2px 7px;text-transform:uppercase;letter-spacing:.04em}
+  .piw-more{grid-column:1/-1;text-align:center;padding:20px;color:var(--ink-faint);font-size:13px}`;
   document.head.appendChild(st);
 }
 
