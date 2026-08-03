@@ -4021,25 +4021,37 @@ function piwViewsDef(){ return [
 function piwRenderToolbar(){
   const tb=document.getElementById('piwToolbar'); if(!tb) return;
   const segs=piwViewsDef().map(v=>{ const n=piwView===v.key?' on':''; const badge=(v.key==='favoris'&&piwFavs().length)?' ('+piwFavs().length+')':''; return `<button class="${'piw-sg'+n}" onclick="piwSetView('${v.key}')">${v.ico} ${v.label}${badge}</button>`; }).join('');
+  const colls=piwCollections();
+  const collSegs=colls.map(c=>{ const n=piwView==='coll:'+c.id?' on':''; return `<button class="${'piw-sg'+n}" onclick="piwSetView('coll:${c.id}')" title="${escapeHtml(c.name)} · ${c.patientIds.length}">📁 ${escapeHtml(c.name)}</button>`; }).join('');
+  const smart=PIW_SMART.map(s=>`<button class="piw-chip${piwActiveSmart===s.key?' on':''}" onclick="piwSetSmart('${s.key}')">${s.label}</button>`).join('');
   tb.innerHTML = `<div class="piw-toolbar">
       <h2 class="piw-title">Patients<span class="piw-count" id="piwCount"></span></h2>
       <div class="piw-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="piwSearch" placeholder="Rechercher un patient…" value="${escapeHtml(piwQuery)}" oninput="piwOnSearch(this.value)"></div>
-      <div class="piw-seg">${segs}</div>
+        <input id="piwSearch" placeholder="Rechercher (nom, tag…)" value="${escapeHtml(piwQuery)}" oninput="piwOnSearch(this.value)"></div>
+      <div class="piw-seg">${segs}${collSegs}<button class="piw-sg" title="Nouvelle collection" onclick="piwPromptNewCollection()">＋</button></div>
       <button class="btn-primary" style="padding:10px 16px;font-size:14px;" onclick="openNewPatientModal()">+ Patient</button>
-    </div>`;
+    </div>
+    <div class="piw-filters"><span class="piw-filters-lab">Filtres</span>${smart}<span style="flex:1"></span>
+      <button class="piw-chip${piwSelectMode?' on':''}" onclick="piwToggleSelectMode()">${piwSelectMode?'✓ Sélection':'☑︎ Sélectionner'}</button></div>`;
+}
+function piwPromptNewCollection(){
+  piwMini('Nouvelle collection', `<input id="piwNewColl" placeholder="Nom (ex : Patients diabétiques)" style="width:100%;height:44px;border:1px solid var(--paper-line);border-radius:11px;padding:0 14px;font-family:inherit;font-size:14px">
+    <button class="dash-action-btn primary" style="width:100%;margin-top:12px" onclick="const n=document.getElementById('piwNewColl').value;const c=piwCollCreate(n);if(c){piwCloseMini();piwRenderToolbar();piwToast('Collection créée');}else{piwToast('Nom requis');}">Créer la collection</button>`);
 }
 function piwSetView(v){ piwView=v; piwRenderToolbar(); piwRenderGrid(); }
 function piwOnSearch(q){ piwQuery=q; piwRenderGrid(); }
 function piwFilteredModels(){
-  const now=Date.now(); let arr=piwModels.slice();
+  let arr=piwModels.slice();
   const q=piwQuery.trim().toLowerCase();
-  if(q) arr=arr.filter(m=>((m.prenom+' '+m.nom).toLowerCase().includes(q))||((m.nom+' '+m.prenom).toLowerCase().includes(q)));
+  if(q) arr=arr.filter(m=>((m.prenom+' '+m.nom).toLowerCase().includes(q))||((m.nom+' '+m.prenom).toLowerCase().includes(q))||piwTagsOf(m.id).some(t=>t.toLowerCase().includes(q)));
   if(piwView==='favoris'){ const f=piwFavs(); arr=arr.filter(m=>f.includes(m.id)); }
   else if(piwView==='suivre'){ arr=arr.filter(m=>m.state==='action'||m.state==='watch'); arr.sort((a,b)=>piwSevRank(b)-piwSevRank(a)); }
   else if(piwView==='jour'){ const ids=piwTodayPatientIds(); arr=arr.filter(m=>ids.has(m.id)); }
+  else if(piwView.indexOf('coll:')===0){ const col=piwCollections().find(c=>c.id===piwView.slice(5)); const ids=col?col.patientIds:[]; arr=arr.filter(m=>ids.includes(m.id)); }
+  if(piwActiveSmart){ const f=PIW_SMART.find(s=>s.key===piwActiveSmart); if(f) arr=arr.filter(f.test); }
   return arr;
 }
+function piwSetSmart(k){ piwActiveSmart=(piwActiveSmart===k)?null:k; piwRenderToolbar(); piwRenderGrid(); }
 function piwSevRank(m){ return {action:3,watch:2,stable:1,nouveau:0}[m.state]||0; }
 function piwTodayPatientIds(){ const s=new Set(); const t=new Date(); const y=t.getFullYear(),mo=t.getMonth(),d=t.getDate();
   (piwUpcomingAppts||[]).forEach(a=>{ if(!a.patient_id||a.status==='annule') return; const x=new Date(a.start_at); if(x.getFullYear()===y&&x.getMonth()===mo&&x.getDate()===d) s.add(a.patient_id); }); return s; }
@@ -4070,11 +4082,14 @@ function piwRelationText(m){ const s=piwSince(m.firstDate); const n=m.counts?m.c
 
 function piwCard(m){
   const st=PIW_STATES[m.state]; const meta=piwMetaLine(m); const rdv=piwRdvText(m); const fav=piwFavs().includes(m.id);
-  return `<div class="pcx" onclick="openPatientSheet('${m.id}')">
+  const sel=piwSelected.has(m.id);
+  return `<div class="pcx${sel?' selected':''}" onclick="piwCardClick('${m.id}')" onmouseenter="piwPreviewShow('${m.id}',this)" onmouseleave="piwPreviewHide()">
+    <span class="pcx-check">${sel?'✓':''}</span>
     <span class="pcx-pulse" style="background:${st.dot}" title="${st.label}"></span>
     <button class="qa-btn" aria-label="Actions rapides" onclick="event.stopPropagation();qaToggle(this,'${m.id}')" style="right:34px">•••</button>
     <button class="pcx-fav${fav?' on':''}" title="Favori" onclick="event.stopPropagation();piwToggleFav('${m.id}')">${fav?'★':'☆'}</button>
     <div class="pcx-top">${piwAvatar(m)}<div style="min-width:0"><div class="pcx-nm">${escapeHtml(m.prenom+' '+m.nom)}</div><div class="pcx-sub">${meta||'Âge non renseigné'}</div></div></div>
+    ${piwTagChips(m.id)}
     ${piwMiniTimeline(m)}
     <div class="pcx-rows">
       <div class="pcx-row"><span class="k">Prochain RDV</span><span style="margin-left:auto;font-weight:600;color:${rdv?'var(--accent-deep)':'var(--ink-faint)'}">${rdv?escapeHtml(rdv):'—'}</span></div>
@@ -4083,12 +4098,14 @@ function piwCard(m){
     <span class="pcx-badge" style="background:${st.tint};color:${st.fg}"><span style="width:7px;height:7px;border-radius:50%;background:${st.dot};display:inline-block"></span>${st.label}${m.unread?' · '+m.unread+' msg':''}</span>
   </div>`;
 }
+function piwCardClick(id){ if(piwSelectMode) piwSelToggle(id); else openPatientSheet(id); }
 function piwRow(m){
-  const st=PIW_STATES[m.state]; const meta=piwMetaLine(m); const rdv=piwRdvText(m);
-  return `<div class="plx" onclick="openPatientSheet('${m.id}')">
+  const st=PIW_STATES[m.state]; const meta=piwMetaLine(m); const rdv=piwRdvText(m); const sel=piwSelected.has(m.id);
+  return `<div class="plx${sel?' selected':''}" onclick="piwCardClick('${m.id}')">
+    <span class="pcx-check">${sel?'✓':''}</span>
     <span class="pcx-pulse" style="position:static;background:${st.dot}" title="${st.label}"></span>
     ${piwAvatar(m,40)}
-    <div style="min-width:0;flex:1"><div class="pcx-nm" style="font-size:15px">${escapeHtml(m.prenom+' '+m.nom)}</div><div class="pcx-sub">${meta||'—'} · ${escapeHtml(piwLastText(m))}</div></div>
+    <div style="min-width:0;flex:1"><div class="pcx-nm" style="font-size:15px">${escapeHtml(m.prenom+' '+m.nom)}${piwTagsOf(m.id).length?' '+piwTagChips(m.id):''}</div><div class="pcx-sub">${meta||'—'} · ${escapeHtml(piwLastText(m))}</div></div>
     <div class="plx-rdv">${rdv?escapeHtml(rdv):''}</div>
     <button class="pcx-fav${piwFavs().includes(m.id)?' on':''}" onclick="event.stopPropagation();piwToggleFav('${m.id}')">${piwFavs().includes(m.id)?'★':'☆'}</button>
   </div>`;
@@ -4105,7 +4122,7 @@ function piwRenderGrid(){
   const arr=piwFilteredModels();
   const cnt=document.getElementById('piwCount'); if(cnt) cnt.textContent=' · '+piwModels.length;
   const isList = piwView==='list';
-  grid.className = 'patient-grid ' + (isList?'piw-list':'piw-cards');
+  grid.className = 'patient-grid ' + (isList?'piw-list':'piw-cards') + (piwSelectMode?' piw-selmode':'');
   if(!arr.length){ grid.innerHTML=piwEmptyFor(); return; }
   grid.innerHTML = arr.map(isList?piwRow:piwCard).join('');
 }
@@ -4114,11 +4131,100 @@ function piwRenderGrid(){
 function piwFavs(){ try{ return JSON.parse(localStorage.getItem('mediai_piw_favs')||'[]'); }catch(e){ return []; } }
 function piwToggleFav(id){ const f=piwFavs(); const i=f.indexOf(id); if(i>=0) f.splice(i,1); else f.push(id); try{ localStorage.setItem('mediai_piw_favs',JSON.stringify(f)); }catch(e){} piwRenderToolbar(); piwRenderGrid(); }
 
+// ══ Sprint 21 · Vague D — organisation du cabinet (métadonnées locales, ADR pour la sync) ══
+// Innov 12 — Tags patients
+const PIW_TAG_SUGGEST=['ALD','Diabète','Sportif','Allergie sévère','Enfant','Suivi annuel','Chronique','Hypertension'];
+const PIW_TAGCOLORS=['#1460FF','#8B5CF6','#EC4899','#0284C7','#16A34A','#F59E0B','#EF4444'];
+function piwTagsAll(){ try{ return JSON.parse(localStorage.getItem('mediai_piw_tags')||'{}'); }catch(e){ return {}; } }
+function piwTagsOf(id){ return piwTagsAll()[id]||[]; }
+function piwTagColor(t){ let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return PIW_TAGCOLORS[h%PIW_TAGCOLORS.length]; }
+function piwTagToggle(id, tag){ tag=(tag||'').trim(); if(!tag) return; const all=piwTagsAll(); const arr=all[id]||[]; const i=arr.indexOf(tag); if(i>=0) arr.splice(i,1); else arr.push(tag); if(arr.length) all[id]=arr; else delete all[id]; try{ localStorage.setItem('mediai_piw_tags',JSON.stringify(all)); }catch(e){} }
+function piwTagChips(id){ const t=piwTagsOf(id); if(!t.length) return ''; return '<div class="pcx-tags">'+t.map(x=>'<span class="pcx-tag" style="background:'+piwTagColor(x)+'1a;color:'+piwTagColor(x)+'">'+escapeHtml(x)+'</span>').join('')+'</div>'; }
+
+// Innov 8 — Collections (albums de patients)
+function piwCollections(){ try{ return JSON.parse(localStorage.getItem('mediai_piw_collections')||'[]'); }catch(e){ return []; } }
+function piwCollSave(a){ try{ localStorage.setItem('mediai_piw_collections',JSON.stringify(a)); }catch(e){} }
+function piwCollCreate(name){ name=(name||'').trim(); if(!name) return null; const c=piwCollections(); const col={id:'c'+Date.now(),name:name,patientIds:[]}; c.push(col); piwCollSave(c); return col; }
+function piwCollDelete(colId){ piwCollSave(piwCollections().filter(c=>c.id!==colId)); if(piwView==='coll:'+colId) piwView='cards'; }
+function piwCollAddMany(colId, ids){ const c=piwCollections(); const col=c.find(x=>x.id===colId); if(!col) return; ids.forEach(id=>{ if(!col.patientIds.includes(id)) col.patientIds.push(id); }); piwCollSave(c); }
+function piwCollToggle(colId, id){ const c=piwCollections(); const col=c.find(x=>x.id===colId); if(!col) return; const i=col.patientIds.indexOf(id); if(i>=0) col.patientIds.splice(i,1); else col.patientIds.push(id); piwCollSave(c); }
+
+// Innov 9 — Smart Filters (dérivés du réel)
+const PIW_SMART=[
+  { key:'unread',      label:'💬 Message non lu',       test:m=>m.unread>0 },
+  { key:'recent_exam', label:'🔬 Analyse récente',      test:m=>(m.events||[]).some(e=>(e.type==='analyse_labo'||e.type==='imagerie')&&(Date.now()-new Date(e.event_date))/864e5<=14) },
+  { key:'rdv_tomorrow',label:'📅 RDV demain',           test:m=>{ if(!m.nextRdv) return false; return Math.ceil((new Date(m.nextRdv.start_at)-Date.now())/864e5)===1; } },
+  { key:'stale12',     label:'🕓 Pas vu depuis 12 mois',test:m=>{ const l=m.lastConsult||m.lastEventDate; return l && (Date.now()-new Date(l))/864e5>365; } },
+  { key:'never',       label:'✨ Jamais consulté',      test:m=>(m.events||[]).length===0 },
+];
+let piwActiveSmart=null;
+
+// Innov 13 — sélection multiple
+let piwSelectMode=false; const piwSelected=new Set();
+function piwToggleSelectMode(){ piwSelectMode=!piwSelectMode; piwSelected.clear(); piwRenderToolbar(); piwRenderGrid(); piwRenderActionBar(); }
+function piwSelToggle(id){ if(piwSelected.has(id)) piwSelected.delete(id); else piwSelected.add(id); piwRenderGrid(); piwRenderActionBar(); }
+function piwExportCsv(){
+  const rows=[['Nom','Prénom','Âge','Sexe','Dernière consultation','Prochain RDV','État']];
+  piwModels.filter(m=>piwSelected.has(m.id)).forEach(m=>{ rows.push([m.nom,m.prenom,(m.age!=null?m.age:''),(m.sexe||''),piwLastText(m),(piwRdvText(m)||''),PIW_STATES[m.state].label]); });
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='patients-mediai.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },120);
+}
+function piwAddSelectionToCollection(){ piwAddToCollection([...piwSelected]); }
+function piwAddToCollection(ids){
+  if(!ids||!ids.length) return;
+  const cols=piwCollections();
+  const list=cols.map(c=>`<button class="psh-act" style="flex-direction:row;justify-content:flex-start;gap:9px" onclick="piwCollAddMany('${c.id}',${JSON.stringify(ids).replace(/"/g,'&quot;')});piwCloseMini();piwToast('Ajouté à ${escapeHtml(c.name)}')">📁 ${escapeHtml(c.name)}</button>`).join('');
+  piwMini('Ajouter à une collection', (cols.length?`<div style="display:flex;flex-direction:column;gap:8px">${list}</div>`:'<div style="font-size:13px;color:var(--ink-faint)">Aucune collection.</div>')
+    +`<div style="display:flex;gap:8px;margin-top:12px"><input id="piwNewColl2" placeholder="Nouvelle collection…" style="flex:1;height:40px;border:1px solid var(--paper-line);border-radius:10px;padding:0 12px;font-family:inherit"><button class="dash-action-btn primary" onclick="const n=document.getElementById('piwNewColl2').value;const c=piwCollCreate(n);if(c){piwCollAddMany(c.id,${JSON.stringify(ids).replace(/"/g,'&quot;')});piwCloseMini();piwToast('Créée et ajoutée');piwRenderToolbar();}">Créer</button></div>`);
+}
+// petit modal utilitaire + toast (réutilise le style ckpt si présent)
+function piwCloseMini(){ const m=document.getElementById('piwMiniOv'); if(m) m.remove(); }
+function piwMini(title, inner){ piwCloseMini(); const ov=document.createElement('div'); ov.id='piwMiniOv'; ov.className='piw-sheet-ov on'; ov.style.zIndex=300; ov.onclick=e=>{ if(e.target===ov) piwCloseMini(); };
+  ov.innerHTML=`<div style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:340px;max-width:92vw;background:var(--card);border-radius:18px;box-shadow:var(--shadow-lg);padding:20px" onclick="event.stopPropagation()"><div style="font-size:16px;font-weight:800;margin-bottom:14px">${escapeHtml(title)}</div>${inner}<button style="width:100%;height:42px;border:none;border-radius:11px;background:var(--paper);font-family:inherit;font-weight:600;margin-top:14px;cursor:pointer" onclick="piwCloseMini()">Fermer</button></div>`;
+  document.body.appendChild(ov); }
+function piwToast(msg){ if(typeof showToast==='function'){ showToast(msg,'success'); return; } const t=document.createElement('div'); t.textContent=msg; t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:12px;font-size:13.5px;z-index:400;box-shadow:var(--shadow-lg)'; document.body.appendChild(t); setTimeout(()=>t.remove(),2200); }
+function piwRenderActionBar(){
+  let bar=document.getElementById('piwActionBar');
+  if(!piwSelectMode || piwSelected.size===0){ if(bar) bar.remove(); return; }
+  if(!bar){ bar=document.createElement('div'); bar.id='piwActionBar'; bar.className='piw-actionbar'; document.body.appendChild(bar); }
+  bar.innerHTML=`<span class="pab-count">${piwSelected.size} sélectionné(s)</span>
+    <button onclick="piwExportCsv()">⬇︎ Exporter (CSV)</button>
+    <button onclick="piwAddSelectionToCollection()">📁 Ajouter à une collection</button>
+    <button disabled title="Bientôt">⏰ Rappel</button>
+    <button disabled title="Bientôt">📄 Document</button>
+    <button class="pab-x" onclick="piwToggleSelectMode()">Annuler</button>`;
+}
+
+// ── Innov 7 — Quick Preview au survol (0 clic ; instantané, données déjà en mémoire) ──
+let piwPvTimer=null;
+function piwPreviewEl(){ let el=document.getElementById('piwPreview'); if(!el){ el=document.createElement('div'); el.id='piwPreview'; el.className='piw-preview'; document.body.appendChild(el);} return el; }
+function piwPreviewShow(id, cardEl){
+  clearTimeout(piwPvTimer);
+  piwPvTimer=setTimeout(function(){
+    const m=piwModels.find(x=>x.id===id); if(!m) return;
+    const el=piwPreviewEl(), st=PIW_STATES[m.state], rdv=piwRdvText(m), rel=piwRelationText(m);
+    const lastOrd=(m.events||[]).find(e=>e.type==='ordonnance');
+    const meds=lastOrd&&lastOrd.data&&Array.isArray(lastOrd.data.prescriptions)?lastOrd.data.prescriptions.filter(p=>p.medicament):[];
+    el.innerHTML=`<div class="pvw-top">${piwAvatar(m,40)}<div style="min-width:0"><div class="pvw-nm">${escapeHtml(m.prenom+' '+m.nom)}</div><div class="pvw-sub">${escapeHtml(piwMetaLine(m)||'—')} · <span style="color:${st.dot}">●</span> ${st.label}</div></div></div>
+      ${rel?`<div class="pvw-kv"><span class="k">Relation</span><span style="font-weight:600">${escapeHtml(rel)}</span></div>`:''}
+      <div class="pvw-kv"><span class="k">Dernière consult.</span><span style="font-weight:600">${escapeHtml(piwLastText(m))}</span></div>
+      <div class="pvw-kv"><span class="k">Prochain RDV</span><span style="font-weight:600">${rdv?escapeHtml(rdv):'—'}</span></div>
+      <div class="pvw-med">💊 ${meds.length?escapeHtml(meds.map(x=>x.medicament).join(', ')):'Aucun traitement'}</div>`;
+    const r=cardEl.getBoundingClientRect(), W=280, gap=12, vw=window.innerWidth, vh=window.innerHeight;
+    let left=r.right+gap; if(left+W>vw-8) left=r.left-W-gap; if(left<8) left=Math.min(Math.max(8,r.left), vw-W-8);
+    const h=el.offsetHeight||220; let top=r.top; if(top+h>vh-8) top=Math.max(8, vh-h-8);
+    el.style.left=left+'px'; el.style.top=top+'px'; el.classList.add('on');
+  }, 360);
+}
+function piwPreviewHide(){ clearTimeout(piwPvTimer); const el=document.getElementById('piwPreview'); if(el) el.classList.remove('on'); }
+
 // ── Innov 14 — Fiche latérale (le dossier complet ne s'ouvre que si besoin) ──
 function closePatientSheet(){ const ov=document.getElementById('piwSheetOv'); if(!ov) return; ov.classList.remove('on'); const sh=ov.querySelector('.piw-sheet'); if(sh) sh.classList.remove('on'); setTimeout(()=>{ if(ov.parentNode) ov.remove(); },260); }
 function piwSheetMail(id){ const m=piwModels.find(x=>x.id===id); if(m&&m.login_email) window.location.href='mailto:'+m.login_email; }
 function openPatientSheet(id){
   const m=piwModels.find(x=>x.id===id); if(!m){ openPatientDetail(id); return; }
+  piwPreviewHide();
   closePatientSheet();
   const st=PIW_STATES[m.state], meta=piwMetaLine(m), rdv=piwRdvText(m), rel=piwRelationText(m), mail=m.login_email||null;
   const lastOrd=(m.events||[]).find(e=>e.type==='ordonnance');
@@ -4146,13 +4252,25 @@ function openPatientSheet(id){
       <div class="psh-kv"><span class="k">Téléphone</span><span>Non renseigné</span></div>
       <h4>Traitement actuel</h4>
       ${meds.length?meds.slice(0,5).map(md=>`<div class="psh-med">💊 <span>${escapeHtml(md.medicament)}${md.posologie?' · '+escapeHtml(md.posologie):''}</span></div>`).join(''):'<div style="font-size:13px;color:var(--ink-faint)">Aucun traitement enregistré</div>'}
+      <h4>Tags</h4>
+      <div id="pshTags">${piwSheetTagsHtml(m.id)}</div>
+      <button class="psh-collbtn" onclick="piwSheetAddColl('${m.id}')">📁 Ajouter à une collection</button>
     </div>
     <button class="psh-open" onclick="closePatientSheet();openPatientDetail('${m.id}')">Ouvrir le dossier complet</button>
   </div>`;
   document.body.appendChild(ov);
   requestAnimationFrame(()=>{ ov.classList.add('on'); const sh=ov.querySelector('.piw-sheet'); if(sh) sh.classList.add('on'); });
 }
-document.addEventListener('keydown', function(e){ if(e.key==='Escape') closePatientSheet(); });
+document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ closePatientSheet(); piwCloseMini(); } });
+// Tags dans la fiche latérale (Innov 12)
+function piwSheetTagsHtml(id){
+  const cur=piwTagsOf(id);
+  const chips=cur.map(t=>`<span class="pcx-tag" style="background:${piwTagColor(t)}1a;color:${piwTagColor(t)};cursor:pointer" onclick="piwSheetTag('${id}',${JSON.stringify(t).replace(/"/g,'&quot;')})">${escapeHtml(t)} ✕</span>`).join('');
+  const sugg=PIW_TAG_SUGGEST.filter(t=>!cur.includes(t)).map(t=>`<span class="pcx-tag ghost" onclick="piwSheetTag('${id}',${JSON.stringify(t).replace(/"/g,'&quot;')})">+ ${escapeHtml(t)}</span>`).join('');
+  return `<div class="pcx-tags" style="margin-top:2px">${chips||'<span style="font-size:12.5px;color:var(--ink-faint)">Aucun tag</span>'}</div><div class="pcx-tags" style="margin-top:9px">${sugg}</div>`;
+}
+function piwSheetTag(id,tag){ piwTagToggle(id,tag); const ov=document.getElementById('piwSheetOv'); if(ov){ const sec=ov.querySelector('#pshTags'); if(sec) sec.innerHTML=piwSheetTagsHtml(id); } piwRenderGrid(); }
+function piwSheetAddColl(id){ piwAddToCollection([id]); }
 
 function ensurePiwListStyles(){
   if(document.getElementById('piwListStyles')) return;
@@ -4198,6 +4316,15 @@ function ensurePiwListStyles(){
   .plx .pcx-fav{position:static;opacity:0}
   .plx-rdv{font-size:12.5px;color:var(--accent-deep);font-weight:600;white-space:nowrap;margin-left:auto}
   @media (max-width:640px){ .piw-title{margin-right:0;width:100%} .piw-search input{width:100%;max-width:none} }
+  .piw-preview{position:fixed;z-index:150;width:280px;background:var(--card);border:1px solid var(--paper-line);border-radius:16px;box-shadow:0 20px 50px rgba(10,17,40,.22);padding:16px;pointer-events:none;opacity:0;transform:translateY(6px) scale(.98);transition:opacity .16s,transform .16s}
+  .piw-preview.on{opacity:1;transform:none}
+  .pvw-top{display:flex;align-items:center;gap:11px}
+  .pvw-nm{font-size:15px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pvw-sub{font-size:12px;color:var(--ink-faint);margin-top:1px}
+  .pvw-kv{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:6px 0;border-top:1px solid var(--paper-line);color:var(--ink)}
+  .pvw-kv:first-of-type{margin-top:11px}
+  .pvw-kv .k{color:var(--ink-faint);flex:none}
+  .pvw-med{font-size:12.5px;color:var(--ink);padding-top:8px;border-top:1px solid var(--paper-line);margin-top:2px;line-height:1.45}
   .piw-sheet-ov{position:fixed;inset:0;z-index:200;background:rgba(10,17,40,.28);opacity:0;transition:opacity .2s;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
   .piw-sheet-ov.on{opacity:1}
   .piw-sheet{position:fixed;top:0;right:0;height:100%;width:400px;max-width:92vw;background:var(--card);box-shadow:-20px 0 60px rgba(10,17,40,.22);transform:translateX(100%);transition:transform .28s cubic-bezier(.2,.8,.2,1);z-index:201;display:flex;flex-direction:column;overflow-y:auto}
@@ -4217,7 +4344,31 @@ function ensurePiwListStyles(){
   .psh-kv .k{color:var(--ink-faint);flex:none}
   .psh-kv span:last-child{text-align:right;font-weight:600}
   .psh-med{display:flex;align-items:center;gap:9px;padding:7px 0;font-size:13.5px;color:var(--ink)}
-  .psh-open{margin:10px 22px 24px;height:46px;border:none;border-radius:13px;background:var(--accent);color:#fff;font-family:inherit;font-weight:700;font-size:14.5px;cursor:pointer}`;
+  .psh-open{margin:10px 22px 24px;height:46px;border:none;border-radius:13px;background:var(--accent);color:#fff;font-family:inherit;font-weight:700;font-size:14.5px;cursor:pointer}
+  .psh-collbtn{margin-top:14px;width:100%;height:42px;border:1px solid var(--paper-line);border-radius:12px;background:var(--card);font-family:inherit;font-weight:600;font-size:13.5px;color:var(--ink);cursor:pointer}
+  .psh-collbtn:hover{background:var(--paper)}
+  .pcx-tags{display:flex;flex-wrap:wrap;gap:6px}
+  .pcx-tag{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;letter-spacing:.01em}
+  .pcx-tag.ghost{background:var(--paper);color:var(--ink-soft);cursor:pointer;border:1px dashed var(--paper-line)}
+  .pcx .pcx-tags{margin-top:12px}
+  .piw-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-8px 0 20px}
+  .piw-filters-lab{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin-right:2px}
+  .piw-chip{border:1px solid var(--paper-line);background:var(--card);border-radius:999px;padding:6px 12px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:all .14s}
+  .piw-chip:hover{color:var(--ink)}
+  .piw-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .pcx-check{position:absolute;top:14px;left:14px;width:22px;height:22px;border-radius:50%;border:2px solid var(--paper-line);background:var(--card);display:none;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:800;z-index:2}
+  #patientGrid.piw-selmode .pcx{padding-left:44px}
+  #patientGrid.piw-selmode .pcx .pcx-check,#patientGrid.piw-selmode .plx .pcx-check{display:flex}
+  #patientGrid.piw-selmode .plx{padding-left:44px;position:relative}
+  #patientGrid.piw-selmode .plx .pcx-check{position:absolute;left:12px;top:50%;transform:translateY(-50%)}
+  .pcx.selected,.plx.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-tint)}
+  .pcx.selected .pcx-check,.plx.selected .pcx-check{background:var(--accent);border-color:var(--accent)}
+  .piw-actionbar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:190;display:flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border-radius:16px;padding:10px 12px;box-shadow:0 16px 44px rgba(10,17,40,.35);max-width:94vw;overflow-x:auto}
+  .piw-actionbar .pab-count{font-size:13px;font-weight:700;padding:0 8px;white-space:nowrap}
+  .piw-actionbar button{border:none;background:rgba(255,255,255,.14);color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:10px;cursor:pointer;white-space:nowrap}
+  .piw-actionbar button:hover:not(:disabled){background:rgba(255,255,255,.26)}
+  .piw-actionbar button:disabled{opacity:.4;cursor:default}
+  .piw-actionbar .pab-x{background:transparent}`;
   document.head.appendChild(st);
 }
 
