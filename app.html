@@ -4070,7 +4070,7 @@ function piwRelationText(m){ const s=piwSince(m.firstDate); const n=m.counts?m.c
 
 function piwCard(m){
   const st=PIW_STATES[m.state]; const meta=piwMetaLine(m); const rdv=piwRdvText(m); const fav=piwFavs().includes(m.id);
-  return `<div class="pcx" onclick="openPatientDetail('${m.id}')">
+  return `<div class="pcx" onclick="openPatientSheet('${m.id}')">
     <span class="pcx-pulse" style="background:${st.dot}" title="${st.label}"></span>
     <button class="qa-btn" aria-label="Actions rapides" onclick="event.stopPropagation();qaToggle(this,'${m.id}')" style="right:34px">•••</button>
     <button class="pcx-fav${fav?' on':''}" title="Favori" onclick="event.stopPropagation();piwToggleFav('${m.id}')">${fav?'★':'☆'}</button>
@@ -4085,7 +4085,7 @@ function piwCard(m){
 }
 function piwRow(m){
   const st=PIW_STATES[m.state]; const meta=piwMetaLine(m); const rdv=piwRdvText(m);
-  return `<div class="plx" onclick="openPatientDetail('${m.id}')">
+  return `<div class="plx" onclick="openPatientSheet('${m.id}')">
     <span class="pcx-pulse" style="position:static;background:${st.dot}" title="${st.label}"></span>
     ${piwAvatar(m,40)}
     <div style="min-width:0;flex:1"><div class="pcx-nm" style="font-size:15px">${escapeHtml(m.prenom+' '+m.nom)}</div><div class="pcx-sub">${meta||'—'} · ${escapeHtml(piwLastText(m))}</div></div>
@@ -4113,6 +4113,46 @@ function piwRenderGrid(){
 // Favoris (métadonnée d'organisation — stockée en local sur l'appareil, ADR pour la sync serveur)
 function piwFavs(){ try{ return JSON.parse(localStorage.getItem('mediai_piw_favs')||'[]'); }catch(e){ return []; } }
 function piwToggleFav(id){ const f=piwFavs(); const i=f.indexOf(id); if(i>=0) f.splice(i,1); else f.push(id); try{ localStorage.setItem('mediai_piw_favs',JSON.stringify(f)); }catch(e){} piwRenderToolbar(); piwRenderGrid(); }
+
+// ── Innov 14 — Fiche latérale (le dossier complet ne s'ouvre que si besoin) ──
+function closePatientSheet(){ const ov=document.getElementById('piwSheetOv'); if(!ov) return; ov.classList.remove('on'); const sh=ov.querySelector('.piw-sheet'); if(sh) sh.classList.remove('on'); setTimeout(()=>{ if(ov.parentNode) ov.remove(); },260); }
+function piwSheetMail(id){ const m=piwModels.find(x=>x.id===id); if(m&&m.login_email) window.location.href='mailto:'+m.login_email; }
+function openPatientSheet(id){
+  const m=piwModels.find(x=>x.id===id); if(!m){ openPatientDetail(id); return; }
+  closePatientSheet();
+  const st=PIW_STATES[m.state], meta=piwMetaLine(m), rdv=piwRdvText(m), rel=piwRelationText(m), mail=m.login_email||null;
+  const lastOrd=(m.events||[]).find(e=>e.type==='ordonnance');
+  const meds=lastOrd&&lastOrd.data&&Array.isArray(lastOrd.data.prescriptions)?lastOrd.data.prescriptions.filter(p=>p.medicament):[];
+  const ov=document.createElement('div'); ov.className='piw-sheet-ov'; ov.id='piwSheetOv';
+  ov.onclick=(e)=>{ if(e.target===ov) closePatientSheet(); };
+  ov.innerHTML=`<div class="piw-sheet" onclick="event.stopPropagation()">
+    <div class="psh-hd">${piwAvatar(m,54)}<div style="min-width:0;flex:1"><div class="psh-nm">${escapeHtml(m.prenom+' '+m.nom)}</div><div class="psh-sub">${meta||'Âge non renseigné'}</div>
+      <span class="pcx-badge" style="background:${st.tint};color:${st.fg};margin-top:9px"><span style="width:7px;height:7px;border-radius:50%;background:${st.dot};display:inline-block"></span>${st.label}${m.unread?' · '+m.unread+' msg':''}</span></div>
+      <button class="psh-close" onclick="closePatientSheet()" aria-label="Fermer">✕</button></div>
+    <div class="psh-actions">
+      <button class="psh-act" onclick="closePatientSheet();openPatientDetail('${m.id}')"><span class="i">📂</span>Consulter</button>
+      <button class="psh-act" onclick="closePatientSheet();openPatientDetail('${m.id}')"><span class="i">💊</span>Ordonnance</button>
+      <button class="psh-act" onclick="closePatientSheet();if(typeof cockpitOpenMessages==='function')cockpitOpenMessages()"><span class="i">✉️</span>Message</button>
+      <button class="psh-act"${mail?'':' disabled style="opacity:.4;cursor:default"'} onclick="piwSheetMail('${m.id}')"><span class="i">📧</span>E-mail</button>
+    </div>
+    <div class="psh-sec">
+      <h4>Résumé</h4>
+      ${rel?`<div class="psh-kv"><span class="k">Relation</span><span>${escapeHtml(rel)}</span></div>`:''}
+      <div class="psh-kv"><span class="k">Dernière consultation</span><span>${escapeHtml(piwLastText(m))}</span></div>
+      <div class="psh-kv"><span class="k">Prochain RDV</span><span>${rdv?escapeHtml(rdv):'—'}</span></div>
+      ${m.counts?`<div class="psh-kv"><span class="k">Historique</span><span>${m.counts.consult} consult. · ${m.counts.ordo} ordo. · ${m.counts.exam} examen(s)</span></div>`:''}
+      <h4>Coordonnées</h4>
+      <div class="psh-kv"><span class="k">E-mail</span><span>${mail?escapeHtml(mail):'Non renseigné'}</span></div>
+      <div class="psh-kv"><span class="k">Téléphone</span><span>Non renseigné</span></div>
+      <h4>Traitement actuel</h4>
+      ${meds.length?meds.slice(0,5).map(md=>`<div class="psh-med">💊 <span>${escapeHtml(md.medicament)}${md.posologie?' · '+escapeHtml(md.posologie):''}</span></div>`).join(''):'<div style="font-size:13px;color:var(--ink-faint)">Aucun traitement enregistré</div>'}
+    </div>
+    <button class="psh-open" onclick="closePatientSheet();openPatientDetail('${m.id}')">Ouvrir le dossier complet</button>
+  </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>{ ov.classList.add('on'); const sh=ov.querySelector('.piw-sheet'); if(sh) sh.classList.add('on'); });
+}
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closePatientSheet(); });
 
 function ensurePiwListStyles(){
   if(document.getElementById('piwListStyles')) return;
@@ -4157,7 +4197,27 @@ function ensurePiwListStyles(){
   .plx:hover{background:var(--paper)}
   .plx .pcx-fav{position:static;opacity:0}
   .plx-rdv{font-size:12.5px;color:var(--accent-deep);font-weight:600;white-space:nowrap;margin-left:auto}
-  @media (max-width:640px){ .piw-title{margin-right:0;width:100%} .piw-search input{width:100%;max-width:none} }`;
+  @media (max-width:640px){ .piw-title{margin-right:0;width:100%} .piw-search input{width:100%;max-width:none} }
+  .piw-sheet-ov{position:fixed;inset:0;z-index:200;background:rgba(10,17,40,.28);opacity:0;transition:opacity .2s;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+  .piw-sheet-ov.on{opacity:1}
+  .piw-sheet{position:fixed;top:0;right:0;height:100%;width:400px;max-width:92vw;background:var(--card);box-shadow:-20px 0 60px rgba(10,17,40,.22);transform:translateX(100%);transition:transform .28s cubic-bezier(.2,.8,.2,1);z-index:201;display:flex;flex-direction:column;overflow-y:auto}
+  .piw-sheet.on{transform:none}
+  .psh-hd{padding:22px 22px 16px;display:flex;align-items:flex-start;gap:14px;border-bottom:1px solid var(--paper-line)}
+  .psh-close{background:var(--paper);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;color:var(--ink-soft);flex:none}
+  .psh-close:hover{color:var(--ink)}
+  .psh-nm{font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+  .psh-sub{font-size:13px;color:var(--ink-faint);margin-top:2px}
+  .psh-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:16px 22px 4px}
+  .psh-act{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border:1px solid var(--paper-line);border-radius:13px;background:var(--card);cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:var(--ink);transition:background .14s}
+  .psh-act:hover:not([disabled]){background:var(--paper)}
+  .psh-act .i{font-size:19px}
+  .psh-sec{padding:6px 22px 10px}
+  .psh-sec h4{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin:16px 0 6px}
+  .psh-kv{display:flex;justify-content:space-between;gap:14px;font-size:13.5px;padding:6px 0;color:var(--ink)}
+  .psh-kv .k{color:var(--ink-faint);flex:none}
+  .psh-kv span:last-child{text-align:right;font-weight:600}
+  .psh-med{display:flex;align-items:center;gap:9px;padding:7px 0;font-size:13.5px;color:var(--ink)}
+  .psh-open{margin:10px 22px 24px;height:46px;border:none;border-radius:13px;background:var(--accent);color:#fff;font-family:inherit;font-weight:700;font-size:14.5px;cursor:pointer}`;
   document.head.appendChild(st);
 }
 
