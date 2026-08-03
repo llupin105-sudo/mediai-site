@@ -3349,14 +3349,19 @@ async function cockpitOpenMessages() {
     const d = await res.json();
     const list = d.items || [];
     const el = overlay.querySelector('#ckptThreads');
-    el.innerHTML = list.length ? `<div class="ckpt-list">${list.map((t) => `
-      <div class="ckpt-row is-click" onclick="cockpitOpenThread('${t.id}', this)">
+    el.innerHTML = list.length ? `<div class="ckpt-list">${list.map((t) => {
+      const cat = (t.category === 'admin')
+        ? '<span style="font-size:10px;font-weight:700;color:#9A6700;background:#FEF6E7;border-radius:999px;padding:2px 8px;">🗂️ Secrétariat</span>'
+        : '<span style="font-size:10px;font-weight:700;color:#1460FF;background:#EAF3FF;border-radius:999px;padding:2px 8px;">🩺 Médical</span>';
+      const checkin = /check-?in/i.test(t.subject || '') ? '<span style="font-size:10px;font-weight:700;color:#0284C7;background:#E0F6FF;border-radius:999px;padding:2px 8px;">📝 Check-in</span>' : '';
+      return `<div class="ckpt-row is-click" onclick="cockpitOpenThread('${t.id}', this)">
         <span class="ckpt-dot">${t.unread ? '🔵' : '💬'}</span>
         <div class="ckpt-row-body"><div class="ckpt-row-title">${escapeHtml(t.patient_prenom + ' ' + t.patient_nom)}</div>
-        <div class="ckpt-row-meta">${escapeHtml(t.subject || 'Conversation')}</div></div>
+        <div class="ckpt-row-meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${cat}${checkin}<span>${escapeHtml(t.subject || 'Conversation')}</span></div></div>
         ${t.unread ? `<span class="ckpt-tag">${t.unread} non lu(s)</span>` : ''}
-      </div>`).join('')}</div>`
-      : ckptEmpty("Aucune conversation. La messagerie patient s'active depuis un dossier (à venir).");
+      </div>`;
+    }).join('')}</div>`
+      : ckptEmpty("Aucune conversation pour le moment. Vos patients peuvent désormais vous écrire directement depuis leur espace.");
   } catch (e) { overlay.querySelector('#ckptThreads').innerHTML = ckptEmpty('Impossible de charger les conversations.'); }
 }
 async function cockpitOpenThread(id, rowEl) {
@@ -3365,8 +3370,17 @@ async function cockpitOpenThread(id, rowEl) {
     const res = await fetch(API_BASE + '/api/threads/' + id + '/messages', { headers: authHeaders() });
     const d = await res.json();
     await fetch(API_BASE + '/api/threads/' + id + '/read', { method: 'POST', headers: authHeaders() });
-    const msgs = (d.messages || []).map((m) => `<div class="ckpt-msg-line ${m.sender_type === 'medecin' ? 'me' : ''}">${escapeHtml(m.body)}</div>`).join('');
-    modal.innerHTML = `<div class="ckpt-modal-hd">Conversation</div>
+    const catLabel = (d.thread && d.thread.category === 'admin') ? 'Conversation · Secrétariat' : 'Conversation';
+    const msgs = (d.messages || []).map((m) => {
+      const mine = m.sender_type === 'medecin';
+      const isCheckin = !mine && /^check-?in/i.test((m.body || '').trim());
+      if (isCheckin) {
+        const rest = m.body.replace(/^check-?in[^\n]*\n?/i, '');
+        return `<div class="ckpt-msg-line" style="background:#E0F6FF;border:1px solid #BEE3F8;border-radius:12px;padding:12px 14px;white-space:pre-wrap;font-size:13.5px;line-height:1.6;color:var(--ink);"><b style="color:#0284C7;">📝 Check-in avant consultation</b>\n${escapeHtml(rest)}</div>`;
+      }
+      return `<div class="ckpt-msg-line ${mine ? 'me' : ''}">${escapeHtml(m.body)}</div>`;
+    }).join('');
+    modal.innerHTML = `<div class="ckpt-modal-hd">${escapeHtml(catLabel)}</div>
       <div class="ckpt-thread">${msgs || ckptEmpty('Aucun message.')}</div>
       <div class="ckpt-f-row"><input id="ckptReply" class="ckpt-f" style="flex:1;" placeholder="Votre réponse…"><button class="dash-action-btn primary" onclick="cockpitSendMessage('${id}', this)">Envoyer</button></div>
       <div class="ckpt-modal-actions"><button class="ckpt-mini" onclick="this.closest('.ckpt-modal-ov').remove(); renderDashboard();">Fermer</button></div>`;
