@@ -3999,8 +3999,12 @@ async function piwBuildModels(){
   piwModels = (patients||[]).map(p=>{
     const ev=(evByPat[p.id]||[]).slice().sort((a,b)=>new Date(b.event_date)-new Date(a.event_date));
     const lastConsult=ev.find(e=>e.type==='consultation');
+    const counts={ consult:0, ordo:0, exam:0, courrier:0 };
+    ev.forEach(e=>{ if(e.type==='consultation')counts.consult++; else if(e.type==='ordonnance')counts.ordo++; else if(e.type==='analyse_labo'||e.type==='imagerie')counts.exam++; else if(e.type==='courrier')counts.courrier++; });
+    const firstDate = ev.length ? ev[ev.length-1].event_date : (p.created_at||null);
     const m={ ...p, events:ev, lastEventDate:p.last_event_date, age:piwAge(p.date_naissance),
-      lastConsult:lastConsult?lastConsult.event_date:null, nextRdv:nextByPat[p.id]||null, unread:unreadByPat[p.id]||0 };
+      lastConsult:lastConsult?lastConsult.event_date:null, nextRdv:nextByPat[p.id]||null, unread:unreadByPat[p.id]||0,
+      counts:counts, firstDate:firstDate };
     m.state=piwState(m);
     return m;
   });
@@ -4049,6 +4053,21 @@ function piwRdvText(m){ if(!m.nextRdv) return null; const dt=new Date(m.nextRdv.
   const q=days<=0?"aujourd'hui":days===1?'demain':'dans '+days+' j'; return dt.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' · '+q; }
 function piwLastText(m){ if(!m.lastConsult) return m.lastEventDate?('Activité '+new Date(m.lastEventDate).toLocaleDateString('fr-FR')):'Aucune consultation'; return new Date(m.lastConsult).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }
 
+// Innov 11 — mini-timeline (3 événements max, très visuel), dérivée du réel.
+const PIW_EVMINI={ consultation:['🩺','Consultation'], ordonnance:['💊','Ordonnance'], analyse_labo:['🔬','Analyse'], imagerie:['🩻','Imagerie'], courrier:['✉️','Courrier'] };
+function piwMiniTimeline(m){
+  const ev=(m.events||[]).slice(0,3);
+  if(!ev.length) return '<div class="pcx-tl-empty">Aucun événement pour l’instant</div>';
+  return '<div class="pcx-tl">'+ev.map((e,i)=>{ const v=PIW_EVMINI[e.type]||['📄','Document']; const d=new Date(e.event_date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+    return (i?'<span class="pcx-tl-sep">›</span>':'')+'<span class="pcx-tl-ev" title="'+v[1]+' · '+d+'"><span class="e">'+v[0]+'</span><span class="d">'+d+'</span></span>'; }).join('')+'</div>';
+}
+// Innov 15 — Relationship Timeline (dérivée : depuis quand, combien).
+function piwSince(d){ if(!d) return null; const days=Math.floor((Date.now()-new Date(d))/86400000); if(days<0) return null;
+  if(days<31) return 'moins d’un mois'; if(days<365){ const mo=Math.max(1,Math.round(days/30)); return mo+' mois'; }
+  const y=Math.floor(days/365); return y+' an'+(y>1?'s':''); }
+function piwRelationText(m){ const s=piwSince(m.firstDate); const n=m.counts?m.counts.consult:0; if(!s) return null;
+  return 'Suivi depuis '+s+(n?' · '+n+' consultation'+(n>1?'s':''):''); }
+
 function piwCard(m){
   const st=PIW_STATES[m.state]; const meta=piwMetaLine(m); const rdv=piwRdvText(m); const fav=piwFavs().includes(m.id);
   return `<div class="pcx" onclick="openPatientDetail('${m.id}')">
@@ -4056,10 +4075,11 @@ function piwCard(m){
     <button class="qa-btn" aria-label="Actions rapides" onclick="event.stopPropagation();qaToggle(this,'${m.id}')" style="right:34px">•••</button>
     <button class="pcx-fav${fav?' on':''}" title="Favori" onclick="event.stopPropagation();piwToggleFav('${m.id}')">${fav?'★':'☆'}</button>
     <div class="pcx-top">${piwAvatar(m)}<div style="min-width:0"><div class="pcx-nm">${escapeHtml(m.prenom+' '+m.nom)}</div><div class="pcx-sub">${meta||'Âge non renseigné'}</div></div></div>
+    ${piwMiniTimeline(m)}
     <div class="pcx-rows">
-      <div class="pcx-row"><span class="k">Dernière consultation</span><span style="margin-left:auto;font-weight:600">${escapeHtml(piwLastText(m))}</span></div>
       <div class="pcx-row"><span class="k">Prochain RDV</span><span style="margin-left:auto;font-weight:600;color:${rdv?'var(--accent-deep)':'var(--ink-faint)'}">${rdv?escapeHtml(rdv):'—'}</span></div>
     </div>
+    ${(function(){ const r=piwRelationText(m); return r?'<div class="pcx-rel">❤️ '+escapeHtml(r)+'</div>':''; })()}
     <span class="pcx-badge" style="background:${st.tint};color:${st.fg}"><span style="width:7px;height:7px;border-radius:50%;background:${st.dot};display:inline-block"></span>${st.label}${m.unread?' · '+m.unread+' msg':''}</span>
   </div>`;
 }
@@ -4125,6 +4145,13 @@ function ensurePiwListStyles(){
   .pcx-rows{margin-top:14px;display:flex;flex-direction:column;gap:7px}
   .pcx-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft)}
   .pcx-row .k{color:var(--ink-faint)}
+  .pcx-tl{display:flex;align-items:center;gap:6px;margin-top:13px;flex-wrap:wrap}
+  .pcx-tl-ev{display:inline-flex;align-items:center;gap:5px;background:var(--paper);border:1px solid var(--paper-line);border-radius:8px;padding:4px 8px}
+  .pcx-tl-ev .e{font-size:12px;line-height:1}
+  .pcx-tl-ev .d{font-size:11px;color:var(--ink-soft);font-weight:600}
+  .pcx-tl-sep{color:var(--ink-faint);font-size:13px}
+  .pcx-tl-empty{margin-top:13px;font-size:12px;color:var(--ink-faint)}
+  .pcx-rel{margin-top:11px;font-size:11.5px;color:var(--ink-soft);display:flex;align-items:center;gap:5px}
   .pcx-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;margin-top:13px}
   .plx{display:flex;align-items:center;gap:14px;padding:11px 14px;border-radius:12px;cursor:pointer;transition:background .14s;position:relative}
   .plx:hover{background:var(--paper)}
