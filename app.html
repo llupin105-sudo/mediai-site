@@ -915,17 +915,9 @@
     <button id="notifBell" class="notif-bell" onclick="toggleNotifCenter()" title="Notifications" aria-label="Notifications">🔔<span class="notif-badge" id="notifBadge"></span></button>
   </div>
   <nav class="sidebar-nav">
-    <button class="sidebar-link active" data-view="dashboard" data-tooltip="Tableau de bord" onclick="switchAppView('dashboard')">
+    <button class="sidebar-link active" data-view="dashboard" data-tooltip="Aujourd'hui" onclick="switchAppView('dashboard')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
-      <span class="label">Tableau de bord</span>
-    </button>
-    <button class="sidebar-link" data-view="journal" data-tooltip="Journal du cabinet" onclick="switchAppView('journal')">
-      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 2v5h5"/><path d="M8 13h8M8 17h5"/></svg></span>
-      <span class="label">Journal</span>
-    </button>
-    <button class="sidebar-link" data-view="queue" data-tooltip="File du jour" onclick="switchAppView('queue')">
-      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/></svg></span>
-      <span class="label">File du jour</span>
+      <span class="label">Aujourd'hui</span>
     </button>
     <button class="sidebar-link" data-view="patients" data-tooltip="Patients" onclick="switchAppView('patients')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
@@ -940,13 +932,28 @@
       <span class="label">Documents</span>
     </button>
 
-    <div class="sidebar-divider"></div>
+    <button class="sidebar-link nav-intel" data-tooltip="Intelligence MediAI" onclick="openCopiloteGlobal()">
+      <span class="icon">✦</span>
+      <span class="label">Intelligence</span>
+    </button>
+
+    <button class="sidebar-link nav-plus-toggle" data-tooltip="Plus" onclick="toggleNavMore(this)">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><line x1="12" y1="5" x2="12" y2="19"/></svg></span>
+      <span class="label">Plus</span>
+    </button>
+    <div class="nav-more" id="navMore" hidden>
+    <button class="sidebar-link" data-view="journal" data-tooltip="Journal du cabinet" onclick="switchAppView('journal')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 2v5h5"/><path d="M8 13h8M8 17h5"/></svg></span>
+      <span class="label">Journal</span>
+    </button>
+    <button class="sidebar-link" data-view="queue" data-tooltip="File du jour" onclick="switchAppView('queue')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/></svg></span>
+      <span class="label">File du jour</span>
+    </button>
     <button class="sidebar-link" data-view="ia-hub" data-tooltip="Assistant IA" onclick="switchAppView('ia-hub')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36-1.42 1.42M6.05 17.95l-1.42 1.42m12.73 0-1.42-1.42M6.05 6.05 4.63 4.63"/><circle cx="12" cy="12" r="4"/></svg></span>
       <span class="label">Assistant IA</span>
     </button>
-
-    <div class="sidebar-divider"></div>
     <button class="sidebar-link" data-view="actions-center" data-tooltip="AI Inbox" onclick="switchAppView('actions-center')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.8L18.7 9l-4.8 1.9L12 15.7l-1.9-4.8L5.3 9l4.8-1.2L12 3z"/><path d="M19 15l.7 1.8L21.5 17.5l-1.8.7L19 20l-.7-1.8L16.5 17.5l1.8-.7L19 15z"/></svg></span>
       <span class="label">AI Inbox</span>
@@ -959,6 +966,7 @@
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11H19a2 2 0 0 1-2-2V7.5a2 2 0 0 0-2-2h-1a2 2 0 0 1-2-2H8.5a2 2 0 0 0-2 2v1a2 2 0 0 1-2 2H3v4.5a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2V20a2 2 0 0 0 2 2h4.5a2 2 0 0 0 2-2v-1a2 2 0 0 1 2-2h1.5V11z"/></svg></span>
       <span class="label">Marketplace</span>
     </button>
+    </div>
 
     <div class="sidebar-divider"></div>
     <button class="sidebar-link" data-view="parametres" data-tooltip="Paramètres" onclick="switchAppView('parametres')">
@@ -996,13 +1004,26 @@
   <div class="app-content-inner">
 
     <div id="view-dashboard" class="app-view visible">
-      <!-- ══ DASHBOARD — hero + modules (gauche) + Assistant MediAI (droite) ══ -->
-      <div class="dsh-cols">
-        <div class="dsh-left">
+      <!-- ══ Sprint 23 · Dashboard « calme » — salutation · Magic Input · patients récents ══ -->
+      <div class="dash-calm">
+        <div class="dc-greet" id="dcGreet">Bonjour</div>
+        <div class="dc-sub">Votre journée, simplement.</div>
+
+        <form class="dc-magic" id="dcMagic" onsubmit="event.preventDefault();dashMagicSubmit()">
+          <span class="dc-magic-ic">✦</span>
+          <input id="dcMagicInput" autocomplete="off" placeholder="Que souhaitez-vous faire ?" oninput="dashMagicInputChange()">
+          <button type="submit" class="dc-magic-go" id="dcMagicGo" aria-label="Envoyer">→</button>
+        </form>
+        <div class="dc-suggests" id="dcSuggests"></div>
+
+        <div class="dc-section-label">Patients récents</div>
+        <div class="dc-recents" id="dcRecents"></div>
+
+        <button class="dc-detail" onclick="dashToggleDetail(this)">Voir le détail de ma journée ↓</button>
+        <div id="dashDetail" style="display:none;margin-top:16px;">
           <div id="dashBand"></div>
           <div id="dashCards"></div>
         </div>
-        <div id="dashAssistant"></div>
       </div>
     </div>
 
@@ -2576,26 +2597,182 @@ const COCKPIT_MODES = {
 };
 const COCKPIT_MODE_LABELS = { cockpit: '🧭 Cockpit', consultation: '🩺 Consultation', cabinet: '🏢 Cabinet', visite: '🚗 Visite', urgences: '🚨 Urgences' };
 
+// ══ Sprint 23 · Dashboard « calme » ════════════════════════════════
+// Un seul écran respirant : salutation + Magic Input + patients récents.
+// Le détail de la journée (ancien pipeline Aurora) est préservé, replié.
+const DASH_SUGGESTS = ['Résumer un dossier', 'Préparer une consultation', 'Analyser un compte-rendu', 'Rédiger un courrier'];
 async function renderDashboard() {
   if (!currentUser) return;
   ensureAuroraStyles();
+  ensureDashCalmStyles();
   updateNotifBadge();
-  const band = document.getElementById('dashBand');
-  const cards = document.getElementById('dashCards');
-  if (band) band.innerHTML = `<div class="dsh-hero"><div class="skel skel-line w-40"></div><div class="skel skel-line w-60" style="height:30px;margin-top:12px"></div><div class="skel skel-line" style="margin-top:18px;max-width:520px"></div></div>`;
-  if (cards) cards.innerHTML = auroraCardsSkeleton();
-  try {
-    cockpitState.data = await fetchCockpit();
-  } catch (err) {
-    cockpitState.data = null;
-    renderAuroraBand();
-    if (cards) cards.innerHTML = `<div style="grid-column:1/-1;background:var(--card);border:1px solid var(--paper-line);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);text-align:center;padding:30px 18px;"><div style="font-size:30px;margin-bottom:8px;">📡</div><div style="font-size:14px;color:var(--ink-soft);margin-bottom:14px;">Impossible de charger votre journée pour le moment.</div><button class="btn btn-ghost btn-sm" onclick="renderDashboard()">Réessayer</button></div>`;
+  const h = new Date().getHours();
+  const gw = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const nom = (currentUser.profile && currentUser.profile.nom) || '';
+  const g = document.getElementById('dcGreet'); if (g) g.textContent = gw + (nom ? ' Dr ' + nom : '');
+  const sg = document.getElementById('dcSuggests');
+  if (sg) sg.innerHTML = DASH_SUGGESTS.map(s => `<span class="dc-sg" onclick="dashSuggest(this)">${escapeHtml(s)}</span>`).join('');
+  renderDashRecents();
+  dashMagicInputChange();
+  // Détail de la journée : chargé en tâche de fond, sans bloquer l'écran calme.
+  fetchCockpit().then(d => { cockpitState.data = d; if (document.getElementById('dashDetail')) { renderAuroraBand(); renderAuroraCards(); } loadCockpitBriefing(); }).catch(() => {});
+}
+function dashRelDate(d) {
+  const days = Math.floor((Date.now() - new Date(d)) / 86400000);
+  if (days <= 0) return "aujourd'hui"; if (days === 1) return 'hier'; if (days < 7) return 'il y a ' + days + ' jours';
+  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+let dashRecentsCache = [];
+async function renderDashRecents() {
+  const el = document.getElementById('dcRecents'); if (!el) return;
+  let list = [];
+  try { list = await fetchPatients(); } catch (e) { list = []; }
+  const recents = list.filter(p => p.last_event_date).sort((a, b) => new Date(b.last_event_date) - new Date(a.last_event_date)).slice(0, 4);
+  dashRecentsCache = recents;
+  if (!recents.length) {
+    el.innerHTML = '<div style="color:var(--ink-faint);font-size:14px;padding:10px 12px;">Aucune activité récente. Créez un premier dossier depuis « Patients ».</div>';
     return;
   }
-  renderAuroraBand();
-  renderAuroraCards();
-  renderDashAssistant(); // Sprint 13 ③ : colonne Assistant MediAI
-  loadCockpitBriefing(); // phrase IA + reco en tâche de fond (non bloquant)
+  el.innerHTML = recents.map(p => {
+    const init = (((p.prenom || '')[0] || '') + ((p.nom || '')[0] || '')).toUpperCase();
+    return `<div class="dc-recent" onclick="dashFocus('${p.id}')">
+      <div class="dc-av">${escapeHtml(init || '?')}</div>
+      <div style="min-width:0"><div class="dc-nm">${escapeHtml(p.prenom + ' ' + p.nom)}</div><div class="dc-mt">Dernière activité · ${dashRelDate(p.last_event_date)}</div></div>
+      <span class="dc-chev">→</span></div>`;
+  }).join('');
+}
+
+// ✦ Interaction signature « Focus » — au clic sur un patient, le dashboard
+// s'efface en douceur et le patient devient le centre. L'IA est contextuelle,
+// jamais un menu. Le dossier complet ne s'ouvre que si on le demande.
+function dashFocus(id) {
+  const p = dashRecentsCache.find(x => x.id === id) || { id: id, prenom: '', nom: '' };
+  const init = (((p.prenom || '')[0] || '') + ((p.nom || '')[0] || '')).toUpperCase() || '?';
+  const meta = p.last_event_date ? ('Dernière activité · ' + dashRelDate(p.last_event_date)) : 'Dossier suivi';
+  closeFocus();
+  const calm = document.querySelector('.dash-calm'); if (calm) calm.classList.add('focused');
+  const ov = document.createElement('div'); ov.className = 'focus-ov'; ov.id = 'dashFocusOv';
+  ov.onclick = (e) => { if (e.target === ov) closeFocus(); };
+  ov.innerHTML = `
+    <button class="focus-close" onclick="closeFocus()" aria-label="Fermer">✕</button>
+    <div class="focus-card">
+      <div class="focus-av">${escapeHtml(init)}</div>
+      <div class="focus-nm">${escapeHtml((p.prenom + ' ' + p.nom).trim() || 'Patient')}</div>
+      <div class="focus-lb">Dossier clinique</div>
+      <div class="focus-meta">${escapeHtml(meta)}</div>
+      <div class="focus-secs">
+        <button class="focus-sec" onclick="dashFocusOpen('${id}')">Résumé</button>
+        <button class="focus-sec" onclick="dashFocusOpen('${id}')">Consultations</button>
+        <button class="focus-sec" onclick="dashFocusOpen('${id}')">Documents</button>
+      </div>
+      <button class="focus-ai" onclick="dashFocusAI('${id}')"><span>✦</span> Résumer avec MediAI</button>
+      <button class="focus-open" onclick="dashFocusOpen('${id}')">Ouvrir le dossier complet →</button>
+    </div>`;
+  document.body.appendChild(ov);
+  void ov.offsetWidth; // force le reflow → la transition d'entrée part de opacity:0 (robuste même hors 1er plan)
+  ov.classList.add('on');
+}
+function closeFocus() {
+  const ov = document.getElementById('dashFocusOv');
+  const calm = document.querySelector('.dash-calm'); if (calm) calm.classList.remove('focused');
+  if (!ov) return;
+  ov.classList.remove('on');
+  setTimeout(() => { if (ov.parentNode) ov.remove(); }, 300);
+}
+function dashFocusOpen(id) { closeFocus(); openPatientDetail(id); }
+function dashFocusAI(id) {
+  closeFocus(); openPatientDetail(id);
+  // IA contextuelle : une fois le dossier chargé, on ouvre le Copilote centré patient.
+  let tries = 0; const iv = setInterval(() => {
+    tries++;
+    if (typeof currentDetailPatientId !== 'undefined' && currentDetailPatientId === id) { clearInterval(iv); if (typeof openCopiloteSmart === 'function') openCopiloteSmart(); }
+    else if (tries > 40) clearInterval(iv);
+  }, 60);
+}
+function dashMagicInputChange() {
+  const inp = document.getElementById('dcMagicInput'); const go = document.getElementById('dcMagicGo');
+  if (go) go.classList.toggle('on', !!(inp && inp.value.trim()));
+}
+function dashSuggest(elOrText) {
+  const t = typeof elOrText === 'string' ? elOrText : elOrText.textContent;
+  const inp = document.getElementById('dcMagicInput'); if (inp) { inp.value = t; dashMagicInputChange(); dashMagicSubmit(); }
+}
+function dashMagicSubmit() {
+  const inp = document.getElementById('dcMagicInput'); if (!inp) return;
+  const t = (inp.value || '').trim(); if (!t) return;
+  inp.value = ''; dashMagicInputChange();
+  // Le Magic Input est l'entrée de l'intelligence MediAI → on ouvre le Copilote global.
+  if (typeof openCopiloteGlobal === 'function') {
+    openCopiloteGlobal();
+    setTimeout(() => {
+      if (typeof copiloteSuggest === 'function') copiloteSuggest(t);
+      else { const ci = document.getElementById('copInput'); if (ci) { ci.value = t; if (typeof copiloteSend === 'function') copiloteSend(); } }
+    }, 240);
+  } else if (typeof openCommandPalette === 'function') {
+    openCommandPalette(); const ci = document.getElementById('cmdkInput'); if (ci) { ci.value = t; if (typeof runCommandPaletteSearch === 'function') runCommandPaletteSearch(); }
+  }
+}
+function dashToggleDetail(btn) {
+  const d = document.getElementById('dashDetail'); if (!d) return;
+  const open = d.style.display !== 'none';
+  d.style.display = open ? 'none' : 'block';
+  if (btn) btn.textContent = open ? 'Voir le détail de ma journée ↓' : 'Masquer le détail ↑';
+}
+function toggleNavMore(btn) {
+  const m = document.getElementById('navMore'); if (!m) return;
+  const open = !m.hidden; m.hidden = open;
+  if (btn) btn.classList.toggle('active', !open);
+}
+function ensureDashCalmStyles() {
+  if (document.getElementById('dashCalmStyles')) return;
+  const st = document.createElement('style'); st.id = 'dashCalmStyles';
+  st.textContent = `
+  .dash-calm{max-width:720px;margin:0 auto;padding:clamp(20px,5vh,64px) 20px 60px}
+  .dc-greet{font-size:clamp(26px,4vw,34px);font-weight:800;letter-spacing:-.03em;color:var(--ink);line-height:1.1}
+  .dc-sub{font-size:16px;color:var(--ink-faint);margin-top:7px;margin-bottom:clamp(22px,4.5vh,38px)}
+  .dc-magic{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:15px 16px;box-shadow:var(--shadow-sm);transition:box-shadow .22s var(--ease),border-color .22s var(--ease),transform .22s var(--ease)}
+  .dc-magic:focus-within{box-shadow:0 14px 44px -14px rgba(20,33,66,.28);border-color:var(--accent);transform:translateY(-1px)}
+  .dc-magic-ic{font-size:18px;color:var(--accent);flex:none;line-height:1}
+  .dc-magic input{flex:1;min-width:0;border:none;outline:none;background:none;font-family:inherit;font-size:16.5px;color:var(--ink)}
+  .dc-magic input::placeholder{color:var(--ink-faint)}
+  .dc-magic-go{width:34px;height:34px;border-radius:11px;border:none;background:var(--accent);color:#fff;font-size:17px;cursor:pointer;flex:none;opacity:.35;transition:opacity .2s,transform .12s}
+  .dc-magic-go.on{opacity:1}
+  .dc-magic-go:active{transform:scale(.94)}
+  .dc-suggests{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .dc-sg{font-size:12.5px;color:var(--ink-soft);background:var(--paper);border:1px solid var(--paper-line);border-radius:999px;padding:6px 13px;cursor:pointer;transition:color .15s,border-color .15s}
+  .dc-sg:hover{color:var(--ink);border-color:var(--accent)}
+  .dc-section-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:clamp(26px,5vh,44px) 0 10px}
+  .dc-recents{display:flex;flex-direction:column;gap:2px}
+  .dc-recent{display:flex;align-items:center;gap:14px;padding:13px 12px;border-radius:14px;cursor:pointer;transition:background .14s}
+  .dc-recent:hover{background:var(--paper)}
+  .dc-av{width:38px;height:38px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;background:linear-gradient(150deg,var(--accent),#00C6FF)}
+  .dc-nm{font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dc-mt{font-size:12.5px;color:var(--ink-faint);margin-top:1px}
+  .dc-chev{margin-left:auto;color:var(--ink-faint);font-size:17px;flex:none}
+  .dc-detail{margin-top:clamp(24px,4vh,40px);background:none;border:none;color:var(--ink-faint);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;padding:6px 0}
+  .dc-detail:hover{color:var(--ink)}
+  /* ✦ Focus */
+  .dash-calm.focused{opacity:.05;transform:scale(.985);pointer-events:none;transition:opacity .3s var(--ease),transform .3s var(--ease)}
+  .focus-ov{position:fixed;inset:0;z-index:180;display:flex;align-items:center;justify-content:center;background:rgba(251,252,254,.72);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);opacity:0;transition:opacity .28s var(--ease)}
+  .focus-ov.on{opacity:1}
+  .focus-card{text-align:center;max-width:460px;padding:0 24px;transform:translateY(12px) scale(.97);opacity:0;transition:transform .32s var(--ease),opacity .32s var(--ease)}
+  .focus-ov.on .focus-card{transform:none;opacity:1}
+  .focus-av{width:88px;height:88px;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:800;color:#fff;background:linear-gradient(150deg,var(--accent),#00C6FF);box-shadow:0 22px 54px -16px rgba(20,96,255,.5)}
+  .focus-nm{font-size:28px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+  .focus-lb{font-size:12.5px;color:var(--ink-faint);margin-top:6px;text-transform:uppercase;letter-spacing:.09em;font-weight:700}
+  .focus-meta{font-size:14px;color:var(--ink-soft);margin-top:14px}
+  .focus-secs{display:flex;gap:10px;justify-content:center;margin:26px 0 22px;flex-wrap:wrap}
+  .focus-sec{background:var(--card);border:1px solid var(--paper-line);border-radius:12px;padding:11px 16px;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer;font-family:inherit;transition:background .14s}
+  .focus-sec:hover{background:var(--paper)}
+  .focus-ai{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:13px;padding:13px 22px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .12s}
+  .focus-ai:active{transform:scale(.97)}
+  .focus-open{display:block;margin:16px auto 0;background:none;border:none;color:var(--ink-faint);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+  .focus-open:hover{color:var(--ink)}
+  .focus-close{position:fixed;top:20px;right:24px;background:var(--card);border:1px solid var(--paper-line);width:38px;height:38px;border-radius:50%;font-size:15px;color:var(--ink-soft);cursor:pointer;z-index:181}
+  .nav-intel .icon{color:var(--accent);font-size:16px;font-weight:800}
+  .nav-plus-toggle .label{opacity:.75}`;
+  document.head.appendChild(st);
+  if (!window.__dashFocusEsc) { window.__dashFocusEsc = true; document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeFocus(); }); }
 }
 
 async function fetchCockpit() {
