@@ -4274,14 +4274,159 @@ function piwViewsDef(){ return [
   { key:'favoris', ico:'★', label:'Favoris' },
   { key:'suivre',  ico:'⚠', label:'À suivre' },
 ]; }
+// ══════════════════════════════════════════════════════════════════
+// Sprint 24 · Patients « Calm Workspace » — présentation calme par-dessus
+// la même couche de données (piwBuildModels / piwState : 4 états). Vue par
+// défaut ; le workspace riche (Sprint 21) reste accessible via « tableau complet ».
+// ══════════════════════════════════════════════════════════════════
+let piwCalm = true, piwCalmFilter = 'all';
+function piwCalmCounts(){
+  let actions=0, watch=0; (piwModels||[]).forEach(m=>{ if(m.state==='action')actions++; else if(m.state==='watch')watch++; });
+  const todayIds = piwTodayPatientIds ? piwTodayPatientIds() : new Set();
+  return { rdvToday: todayIds.size, actions, watch, total:(piwModels||[]).length };
+}
+function piwCalmTodayCount(){ const ids=piwTodayPatientIds?piwTodayPatientIds():new Set(); return (piwModels||[]).filter(m=>ids.has(m.id)||m.state==='action').length; }
+function piwCalmFilterDefs(){
+  const c=piwCalmCounts();
+  return [
+    { key:'all',    label:'Tous',               n:null },
+    { key:'today',  label:'À voir aujourd’hui', n: piwCalmTodayCount() || null },
+    { key:'active', label:'Suivi actif',        n:null },
+    { key:'new',    label:'Nouveaux',           n:null },
+    { key:'watch',  label:'À surveiller',       n: c.watch || null },
+  ];
+}
+function piwCalmFilteredModels(){
+  let arr=(piwModels||[]).slice();
+  const q=piwQuery.trim().toLowerCase();
+  if(q) arr=arr.filter(m=>((m.prenom+' '+m.nom).toLowerCase().includes(q))||((m.nom+' '+m.prenom).toLowerCase().includes(q)));
+  const ids=piwTodayPatientIds?piwTodayPatientIds():new Set();
+  if(piwCalmFilter==='today')  arr=arr.filter(m=>ids.has(m.id)||m.state==='action');
+  else if(piwCalmFilter==='active') arr=arr.filter(m=>m.state==='stable'||m.state==='watch');
+  else if(piwCalmFilter==='new')    arr=arr.filter(m=>m.state==='nouveau');
+  else if(piwCalmFilter==='watch')  arr=arr.filter(m=>m.state==='watch');
+  const rank={action:3,watch:2,nouveau:1,stable:0};
+  arr.sort((a,b)=>(rank[b.state]-rank[a.state]) || (new Date(b.lastEventDate||0)-new Date(a.lastEventDate||0)));
+  return arr;
+}
+function piwCalmRdv(m){ if(!m.nextRdv) return 'Aucun à venir'; const dt=new Date(m.nextRdv.start_at);
+  return dt.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})+' · '+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }
+function piwCalmSince(m){ const s=piwSince(m.firstDate); if(s) return 'depuis '+s; const n=m.counts?m.counts.consult:0; return n?(n+' consultation'+(n>1?'s':'')):'—'; }
+function piwCalmAction(m){
+  if(m.state==='action'){
+    if(m.unread>0) return { t:'Message à répondre', s:m.unread+' non lu'+(m.unread>1?'s':'') };
+    if((m.events||[]).some(e=>(e.type==='analyse_labo'||e.type==='imagerie')&&(Date.now()-new Date(e.event_date))/864e5<=3)) return { t:'Résultat à revoir', s:'récent' };
+    return { t:'Action recommandée', s:'à traiter' };
+  }
+  if(m.state==='watch')   return { t:'À surveiller', s:'suivi en cours' };
+  if(m.state==='nouveau') return { t:'En attente',   s:'nouveau dossier' };
+  return { t:'Aucune action', s:'à jour' };
+}
+function piwCalmCard(m){
+  const st=PIW_STATES[m.state]; const meta=piwMetaLine(m); const act=piwCalmAction(m);
+  const init=(((m.prenom||'')[0]||'')+((m.nom||'')[0]||'')).toUpperCase()||'?';
+  return `<div class="pcalm" role="button" tabindex="0" onclick="openPatientDetail('${m.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openPatientDetail('${m.id}')}" aria-label="${escapeHtml((m.prenom+' '+m.nom).trim())} — ${st.label}">
+    <span class="pcalm-dot" style="background:${st.dot}"></span>
+    <div class="pcalm-av">${escapeHtml(init)}</div>
+    <div class="pcalm-id"><div class="pcalm-nm">${escapeHtml((m.prenom+' '+m.nom).trim())}</div><div class="pcalm-meta">${escapeHtml(meta||'Âge non renseigné')}</div><div class="pcalm-state" style="color:${st.fg}">${st.label}</div></div>
+    <div class="pcalm-col"><div class="pcalm-lb">Prochain RDV</div><div class="pcalm-val">${escapeHtml(piwCalmRdv(m))}</div></div>
+    <div class="pcalm-col"><div class="pcalm-lb">Suivi</div><div class="pcalm-val">${escapeHtml(piwCalmSince(m))}</div></div>
+    <div class="pcalm-act"><div class="pcalm-act-t">${escapeHtml(act.t)}</div><div class="pcalm-act-s">${escapeHtml(act.s)}</div></div>
+    <span class="pcalm-chev" aria-hidden="true">›</span>
+  </div>`;
+}
+function piwCalmToolbar(){
+  const tb=document.getElementById('piwToolbar'); if(!tb) return;
+  const filters=piwCalmFilterDefs().map(f=>`<button class="pcalm-fil${piwCalmFilter===f.key?' on':''}" onclick="piwSetCalmFilter('${f.key}')">${escapeHtml(f.label)}${f.n?` <span class="pcalm-fil-n">${f.n}</span>`:''}</button>`).join('');
+  const n=(piwModels||[]).length;
+  tb.innerHTML=`<div class="pcalm-head">
+      <div class="pcalm-head-l"><h2 class="pcalm-h1">Patients</h2><div class="pcalm-sub">${n} patient${n>1?'s':''} · Vue simplifiée</div></div>
+      <div class="pcalm-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="piwSearch" placeholder="Rechercher un patient, un document…" value="${escapeHtml(piwQuery)}" oninput="piwOnSearch(this.value)"></div>
+      <div class="pcalm-head-r">
+        <button class="pcalm-ico" title="Notifications" aria-label="Notifications" onclick="if(typeof toggleNotifCenter==='function')toggleNotifCenter()">🔔</button>
+        <button class="pcalm-ico" title="Réglages" aria-label="Réglages" onclick="switchAppView('parametres')">⚙</button>
+        <button class="btn-primary" style="padding:9px 15px;font-size:13.5px;" onclick="piwAddPatientChooser()">+ Nouveau patient</button>
+      </div>
+    </div>
+    <div class="pcalm-filters">${filters}</div>`;
+}
+function piwCalmStatusBar(){
+  const c=piwCalmCounts();
+  return `<div class="pcalm-status">
+    <div class="pcalm-stat"><b>${c.rdvToday}</b><span>RDV aujourd'hui</span></div>
+    <div class="pcalm-stat"><b>${c.actions}</b><span>Actions requises</span></div>
+    <div class="pcalm-stat"><b>${c.watch}</b><span>À surveiller</span></div>
+    <div class="pcalm-stat"><b>${c.total}</b><span>Patients suivis</span></div>
+    <button class="pcalm-full" onclick="piwToggleFullTable()">Voir le tableau complet →</button>
+  </div>`;
+}
+function piwCalmEmpty(){
+  if(piwQuery) return emptyState({icon:'🔍',title:'Aucun résultat',text:'Aucun patient ne correspond à « '+escapeHtml(piwQuery)+' ».'});
+  if(piwCalmFilter!=='all') return emptyState({icon:'✅',title:'Rien à afficher',text:'Aucun patient dans ce filtre pour le moment.'});
+  return emptyState({icon:'👤',title:"Aucun patient pour l'instant",text:'Créez votre premier dossier pour commencer.',actionLabel:'+ Nouveau patient',actionOnclick:'openNewPatientModal()'});
+}
+function piwSetCalmFilter(f){ piwCalmFilter=f; piwWindow=60; piwCalmToolbar(); piwRenderGrid(); }
+function piwToggleFullTable(){ piwCalm=false; piwWindow=60; piwRenderToolbar(); piwRenderGrid(); }
+function piwBackToCalm(){ piwCalm=true; piwWindow=60; piwRenderToolbar(); piwRenderGrid(); }
+function ensurePcalmStyles(){
+  if(document.getElementById('pcalmStyles')) return;
+  const st=document.createElement('style'); st.id='pcalmStyles';
+  st.textContent=`
+  .pcalm-head{display:flex;align-items:center;gap:20px;max-width:920px;margin:0 auto 18px;flex-wrap:wrap}
+  .pcalm-h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0;color:var(--ink)}
+  .pcalm-sub{font-size:13px;color:var(--ink-faint);margin-top:2px}
+  .pcalm-search{flex:1;min-width:220px;position:relative;display:flex;align-items:center}
+  .pcalm-search svg{position:absolute;left:13px;width:17px;height:17px;color:var(--ink-faint);pointer-events:none}
+  .pcalm-search input{width:100%;height:42px;border:1px solid var(--paper-line);border-radius:12px;padding:0 14px 0 38px;font-family:inherit;font-size:14px;background:var(--card);color:var(--ink)}
+  .pcalm-search input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+  .pcalm-head-r{display:flex;align-items:center;gap:8px}
+  .pcalm-ico{width:38px;height:38px;border-radius:11px;border:1px solid var(--paper-line);background:var(--card);cursor:pointer;font-size:15px;line-height:1}
+  .pcalm-ico:hover{background:var(--paper)}
+  .pcalm-filters{display:flex;gap:8px;flex-wrap:wrap;max-width:920px;margin:0 auto 16px}
+  .pcalm-fil{border:1px solid var(--paper-line);background:var(--card);border-radius:999px;padding:7px 14px;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:background .15s,color .15s,border-color .15s;display:inline-flex;align-items:center;gap:7px}
+  .pcalm-fil:hover{color:var(--ink)}
+  .pcalm-fil.on{background:var(--accent-tint);border-color:transparent;color:var(--accent-deep)}
+  .pcalm-fil-n{background:var(--accent);color:#fff;border-radius:999px;font-size:11px;font-weight:800;padding:1px 7px;min-width:18px;text-align:center}
+  #patientGrid.pcalm-list{display:flex;flex-direction:column;gap:8px;max-width:920px;margin:0 auto}
+  .pcalm{display:grid;grid-template-columns:auto auto 1.7fr 1.1fr 1fr 1.2fr auto;align-items:center;gap:18px;background:var(--card);border:1px solid var(--paper-line);border-radius:16px;padding:15px 20px;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .12s}
+  .pcalm:hover{border-color:transparent;box-shadow:0 10px 34px -14px rgba(20,33,66,.20)}
+  .pcalm:active{transform:scale(.995)}
+  .pcalm:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .pcalm-dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .pcalm-av{width:44px;height:44px;border-radius:50%;background:var(--paper);color:var(--ink-soft);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14.5px;flex:none}
+  .pcalm-id{min-width:0}
+  .pcalm-nm{font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcalm-meta{font-size:13px;color:var(--ink-faint);margin-top:2px}
+  .pcalm-state{font-size:12.5px;font-weight:600;margin-top:4px}
+  .pcalm-lb{font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em}
+  .pcalm-val{font-size:13.5px;color:var(--ink);font-weight:600;margin-top:3px}
+  .pcalm-act{text-align:right;min-width:0}
+  .pcalm-act-t{font-size:13.5px;font-weight:700;color:var(--ink)}
+  .pcalm-act-s{font-size:12px;color:var(--ink-faint);margin-top:2px}
+  .pcalm-chev{color:var(--ink-faint);font-size:20px;flex:none}
+  .pcalm-status{display:flex;align-items:center;gap:26px;max-width:920px;margin:22px auto 0;padding:16px 20px;border-top:1px solid var(--paper-line);flex-wrap:wrap}
+  .pcalm-stat{display:flex;flex-direction:column}
+  .pcalm-stat b{font-size:18px;font-weight:800;color:var(--ink);line-height:1.1}
+  .pcalm-stat span{font-size:12px;color:var(--ink-faint);margin-top:2px}
+  .pcalm-full{margin-left:auto;background:none;border:none;color:var(--accent);font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
+  .pcalm-full:hover{color:var(--accent-deep)}
+  @media (max-width:760px){
+    .pcalm{grid-template-columns:auto auto 1fr auto;gap:13px;padding:14px 16px}
+    .pcalm-col{display:none}
+    .pcalm-act{display:none}
+  }`;
+  document.head.appendChild(st);
+}
+
 function piwRenderToolbar(){
   const tb=document.getElementById('piwToolbar'); if(!tb) return;
+  if(piwCalm){ ensurePcalmStyles(); return piwCalmToolbar(); }
   const segs=piwViewsDef().map(v=>{ const n=piwView===v.key?' on':''; const badge=(v.key==='favoris'&&piwFavs().length)?' ('+piwFavs().length+')':''; return `<button class="${'piw-sg'+n}" onclick="piwSetView('${v.key}')">${v.ico} ${v.label}${badge}</button>`; }).join('');
   const colls=piwCollections();
   const collSegs=colls.map(c=>{ const n=piwView==='coll:'+c.id?' on':''; return `<button class="${'piw-sg'+n}" onclick="piwSetView('coll:${c.id}')" title="${escapeHtml(c.name)} · ${c.patientIds.length}">📁 ${escapeHtml(c.name)}</button>`; }).join('');
   const smart=PIW_SMART.map(s=>`<button class="piw-chip${piwActiveSmart===s.key?' on':''}" onclick="piwSetSmart('${s.key}')">${s.label}</button>`).join('');
   tb.innerHTML = `<div class="piw-toolbar">
-      <h2 class="piw-title">Patients<span class="piw-count" id="piwCount"></span></h2>
+      <h2 class="piw-title">Patients<span class="piw-count" id="piwCount"></span> <button onclick="piwBackToCalm()" style="margin-left:10px;background:none;border:none;color:var(--accent);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;vertical-align:middle">← Vue simplifiée</button></h2>
       <div class="piw-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input id="piwSearch" placeholder="Rechercher (nom, tag…)" value="${escapeHtml(piwQuery)}" oninput="piwOnSearch(this.value)"></div>
       <div class="piw-seg">${segs}${collSegs}<button class="piw-sg" title="Nouvelle collection" onclick="piwPromptNewCollection()">＋</button></div>
@@ -4386,6 +4531,15 @@ function piwEmptyFor(){
 }
 function piwRenderGrid(){
   const grid=document.getElementById('patientGrid'); if(!grid) return;
+  if(piwCalm){
+    const arr=piwCalmFilteredModels();
+    grid.className='pcalm-list';
+    if(!arr.length){ grid.innerHTML=piwCalmEmpty(); grid.insertAdjacentHTML('beforeend', piwCalmStatusBar()); return; }
+    const slice=arr.slice(0,piwWindow);
+    grid.innerHTML=slice.map(piwCalmCard).join('') + (arr.length>piwWindow?'<div class="piw-more" id="piwMore">Voir plus…</div>':'') + piwCalmStatusBar();
+    piwSetupInfinite();
+    return;
+  }
   const arr=piwFilteredModels();
   const cnt=document.getElementById('piwCount'); if(cnt) cnt.textContent=' · '+piwModels.length;
   const isList = piwView==='list';
