@@ -1009,6 +1009,9 @@
         <div class="dc-greet" id="dcGreet">Bonjour</div>
         <div class="dc-sub">Votre journée, simplement.</div>
 
+        <!-- ✦ « Le prochain geste » — la seule chose qui compte maintenant (dérivé du cockpit réel) -->
+        <div id="dcNow"></div>
+
         <form class="dc-magic" id="dcMagic" onsubmit="event.preventDefault();dashMagicSubmit()">
           <span class="dc-magic-ic">✦</span>
           <input id="dcMagicInput" autocomplete="off" placeholder="Que souhaitez-vous faire ?" oninput="dashMagicInputChange()">
@@ -1016,7 +1019,7 @@
         </form>
         <div class="dc-suggests" id="dcSuggests"></div>
 
-        <div class="dc-section-label">Patients récents</div>
+        <div class="dc-section-label" id="dcNextLabel">Patients récents</div>
         <div class="dc-recents" id="dcRecents"></div>
 
         <button class="dc-detail" onclick="dashToggleDetail(this)">Voir le détail de ma journée ↓</button>
@@ -2614,8 +2617,63 @@ async function renderDashboard() {
   if (sg) sg.innerHTML = DASH_SUGGESTS.map(s => `<span class="dc-sg" onclick="dashSuggest(this)">${escapeHtml(s)}</span>`).join('');
   renderDashRecents();
   dashMagicInputChange();
-  // Détail de la journée : chargé en tâche de fond, sans bloquer l'écran calme.
-  fetchCockpit().then(d => { cockpitState.data = d; if (document.getElementById('dashDetail')) { renderAuroraBand(); renderAuroraCards(); } loadCockpitBriefing(); }).catch(() => {});
+  // Le cockpit (déjà calculé côté serveur) alimente « Le prochain geste » + le détail replié.
+  fetchCockpit().then(d => { cockpitState.data = d; renderDashNow(); if (document.getElementById('dashDetail')) { renderAuroraBand(); renderAuroraCards(); } loadCockpitBriefing(); }).catch(() => {});
+}
+// ✦ « Le prochain geste » — une seule chose au centre, dérivée des signaux réels
+// du cockpit (agenda, priorités, résultats). Jamais inventé ; fallbacks calmes.
+function dashCtxFor(pid) {
+  const d = cockpitState.data || {};
+  const pr = (d.priorites || []).find(p => p.patient_id === pid);
+  if (pr && pr.signals && pr.signals.length) return pr.signals[0].titre + (pr.signals.length > 1 ? ' · +' + (pr.signals.length - 1) : '');
+  const res = (d.resultats_recents || []).filter(r => r.patient_id === pid).length;
+  if (res) return res + ' résultat' + (res > 1 ? 's' : '') + ' à revoir';
+  if ((d.ordonnances_a_renouveler || []).some(r => r.patient_id === pid)) return 'Ordonnance à renouveler';
+  return null;
+}
+function dashCachePush(id, prenom, nom, date) {
+  if (!id || dashRecentsCache.find(x => x.id === id)) return;
+  dashRecentsCache.push({ id: id, prenom: prenom || '', nom: nom || '', last_event_date: date || null });
+}
+function renderDashNow() {
+  const el = document.getElementById('dcNow'); if (!el) return;
+  const d = cockpitState.data; if (!d) { el.innerHTML = ''; return; }
+  // enrichit le cache pour que le Focus retrouve les patients agenda/priorités
+  (d.agenda || []).forEach(a => dashCachePush(a.patient_id, '', a.patient_nom, a.start_at));
+  (d.priorites || []).forEach(p => dashCachePush(p.patient_id, p.prenom, p.nom));
+  const now = Date.now();
+  const agenda = (d.agenda || []).filter(a => a.start_at).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+  const upcoming = agenda.filter(a => new Date(a.start_at).getTime() >= now - 15 * 60000);
+  let card = null, rest = [];
+  if (upcoming.length) {
+    const a = upcoming[0]; rest = upcoming.slice(1);
+    card = { pid: a.patient_id, title: (a.patient_nom || 'Sans dossier') + ' · ' + ckptTime(a.start_at), ctx: (a.patient_id && dashCtxFor(a.patient_id)) || a.motif || 'Consultation' };
+  } else {
+    const pr = (d.priorites || [])[0];
+    if (pr) card = { pid: pr.patient_id, title: ((pr.prenom || '') + ' ' + (pr.nom || '')).trim() || 'Un patient', ctx: (pr.signals && pr.signals[0] ? pr.signals[0].titre : 'À revoir') };
+  }
+  if (!card) {
+    el.innerHTML = `<div class="dc-now calm"><div class="dc-now-lb">Maintenant</div><div class="dc-now-nm" style="font-size:16.5px;font-weight:600;color:var(--ink-soft)">Rien ne requiert votre attention. Votre journée est dégagée.</div></div>`;
+    renderDashNextStrip([]); return;
+  }
+  const go = card.pid ? `onclick="dashFocus('${card.pid}')" role="button" tabindex="0"` : '';
+  el.innerHTML = `<div class="dc-now" ${go}>
+    <div class="dc-now-body"><div class="dc-now-lb">Maintenant</div><div class="dc-now-nm">${escapeHtml(card.title)}</div><div class="dc-now-ctx">${escapeHtml(card.ctx)}</div></div>
+    ${card.pid ? '<span class="dc-now-go">Ouvrir →</span>' : ''}
+  </div>`;
+  renderDashNextStrip(rest);
+}
+function renderDashNextStrip(rest) {
+  const lb = document.getElementById('dcNextLabel'); const box = document.getElementById('dcRecents'); if (!box) return;
+  if (rest && rest.length) {
+    if (lb) lb.textContent = 'Ensuite';
+    box.className = 'dc-nextstrip';
+    box.innerHTML = rest.slice(0, 5).map(a => `<span class="dc-next-it"${a.patient_id ? ` onclick="dashFocus('${a.patient_id}')"` : ''}>${escapeHtml(a.patient_nom || 'Sans dossier')} · ${ckptTime(a.start_at)}</span>`).join('<span class="dc-next-sep">·</span>');
+  } else {
+    if (lb) lb.textContent = 'Patients récents';
+    box.className = 'dc-recents';
+    renderDashRecents();
+  }
 }
 function dashRelDate(d) {
   const days = Math.floor((Date.now() - new Date(d)) / 86400000);
@@ -2751,6 +2809,20 @@ function ensureDashCalmStyles() {
   .dc-chev{margin-left:auto;color:var(--ink-faint);font-size:17px;flex:none}
   .dc-detail{margin-top:clamp(24px,4vh,40px);background:none;border:none;color:var(--ink-faint);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;padding:6px 0}
   .dc-detail:hover{color:var(--ink)}
+  /* ✦ « Le prochain geste » */
+  .dc-now{background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:20px 22px;box-shadow:var(--shadow-sm);margin-bottom:clamp(18px,3.5vh,30px);display:flex;align-items:center;gap:16px;transition:transform .18s var(--ease),box-shadow .22s var(--ease)}
+  .dc-now[role=button]{cursor:pointer}
+  .dc-now[role=button]:hover{transform:translateY(-2px);box-shadow:0 16px 46px -16px rgba(20,33,66,.26)}
+  .dc-now.calm{display:block}
+  .dc-now-body{flex:1;min-width:0}
+  .dc-now-lb{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--accent);margin-bottom:9px}
+  .dc-now-nm{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);line-height:1.2}
+  .dc-now-ctx{font-size:14px;color:var(--ink-soft);margin-top:5px}
+  .dc-now-go{font-size:14px;font-weight:700;color:var(--accent);white-space:nowrap;flex:none}
+  .dc-nextstrip{display:flex;flex-wrap:wrap;align-items:center;gap:9px;font-size:13.5px;color:var(--ink-soft);padding:2px 12px}
+  .dc-next-it{cursor:pointer;color:var(--ink);font-weight:600}
+  .dc-next-it:hover{color:var(--accent)}
+  .dc-next-sep{color:var(--ink-faint)}
   /* ✦ Focus */
   .dash-calm.focused{opacity:.05;transform:scale(.985);pointer-events:none;transition:opacity .3s var(--ease),transform .3s var(--ease)}
   .focus-ov{position:fixed;inset:0;z-index:180;display:flex;align-items:center;justify-content:center;background:rgba(251,252,254,.72);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);opacity:0;transition:opacity .28s var(--ease)}
