@@ -927,6 +927,10 @@
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
       <span class="label">Consultations</span>
     </button>
+    <button class="sidebar-link" data-view="reseau" data-tooltip="Réseau" onclick="switchAppView('reseau')">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <span class="label">Réseau</span>
+    </button>
     <button class="sidebar-link" data-view="documents" data-tooltip="Documents" onclick="switchAppView('documents')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
       <span class="label">Documents</span>
@@ -1029,6 +1033,8 @@
         </div>
       </div>
     </div>
+
+    <div id="view-reseau" class="app-view"><div id="reseauRoot"></div></div>
 
     <section class="patients-section app-view" id="patientsSection">
   <div id="patientsListView">
@@ -1834,7 +1840,7 @@ const APP_VIEW_IDS = {
   dashboard: 'view-dashboard', patients: 'patientsSection', consultation: 'view-consultation',
   'ia-hub': 'view-ia-hub', 'parametres': 'view-parametres', documents: 'view-documents',
   'actions-center': 'view-actions-center', labs: 'view-labs', marketplace: 'view-marketplace',
-  journal: 'view-journal', queue: 'view-queue',
+  journal: 'view-journal', queue: 'view-queue', reseau: 'view-reseau',
 };
 
 // Sprint 11 Étape 5 — les anciens sous-onglets Documents deviennent des
@@ -1844,6 +1850,246 @@ const DOC_VIEW_ALIAS = {
   'doc-consultation': 'consultation', 'doc-ordonnance': 'ordonnance',
   'doc-courrier': 'courrier', 'doc-labo': 'analyse_labo', 'doc-imagerie': 'imagerie',
 };
+// ══════════════════════════════════════════════════════════════════
+// SPRINT — MediAI Réseau (V1) · La coordination médicale, enfin simple.
+// Workspace de coordination : Messages · À traiter · Réseau. Le canal
+// médecin↔patient est réel (message_threads) ; le multi-parties / réseau
+// externe est SYNTHÉTIQUE (démo) — l'échange inter-pro réel = MSSanté + HDS,
+// chantier d'architecture différé (ADR). Aucun envoi automatique par l'IA.
+// ══════════════════════════════════════════════════════════════════
+let reseauTab = 'atraiter', reseauConvId = null;
+const RESEAU_TYPES = {
+  medecin:       { ico:'🔵', tint:'#EAF3FF', color:'#1460FF' },
+  etablissement: { ico:'🟣', tint:'#F3EEFF', color:'#8B5CF6' },
+  pharmacie:     { ico:'🟢', tint:'#E9F9EF', color:'#16A34A' },
+  labo:          { ico:'🔵', tint:'#E0F6FF', color:'#0284C7' },
+  patient:       { ico:'⚪', tint:'#EEF1F6', color:'#5B6472' },
+};
+function reseauData(){
+  const now = Date.now(), H = 3600000, D = 86400000;
+  return {
+    correspondents: [
+      { id:'c1', name:'Dr Martin', type:'medecin', role:'Orthopédiste' },
+      { id:'c2', name:'CHU Lyon', type:'etablissement', role:'Orthopédie' },
+      { id:'c3', name:'Pharmacie Centrale', type:'pharmacie', role:'Officine' },
+      { id:'c4', name:'Laboratoire Cerba', type:'labo', role:'Biologie médicale' },
+    ],
+    conversations: [
+      { id:'v1', corr:'c1', patient:'Thomas Martin', patientAge:24, subject:'Avis orthopédique',
+        last:'Je vous transmets le compte rendu de la consultation…', at:now-12*60000, unread:3,
+        todo:{ level:'red', label:'Répondre' },
+        participants:[{n:'Dr Léo Chenard',r:'Médecin traitant'},{n:'Dr Martin',r:'Orthopédiste'},{n:'CHU Lyon',r:'Orthopédie'}],
+        documents:['IRM genou droit','Courrier d’adressage','Compte rendu'],
+        actions:[{l:'Avis orthopédique',done:true},{l:'Réponse au patient',done:false},{l:'RDV à organiser',done:false}],
+        messages:[
+          {me:true, body:'Bonjour Dr Martin, je vous sollicite concernant Thomas Martin, 24 ans, rupture complète du LCA droit avec lésion méniscale. Votre avis ?', at:now-3*H},
+          {me:false, from:'Dr Martin', body:'Bonjour, je vous transmets le compte rendu. Une consultation spécialisée me paraît indiquée.', at:now-12*60000},
+        ] },
+      { id:'v2', corr:'c2', patient:'Thomas Martin', patientAge:24, subject:'Demande de rendez-vous',
+        last:'Nous avons reçu votre demande, merci de confirmer le créneau.', at:now-2*H, unread:1,
+        todo:{ level:'amber', label:'Confirmer' },
+        participants:[{n:'Dr Léo Chenard',r:'Médecin traitant'},{n:'CHU Lyon',r:'Orthopédie'}],
+        documents:['Courrier d’adressage'], actions:[{l:'RDV à confirmer',done:false}],
+        messages:[{me:false, from:'CHU Lyon', body:'Nous avons reçu votre demande d’adressage. Créneau proposé : 14 août 14:30. Merci de confirmer.', at:now-2*H}] },
+      { id:'v3', corr:'c3', patient:'Sophie Durand', patientAge:52, subject:'Question ordonnance',
+        last:'Une interaction possible sur l’ordonnance du 2 août ?', at:now-1*D, unread:2,
+        todo:{ level:'amber', label:'Vérifier' },
+        participants:[{n:'Dr Léo Chenard',r:'Médecin traitant'},{n:'Pharmacie Centrale',r:'Officine'}],
+        documents:['Ordonnance du 2 août'], actions:[{l:'Vérifier l’interaction',done:false}],
+        messages:[{me:false, from:'Pharmacie Centrale', body:'Bonjour, une interaction possible entre deux lignes de l’ordonnance. Pouvez-vous vérifier ?', at:now-1*D}] },
+      { id:'v4', corr:'c4', patient:'Thomas Martin', patientAge:24, subject:'Résultat de biologie',
+        last:'Résultat transmis et intégré au dossier.', at:now-2*D, unread:0,
+        todo:{ level:'green', label:'Terminé' },
+        participants:[{n:'Dr Léo Chenard',r:'Médecin traitant'},{n:'Laboratoire Cerba',r:'Biologie'}],
+        documents:['Bilan sanguin'], actions:[{l:'Résultat reçu',done:true}],
+        messages:[{me:false, from:'Laboratoire Cerba', body:'Résultat du bilan disponible et transmis.', at:now-2*D}] },
+    ],
+  };
+}
+function reseauCorr(data, id){ return data.correspondents.find(c=>c.id===id) || { name:'—', type:'patient', role:'' }; }
+function reseauInitials(name){ return (name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+function reseauAgo(ts){ const m=Math.floor((Date.now()-ts)/60000); if(m<1)return 'à l’instant'; if(m<60)return 'il y a '+m+' min'; const h=Math.floor(m/60); if(h<24)return 'il y a '+h+' h'; const d=Math.floor(h/24); return d===1?'hier':'il y a '+d+' j'; }
+function reseauWhen(ts){ const d=new Date(ts); const today=new Date(); const same=d.toDateString()===today.toDateString(); return (same?"Aujourd'hui":d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}))+' · '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }
+
+function renderReseau(){
+  ensureReseauStyles();
+  const root=document.getElementById('reseauRoot'); if(!root) return;
+  const data=reseauData();
+  const atraiter=data.conversations.filter(c=>c.todo.level!=='green');
+  const tabs=[['messages','Messages',null],['atraiter','À traiter',atraiter.length],['reseau','Réseau',null]];
+  root.innerHTML=`
+    <div class="rz-head">
+      <div><h1 class="rz-h1">Réseau</h1><div class="rz-sub">Communiquer, coordonner, suivre.</div></div>
+      <button class="rz-demander" onclick="reseauDemander()">＋ Demander</button>
+    </div>
+    <div class="rz-searchbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input placeholder="Rechercher une personne, un établissement ou un patient…" oninput="reseauSearch(this.value)"></div>
+    <div class="rz-tabs">${tabs.map(t=>`<button class="rz-tab${reseauTab===t[0]?' on':''}" onclick="reseauSetTab('${t[0]}')">${t[1]}${t[2]?` <span class="rz-tab-n">${t[2]}</span>`:''}</button>`).join('')}</div>
+    <div class="rz-demo">🔒 Démo — coordination inter-professionnelle. L'échange réel (MSSanté) et les données patient arriveront avec l'infrastructure HDS.</div>
+    <div id="rzBody"></div>`;
+  renderReseauBody(data);
+}
+function reseauSetTab(t){ reseauTab=t; reseauConvId=null; renderReseau(); }
+function reseauSearch(q){ window.__rzQuery=(q||'').toLowerCase(); renderReseauBody(reseauData()); }
+function renderReseauBody(data){
+  const body=document.getElementById('rzBody'); if(!body) return;
+  const q=window.__rzQuery||'';
+  const match=c=>{ const cor=reseauCorr(data,c.corr); return !q || (cor.name+' '+c.patient+' '+c.subject).toLowerCase().includes(q); };
+  if(reseauTab==='reseau'){ body.innerHTML=renderReseauNetwork(data); return; }
+  const convs=data.conversations.filter(match).filter(c=>reseauTab==='atraiter'?c.todo.level!=='green':true);
+  const order={red:0,amber:1,green:2};
+  if(reseauTab==='atraiter') convs.sort((a,b)=>order[a.todo.level]-order[b.todo.level]||b.at-a.at); else convs.sort((a,b)=>b.at-a.at);
+  const list=convs.map(c=>reseauConvCard(data,c)).join('') || '<div class="rz-empty">Rien ici pour le moment.</div>';
+  body.innerHTML=`<div class="rz-split"><div class="rz-list">${list}</div><div class="rz-panel" id="rzPanel">${reseauConvId?reseauPanel(data,reseauConvId):'<div class="rz-panel-empty">Sélectionnez une conversation pour la coordination.</div>'}</div></div>`;
+}
+function reseauConvCard(data,c){
+  const cor=reseauCorr(data,c.corr); const ty=RESEAU_TYPES[cor.type]; const sel=reseauConvId===c.id;
+  const dotLevel={red:'#EF4444',amber:'#F59E0B',green:'#22C55E'}[c.todo.level];
+  return `<div class="rz-conv${sel?' on':''}" onclick="reseauOpen('${c.id}')">
+    <div class="rz-conv-top"><span class="rz-conv-ic">${ty.ico}</span><span class="rz-conv-name">${escapeHtml(cor.name)}</span>${reseauTab==='atraiter'?`<span class="rz-todo" style="background:${dotLevel}1a;color:${dotLevel}">${c.todo.label}</span>`:(c.unread?`<span class="rz-unread">${c.unread}</span>`:'')}</div>
+    <div class="rz-conv-ctx">${escapeHtml(c.patient)} · ${escapeHtml(c.subject)}</div>
+    <div class="rz-conv-last">${escapeHtml(c.last)}</div>
+    <div class="rz-conv-at">${reseauWhen(c.at)}</div></div>`;
+}
+function reseauOpen(id){ reseauConvId=id; renderReseauBody(reseauData()); }
+function reseauPanel(data,id){
+  const c=data.conversations.find(x=>x.id===id); if(!c) return '';
+  const cor=reseauCorr(data,c.corr);
+  const msgs=c.messages.map(m=>`<div class="rz-msg${m.me?' me':''}">${!m.me?`<div class="rz-msg-from">${escapeHtml(m.from||cor.name)}</div>`:''}<div class="rz-msg-body">${escapeHtml(m.body)}</div><div class="rz-msg-at">${reseauWhen(m.at)}</div></div>`).join('');
+  const parts=c.participants.map(p=>`<div class="rz-part"><div class="rz-part-av">${escapeHtml(reseauInitials(p.n))}</div><div><div class="rz-part-n">${escapeHtml(p.n)}</div><div class="rz-part-r">${escapeHtml(p.r)}</div></div></div>`).join('');
+  const docs=c.documents.map(d=>`<div class="rz-doc">📄 ${escapeHtml(d)}</div>`).join('');
+  const acts=c.actions.map(a=>`<div class="rz-act">${a.done?'✓':'○'} <span${a.done?' style="color:var(--ink-faint);text-decoration:line-through"':''}>${escapeHtml(a.l)}</span></div>`).join('');
+  return `<div class="rz-conv-view">
+    <div class="rz-cv-head"><span class="rz-conv-ic">${RESEAU_TYPES[cor.type].ico}</span><div><div class="rz-cv-name">${escapeHtml(cor.name)}</div><div class="rz-cv-ctx">${escapeHtml(c.patient)} · ${escapeHtml(c.subject)}</div></div></div>
+    <div class="rz-thread">${msgs}
+      <div class="rz-ai"><span class="rz-ai-b">✦ MediAI</span> Préparer une réponse à ${escapeHtml(cor.name)} ? <button class="rz-ai-btn" onclick="reseauPrepare('${c.id}')">Préparer</button></div>
+    </div>
+    <div class="rz-composer"><input id="rzMsgInput" placeholder="Écrire un message…" onkeydown="if(event.key==='Enter')reseauSend('${c.id}')"><button onclick="reseauSend('${c.id}')">↑</button></div>
+  </div>
+  <aside class="rz-fiche">
+    <div class="rz-fiche-h">Coordination</div>
+    <div class="rz-fiche-sec"><div class="rz-fiche-lb">Patient</div><div class="rz-fiche-v">${escapeHtml(c.patient)}${c.patientAge?' · '+c.patientAge+' ans':''}</div></div>
+    <div class="rz-fiche-sec"><div class="rz-fiche-lb">Participants</div>${parts}</div>
+    <div class="rz-fiche-sec"><div class="rz-fiche-lb">Documents</div>${docs}</div>
+    <div class="rz-fiche-sec"><div class="rz-fiche-lb">Actions</div>${acts}</div>
+    <div class="rz-fiche-sec"><div class="rz-fiche-lb">Historique</div><div class="rz-fiche-v" style="color:var(--ink-soft)">${c.messages.length+c.documents.length+c.actions.length} événements</div></div>
+  </aside>`;
+}
+function reseauSend(id){ const i=document.getElementById('rzMsgInput'); if(!i||!i.value.trim())return; if(typeof showToast==='function')showToast('Message ajouté (démo — pas de délivrance réelle avant MSSanté).','info'); i.value=''; }
+function reseauPrepare(id){
+  const data=reseauData(); const c=data.conversations.find(x=>x.id===id); const cor=reseauCorr(data,c.corr);
+  reseauMini('✦ MediAI · Message proposé', `<div class="rz-prep-note">D'après le contexte : <b>${escapeHtml(c.patient)}</b> · ${escapeHtml(c.subject)}. Vous relisez et validez — <b>aucun envoi automatique</b>.</div>
+    <textarea class="rz-prep-ta" id="rzPrepTa">Bonjour ${escapeHtml(cor.name)},\n\nConcernant ${escapeHtml(c.patient)}${c.patientAge?', '+c.patientAge+' ans':''} : ${escapeHtml(c.subject.toLowerCase())}. Je reste à votre disposition pour toute information complémentaire du dossier.\n\nBien confraternellement,</textarea>
+    <div class="rz-prep-actions"><button class="rz-mini-ghost" onclick="reseauMiniClose()">Modifier</button><button class="rz-mini-primary" onclick="reseauMiniClose();showToast&&showToast('Prêt à envoyer (démo).','success')">Envoyer</button></div>`);
+}
+function renderReseauNetwork(data){
+  const cats=[['⭐','Mes correspondants'],['🏥','Établissements'],['💊','Pharmacies'],['🧪','Laboratoires'],['👥','Équipes de soins'],['📇','Annuaire']];
+  const people=data.correspondents.map(c=>`<div class="rz-conv" onclick="reseauDemander()"><div class="rz-conv-top"><span class="rz-conv-ic">${RESEAU_TYPES[c.type].ico}</span><span class="rz-conv-name">${escapeHtml(c.name)}</span></div><div class="rz-conv-ctx">${escapeHtml(c.role)}</div></div>`).join('');
+  return `<div class="rz-net-cats">${cats.map(c=>`<button class="rz-net-cat">${c[0]} ${c[1]}</button>`).join('')}</div>
+    <div class="rz-net-note">Le réseau privilégie les acteurs vérifiés (annuaire santé / MSSanté). Pas de fil public, pas d'abonnés — uniquement des relations professionnelles.</div>
+    <div class="rz-list" style="max-width:640px">${people}</div>`;
+}
+function reseauDemander(){
+  const opts=[['🩺','Un avis médical'],['📄','Une information'],['📅','Organiser un rendez-vous'],['💊','Vérifier un traitement'],['🧪','Demander / transmettre un examen'],['🏥','Orienter vers un établissement'],['👤','Contacter le patient'],['✏️','Message libre']];
+  reseauMini('Que souhaitez-vous demander ?', `<div class="rz-dem-grid">${opts.map(o=>`<button class="rz-dem-opt" onclick="reseauMiniClose();reseauNewMessage('${o[1].replace(/'/g,'&#39;')}')"><span class="i">${o[0]}</span><span class="t">${o[1]}</span></button>`).join('')}</div>`);
+}
+function reseauNewMessage(objet){
+  reseauMini('Nouveau message', `
+    <div class="rz-nm-field"><label>À</label><input placeholder="Dr Martin, CHU Lyon, une pharmacie…"></div>
+    <div class="rz-nm-field"><label>Patient</label><input placeholder="Thomas Martin"></div>
+    <div class="rz-nm-field"><label>Objet</label><input value="${escapeHtml(objet||'')}"></div>
+    <div class="rz-nm-ctx"><div class="rz-fiche-lb">✦ Contexte du dossier (auto)</div><div class="rz-nm-ctx-b">Le résumé du dossier patient sera joint automatiquement (démo). Vous choisissez ce qui est partagé.</div></div>
+    <div class="rz-nm-field"><label>Votre message</label><textarea class="rz-prep-ta" placeholder="Bonjour,&#10;&#10;Je souhaiterais votre avis concernant…"></textarea></div>
+    <div class="rz-prep-actions"><button class="rz-mini-ghost" onclick="reseauMiniClose()">Annuler</button><button class="rz-mini-primary" onclick="reseauMiniClose();showToast&&showToast('Message prêt (démo — délivrance réelle via MSSanté à venir).','success')">Envoyer</button></div>`);
+}
+function reseauMini(title, inner){ reseauMiniClose(); const ov=document.createElement('div'); ov.id='rzMiniOv'; ov.className='rz-mini-ov'; ov.onclick=e=>{if(e.target===ov)reseauMiniClose();};
+  ov.innerHTML=`<div class="rz-mini"><div class="rz-mini-h">${escapeHtml(title)}</div>${inner}</div>`; document.body.appendChild(ov); }
+function reseauMiniClose(){ const m=document.getElementById('rzMiniOv'); if(m)m.remove(); }
+function ensureReseauStyles(){
+  if(document.getElementById('reseauStyles')) return;
+  const st=document.createElement('style'); st.id='reseauStyles';
+  st.textContent=`
+  #view-reseau{max-width:1120px;margin:0 auto}
+  .rz-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}
+  .rz-h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0;color:var(--ink)}
+  .rz-sub{font-size:14px;color:var(--ink-faint);margin-top:3px}
+  .rz-demander{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:11px 18px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  .rz-searchbar{position:relative;display:flex;align-items:center;margin-bottom:14px}
+  .rz-searchbar svg{position:absolute;left:14px;width:17px;height:17px;color:var(--ink-faint)}
+  .rz-searchbar input{width:100%;height:44px;border:1px solid var(--paper-line);border-radius:12px;padding:0 14px 0 40px;font-family:inherit;font-size:14px;background:var(--card)}
+  .rz-tabs{display:flex;gap:6px;border-bottom:1px solid var(--paper-line);margin-bottom:10px}
+  .rz-tab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;margin-bottom:-1px;display:inline-flex;align-items:center;gap:7px}
+  .rz-tab.on{color:var(--ink);border-bottom-color:var(--accent)}
+  .rz-tab-n{background:var(--accent);color:#fff;border-radius:999px;font-size:11px;font-weight:800;padding:1px 7px}
+  .rz-demo{font-size:12px;color:var(--ink-faint);background:var(--paper);border:1px solid var(--paper-line);border-radius:10px;padding:9px 13px;margin-bottom:16px}
+  .rz-split{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:16px;align-items:start}
+  .rz-list{display:flex;flex-direction:column;gap:8px}
+  .rz-conv{background:var(--card);border:1px solid var(--paper-line);border-radius:14px;padding:13px 15px;cursor:pointer;transition:border-color .14s,box-shadow .14s}
+  .rz-conv:hover{box-shadow:var(--shadow-sm)}
+  .rz-conv.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-tint)}
+  .rz-conv-top{display:flex;align-items:center;gap:8px}
+  .rz-conv-ic{font-size:12px}
+  .rz-conv-name{font-size:14.5px;font-weight:700;color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rz-unread{background:var(--accent);color:#fff;border-radius:999px;font-size:11px;font-weight:800;min-width:18px;text-align:center;padding:1px 6px}
+  .rz-todo{font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;white-space:nowrap}
+  .rz-conv-ctx{font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-top:6px}
+  .rz-conv-last{font-size:12.5px;color:var(--ink-faint);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rz-conv-at{font-size:11px;color:var(--ink-faint);margin-top:6px}
+  .rz-panel{background:var(--card);border:1px solid var(--paper-line);border-radius:16px;min-height:360px;display:grid;grid-template-columns:minmax(0,1fr) 250px}
+  .rz-panel-empty,.rz-empty{padding:40px;text-align:center;color:var(--ink-faint);font-size:14px}
+  .rz-conv-view{display:flex;flex-direction:column;min-height:360px;border-right:1px solid var(--paper-line)}
+  .rz-cv-head{display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--paper-line)}
+  .rz-cv-name{font-size:15px;font-weight:800;color:var(--ink)}
+  .rz-cv-ctx{font-size:12.5px;color:var(--ink-soft)}
+  .rz-thread{flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+  .rz-msg{max-width:80%;align-self:flex-start}
+  .rz-msg.me{align-self:flex-end;text-align:right}
+  .rz-msg-from{font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:3px}
+  .rz-msg-body{display:inline-block;background:var(--paper);border-radius:14px;padding:10px 14px;font-size:13.5px;line-height:1.5;color:var(--ink);text-align:left}
+  .rz-msg.me .rz-msg-body{background:linear-gradient(160deg,#1F6BFF,#0FA6FF);color:#fff}
+  .rz-msg-at{font-size:10.5px;color:var(--ink-faint);margin-top:3px}
+  .rz-ai{background:var(--violet-tint);border-radius:12px;padding:11px 14px;font-size:13px;color:var(--violet-deep);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .rz-ai-b{font-weight:700}
+  .rz-ai-btn{margin-left:auto;background:var(--violet);color:#fff;border:none;border-radius:9px;padding:6px 13px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+  .rz-composer{display:flex;gap:9px;padding:12px 16px;border-top:1px solid var(--paper-line)}
+  .rz-composer input{flex:1;height:42px;border:1px solid var(--paper-line);border-radius:999px;padding:0 16px;font-family:inherit;font-size:14px;background:var(--card)}
+  .rz-composer button{width:42px;height:42px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:18px;cursor:pointer}
+  .rz-fiche{padding:16px 18px}
+  .rz-fiche-h{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin-bottom:14px}
+  .rz-fiche-sec{margin-bottom:16px}
+  .rz-fiche-lb{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);margin-bottom:7px}
+  .rz-fiche-v{font-size:13.5px;color:var(--ink);font-weight:600}
+  .rz-part{display:flex;align-items:center;gap:10px;padding:5px 0}
+  .rz-part-av{width:30px;height:30px;border-radius:50%;background:var(--paper);color:var(--ink-soft);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none}
+  .rz-part-n{font-size:13px;font-weight:700;color:var(--ink)}
+  .rz-part-r{font-size:11.5px;color:var(--ink-faint)}
+  .rz-doc{font-size:13px;color:var(--ink);padding:4px 0}
+  .rz-act{font-size:13px;color:var(--ink);padding:4px 0}
+  .rz-net-cats{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:14px}
+  .rz-net-cat{background:var(--card);border:1px solid var(--paper-line);border-radius:12px;padding:10px 15px;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer}
+  .rz-net-cat:hover{background:var(--paper)}
+  .rz-net-note{font-size:12.5px;color:var(--ink-faint);margin-bottom:16px;max-width:640px}
+  .rz-mini-ov{position:fixed;inset:0;z-index:300;background:rgba(10,17,40,.4);display:flex;align-items:center;justify-content:center;padding:20px}
+  .rz-mini{background:var(--card);border-radius:18px;box-shadow:var(--shadow-lg);padding:22px;width:460px;max-width:94vw;max-height:88vh;overflow:auto}
+  .rz-mini-h{font-size:17px;font-weight:800;margin-bottom:16px;color:var(--ink)}
+  .rz-dem-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .rz-dem-opt{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--paper-line);border-radius:13px;padding:14px;cursor:pointer;font-family:inherit;text-align:left}
+  .rz-dem-opt:hover{background:var(--paper);border-color:var(--accent)}
+  .rz-dem-opt .i{font-size:19px}
+  .rz-dem-opt .t{font-size:13.5px;font-weight:600;color:var(--ink)}
+  .rz-nm-field{margin-bottom:14px}
+  .rz-nm-field label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:6px}
+  .rz-nm-field input,.rz-prep-ta{width:100%;border:1px solid var(--paper-line);border-radius:11px;padding:11px 14px;font-family:inherit;font-size:14px;background:var(--card);color:var(--ink)}
+  .rz-prep-ta{min-height:120px;line-height:1.55;resize:vertical}
+  .rz-nm-ctx{background:var(--violet-tint);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+  .rz-nm-ctx-b{font-size:12.5px;color:var(--violet-deep);margin-top:4px}
+  .rz-prep-note{font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5}
+  .rz-prep-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+  .rz-mini-ghost{background:var(--paper);border:1px solid var(--paper-line);border-radius:11px;padding:10px 16px;font-family:inherit;font-weight:600;cursor:pointer;color:var(--ink)}
+  .rz-mini-primary{background:var(--accent);color:#fff;border:none;border-radius:11px;padding:10px 18px;font-family:inherit;font-weight:700;cursor:pointer}
+  @media(max-width:860px){.rz-split{grid-template-columns:1fr}.rz-panel{grid-template-columns:1fr}.rz-conv-view{border-right:none;border-bottom:1px solid var(--paper-line)}.rz-dem-grid{grid-template-columns:1fr}}`;
+  document.head.appendChild(st);
+}
+
 function switchAppView(viewName) {
   if (DOC_VIEW_ALIAS[viewName]) { docCenterState.tab = DOC_VIEW_ALIAS[viewName]; viewName = 'documents'; }
   document.querySelectorAll('.app-view').forEach(v => v.classList.remove('visible'));
@@ -1865,6 +2111,7 @@ function switchAppView(viewName) {
   }
   if (viewName === 'journal') { renderJournal(); }
   if (viewName === 'queue') { renderSmartQueue(); }
+  if (viewName === 'reseau') { renderReseau(); }
   if (viewName === 'consultation' && window.MediaiAutosave) {
     const b = document.getElementById('transcriptBox');
     if (b && MediaiAutosave.restore(b)) { b.dispatchEvent(new Event('input', { bubbles: true })); if (typeof showToast === 'function') showToast('Brouillon de consultation restauré.', 'info'); }
