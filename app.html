@@ -1042,6 +1042,7 @@
     <div id="patientHeaderNew"></div>
     <div class="piw-layout">
     <div class="piw-main">
+    <div id="patientToday"></div>
     <div id="patientAI"></div>
     <div id="patientHealth"></div>
     <div id="patientTreatments"></div>
@@ -5673,6 +5674,77 @@ function ensurePiwStyles() {
 function piwInsCard(title, body) {
   return `<div class="piw-ins-card"><div class="piw-ins-h">${title}</div>${body}</div>`;
 }
+// ══════════════════════════════════════════════════════════════════
+// Sprint · Patient Space 2.0 — Phase A : bloc « Aujourd'hui » en tête.
+// On ouvre sur ce qui mérite l'attention MAINTENANT (signaux déjà dérivés
+// du réel par computePatientSignals), pas sur un gros résumé IA.
+// ══════════════════════════════════════════════════════════════════
+function pt2ScrollTimeline(){ const t=document.getElementById('recordTimelineWrap'); if(t) t.scrollIntoView({behavior:'smooth',block:'start'}); }
+function renderPatientToday(patient, events){
+  const el=document.getElementById('patientToday'); if(!el) return;
+  ensureTodayStyles();
+  const list=(events||[]).slice().sort((a,b)=>new Date(b.event_date)-new Date(a.event_date));
+  const signals=computePatientSignals(list);
+  const important=signals.filter(s=>s.severite==='important');
+  const acts=important.concat(signals.filter(s=>s.severite==='attention'));
+  const prenom=escapeHtml(patient.prenom||'Ce patient');
+  const lastOrd=list.find(e=>e.type==='ordonnance');
+  const meds=lastOrd&&lastOrd.data&&Array.isArray(lastOrd.data.prescriptions)?lastOrd.data.prescriptions.filter(p=>p.medicament):[];
+  const lastConsult=list.find(e=>e.type==='consultation');
+  const stateLine = acts.length ? (important.length ? prenom+' nécessite votre attention.' : 'Quelques points à surveiller pour '+prenom+'.') : (list.length ? prenom+' va bien.' : 'Nouveau dossier.');
+  const dot = important.length ? 'var(--rose)' : acts.length ? 'var(--amber)' : 'var(--green)';
+  const summary=[];
+  if(meds.length) summary.push(meds.length+' traitement'+(meds.length>1?'s':'')+' actif'+(meds.length>1?'s':''));
+  if(lastConsult && typeof humanizeElapsed==='function') summary.push('Dernière consultation '+humanizeElapsed(lastConsult.event_date));
+  let html=`<div class="pt2-lead">Aujourd'hui</div>
+    <div class="pt2-state"><span class="pt2-dot" style="background:${dot}"></span><span class="pt2-state-t">${stateLine}</span></div>`;
+  if(summary.length) html+=`<div class="pt2-summary">${summary.map(s=>`<span>${escapeHtml(s)}</span>`).join('<span class="pt2-sep">·</span>')}</div>`;
+  if(acts.length){
+    html+=`<div class="pt2-do-lead">À faire</div><div class="pt2-do">`+acts.slice(0,3).map(a=>`
+      <div class="pt2-do-row" role="button" tabindex="0" onclick="pt2ScrollTimeline()" onkeydown="if(event.key==='Enter')pt2ScrollTimeline()"><span class="pt2-do-ic">⚠</span><div class="pt2-do-b"><div class="pt2-do-t">${escapeHtml(a.titre)}</div>${a.detail?`<div class="pt2-do-s">${escapeHtml(a.detail)}</div>`:''}</div><span class="pt2-do-go">Voir →</span></div>`).join('')+`</div>`;
+  } else {
+    html+=`<div class="pt2-ok"><span class="pt2-ok-ic">✓</span><div><div class="pt2-ok-t">Rien à signaler</div><div class="pt2-ok-s">Le dossier ne présente aucune action urgente.</div></div></div>`;
+  }
+  el.innerHTML=html;
+}
+function ensureTodayStyles(){
+  if(document.getElementById('pt2Styles')) return;
+  const st=document.createElement('style'); st.id='pt2Styles';
+  st.textContent=`
+  .piw-layout{grid-template-columns:minmax(0,1fr)!important}
+  .piw-rail{position:static!important;margin-top:0!important}
+  #dossierAsstEntry{display:none!important}
+  #patientToday{margin-bottom:22px}
+  .pt2-lead,.pt2-do-lead{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint)}
+  .pt2-lead{margin-bottom:10px}
+  .pt2-do-lead{margin:20px 0 10px}
+  .pt2-state{display:flex;align-items:center;gap:10px}
+  .pt2-dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .pt2-state-t{font-size:19px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+  .pt2-summary{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13.5px;color:var(--ink-soft);margin-top:8px}
+  .pt2-sep{color:var(--ink-faint)}
+  .pt2-do{display:flex;flex-direction:column;gap:8px}
+  .pt2-do-row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--paper-line);border-radius:14px;padding:13px 16px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+  .pt2-do-row:hover{border-color:transparent;box-shadow:var(--shadow-sm)}
+  .pt2-do-ic{width:30px;height:30px;border-radius:9px;background:var(--amber-tint);color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+  .pt2-do-b{flex:1;min-width:0}
+  .pt2-do-t{font-size:14.5px;font-weight:700;color:var(--ink)}
+  .pt2-do-s{font-size:12.5px;color:var(--ink-faint);margin-top:2px}
+  .pt2-do-go{color:var(--accent);font-weight:700;font-size:13px;white-space:nowrap}
+  .pt2-ok{display:flex;align-items:center;gap:13px;background:var(--green-tint);border-radius:14px;padding:15px 18px;margin-top:6px}
+  .pt2-ok-ic{width:32px;height:32px;border-radius:50%;background:#fff;color:var(--green-deep);display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+  .pt2-ok-t{font-size:14.5px;font-weight:700;color:var(--green-deep)}
+  .pt2-ok-s{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+  .vclin{background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:22px 24px;box-shadow:var(--shadow-sm);margin-bottom:26px}
+  .vclin-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin-bottom:14px}
+  .vclin-body{font-size:15px;line-height:1.65;color:var(--ink);white-space:pre-wrap}
+  .vclin-wait{color:var(--ink-faint)}
+  .vclin-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--paper-line)}
+  .vclin-ia{font-size:11px;font-weight:600;color:var(--violet);background:var(--violet-tint);padding:3px 10px;border-radius:999px}
+  .vclin-more{background:none;border:none;color:var(--accent);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+  .vclin-more:hover{color:var(--accent-deep)}`;
+  document.head.appendChild(st);
+}
 function renderPatientInsights(patient, events) {
   const el = document.getElementById('patientInsights');
   if (!el) return;
@@ -5802,21 +5874,17 @@ function renderPatientAI(patient, events, snapshot) {
     else if (/suivi/i.test(s.titre)) addAct('Planifier le suivi', s.detail, 'Consultation', 'selectPatientForGeneration()');
   });
 
+  // Patient Space 2.0 · Phase B — carte « Vue clinique » calme. Le résumé (IA,
+  // marqué « à vérifier ») est central ; les points/actions ne sont plus répétés
+  // ici (ils vivent dans « Aujourd'hui »), pour ne pas dupliquer l'information.
+  ensureTodayStyles();
   const resume = snapshot && snapshot.synthese_narrative ? snapshot.synthese_narrative : null;
-  const sevDot = (s) => (s === 'important' ? 'd-red' : 'd-amber');
-
-  el.innerHTML = `<div class="pai-row">
-    <div class="pai">
-      <div class="pai-h">Résumé <span class="pai-ia">✦ IA · à vérifier</span></div>
-      <div class="pai-sum"${resume ? ` title="${escapeHtml(resume)}"` : ''}>${resume ? escapeHtml(resume) : '<span style="color:var(--ink-faint)">Synthèse en cours de génération…</span>'}</div>
-    </div>
-    <div class="pai">
-      <div class="pai-h">Points critiques</div>
-      ${crit.length ? crit.slice(0, 4).map((c) => `<div class="pai-li"><span class="pai-dot ${sevDot(c.sev)}"></span><div style="min-width:0;"><div>${escapeHtml(c.label)}</div>${c.detail ? `<div class="pai-sub">${escapeHtml(c.detail)}</div>` : ''}</div></div>`).join('') : '<div class="pai-empty">Rien de critique à signaler.</div>'}
-    </div>
-    <div class="pai">
-      <div class="pai-h">Actions proposées <span class="pai-ia">✦</span></div>
-      ${actions.length ? actions.slice(0, 4).map((a) => `<div class="pai-act"><div style="min-width:0;"><div>${escapeHtml(a.label)}</div>${a.sub ? `<div class="pai-sub">${escapeHtml(a.sub)}</div>` : ''}</div>${a.btn ? `<button onclick="${a.fn}">${a.btn}</button>` : ''}</div>`).join('') : '<div class="pai-empty">Aucune action en attente.</div>'}
+  el.innerHTML = `<div class="vclin">
+    <div class="vclin-h">Vue clinique</div>
+    <div class="vclin-body">${resume ? escapeHtml(resume) : '<span class="vclin-wait">Synthèse générée à l’ouverture du dossier…</span>'}</div>
+    <div class="vclin-foot">
+      <span class="vclin-ia">✦ Synthèse générée à partir du dossier · à vérifier</span>
+      <button class="vclin-more" onclick="pt2ScrollTimeline()">Voir l'historique complet →</button>
     </div>
   </div>`;
 }
@@ -5858,17 +5926,17 @@ function renderPatientHeader(patient, events) {
           <div class="pw-mi" onclick="pwNew('courrier')"><span class="em">✉️</span> Courrier</div>
         </div>
       </div>
-      <button class="btn-export" style="width:auto;padding:0 15px;background:var(--violet-tint);color:var(--violet-deep);border-color:var(--violet-tint);font-weight:600;" onclick="openCopilote()">✦ Discuter</button>
-      <button class="btn-export" style="width:auto;padding:0 15px;" onclick="openClinicalJournal()">📖 Journal clinique</button>
-      <button class="btn-export" style="width:auto;padding:0 15px;" onclick="openHealthGraph()">🗺️ Graphe</button>
-      <button class="btn-export" style="width:auto;padding:0 15px;" onclick="openPatientPortalModal()">Accès patient</button>
-      <button class="btn-export" style="width:auto;padding:0 15px;" onclick="pwShare()">↗ Partager</button>
+      <button class="btn-export" style="width:auto;padding:0 15px;background:var(--violet-tint);color:var(--violet-deep);border-color:var(--violet-tint);font-weight:600;" onclick="openCopilote()">✦ Assistant</button>
       <div class="pw-menu-wrap">
         <button class="btn-export" style="width:42px;padding:0;" onclick="pwToggleMenu(event,'pwMoreMenu')" aria-label="Plus d'actions">•••</button>
-        <div class="pw-menu" id="pwMoreMenu">
-          <div class="pw-mi" onclick="togglePatientFavorite(); pwCloseMenus();"><span class="em">${fav ? '★' : '☆'}</span> ${fav ? 'Épinglé' : 'Épingler le patient'}</div>
+        <div class="pw-menu" id="pwMoreMenu" style="width:220px">
+          <div class="pw-mi" onclick="pwCloseMenus(); openClinicalJournal();"><span class="em">📖</span> Journal clinique</div>
+          <div class="pw-mi" onclick="pwCloseMenus(); openHealthGraph();"><span class="em">🗺️</span> Graphe de santé</div>
+          <div class="pw-mi" onclick="pwCloseMenus(); openPatientPortalModal();"><span class="em">🔑</span> Accès patient</div>
+          <div class="pw-mi" onclick="pwCloseMenus(); pwShare();"><span class="em">↗</span> Partager</div>
           <div class="pw-mi" onclick="pwCloseMenus(); openConsultationSnapshot();"><span class="em">📸</span> Snapshot de la consultation</div>
           <div class="pw-mi" onclick="pwCloseMenus(); var n=document.querySelector('.patient-notes'); if(n)n.scrollIntoView({behavior:'smooth',block:'center'});"><span class="em">📝</span> Notes du dossier</div>
+          <div class="pw-mi" onclick="togglePatientFavorite(); pwCloseMenus();"><span class="em">${fav ? '★' : '☆'}</span> ${fav ? 'Épinglé' : 'Épingler le patient'}</div>
         </div>
       </div>
     </div>
@@ -6523,6 +6591,7 @@ async function openPatientDetail(patientId) {
     currentPatientInfo = data.patient || null;
     currentPatientSnapshot = null;
     renderPatientHeader(data.patient, currentPatientEvents); // Sprint 10 : header premium + actions groupées
+    renderPatientToday(data.patient, currentPatientEvents); // Patient Space 2.0 · Phase A : bloc « Aujourd'hui » en tête
     renderPatientStickyBanner(data.patient, currentPatientEvents); // Sprint 18 : bandeau fixe (Dossier 2.0)
     renderPatientAI(data.patient, currentPatientEvents, null); // Sprint 10b : 3 blocs IA (rendu instantané déterministe, enrichi au snapshot)
     renderDossierAsstEntry(); // Sprint 13 ⑤ : point d'entrée Assistant MediAI dans le rail
