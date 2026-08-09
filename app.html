@@ -1009,24 +1009,37 @@
 
     <div id="view-dashboard" class="app-view visible">
       <!-- ══ Sprint 23 · Dashboard « calme » — salutation · Magic Input · patients récents ══ -->
+      <!-- ══ Sprint · MediAI Calm Dashboard — header · Aujourd'hui · À faire/À surveiller · Accès rapides ══ -->
       <div class="dash-calm">
-        <div class="dc-greet" id="dcGreet">Bonjour</div>
-        <div class="dc-sub">Votre journée, simplement.</div>
+        <div class="dh-top">
+          <div><div class="dc-greet" id="dcGreet">Bonjour</div><div class="dh-date" id="dhDate"></div></div>
+          <div class="dh-actions">
+            <button class="dh-icon" onclick="if(typeof toggleNotifCenter==='function')toggleNotifCenter()" aria-label="Notifications" title="Notifications">🔔</button>
+            <button class="btn-primary dh-new" onclick="dashboardNewConsultation()">＋ Nouvelle</button>
+          </div>
+        </div>
+        <button class="dh-search" onclick="if(typeof openCommandPalette==='function')openCommandPalette()" aria-label="Recherche globale">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span>Rechercher un patient, un document ou une consultation…</span><kbd>⌘K</kbd>
+        </button>
 
-        <!-- ✦ « Le prochain geste » — la seule chose qui compte maintenant (dérivé du cockpit réel) -->
-        <div id="dcNow"></div>
+        <div class="dc-section-label">Aujourd'hui</div>
+        <div id="dashToday"></div>
 
-        <form class="dc-magic" id="dcMagic" onsubmit="event.preventDefault();dashMagicSubmit()">
-          <span class="dc-magic-ic">✦</span>
-          <input id="dcMagicInput" autocomplete="off" placeholder="Que souhaitez-vous faire ?" oninput="dashMagicInputChange()">
-          <button type="submit" class="dc-magic-go" id="dcMagicGo" aria-label="Envoyer">→</button>
-        </form>
-        <div class="dc-suggests" id="dcSuggests"></div>
+        <div class="dash-grid2">
+          <div><div class="dc-section-label">À faire</div><div id="dashTodo"></div></div>
+          <div><div class="dc-section-label">À surveiller</div><div id="dashAttention"></div></div>
+        </div>
 
-        <div class="dc-section-label" id="dcNextLabel">Patients récents</div>
-        <div class="dc-recents" id="dcRecents"></div>
+        <div class="dc-section-label">Accès rapides</div>
+        <div class="dash-quick">
+          <button onclick="dashboardNewConsultation()"><span class="q-ic">🎙</span>Dictée médicale</button>
+          <button onclick="switchAppView('documents')"><span class="q-ic">📄</span>Analyser un document</button>
+          <button onclick="dashboardNewConsultation()"><span class="q-ic">✦</span>Compte rendu instantané</button>
+          <button onclick="switchAppView('patients')"><span class="q-ic">📝</span>Nouvelle note</button>
+        </div>
 
-        <button class="dc-detail" onclick="dashToggleDetail(this)">Voir le détail de ma journée ↓</button>
+        <button class="dc-detail" onclick="dashToggleDetail(this)">Statistiques de la journée ↓</button>
         <div id="dashDetail" style="display:none;margin-top:16px;">
           <div id="dashBand"></div>
           <div id="dashCards"></div>
@@ -2896,13 +2909,105 @@ async function renderDashboard() {
   const h = new Date().getHours();
   const gw = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
   const nom = (currentUser.profile && currentUser.profile.nom) || '';
-  const g = document.getElementById('dcGreet'); if (g) g.textContent = gw + (nom ? ' Dr ' + nom : '');
-  const sg = document.getElementById('dcSuggests');
-  if (sg) sg.innerHTML = DASH_SUGGESTS.map(s => `<span class="dc-sg" onclick="dashSuggest(this)">${escapeHtml(s)}</span>`).join('');
-  renderDashRecents();
-  dashMagicInputChange();
-  // Le cockpit (déjà calculé côté serveur) alimente « Le prochain geste » + le détail replié.
-  fetchCockpit().then(d => { cockpitState.data = d; renderDashNow(); if (document.getElementById('dashDetail')) { renderAuroraBand(); renderAuroraCards(); } loadCockpitBriefing(); }).catch(() => {});
+  const g = document.getElementById('dcGreet'); if (g) g.textContent = gw + (nom ? ' Dr ' + nom : '') + ' \u{1F44B}';
+  ensureCalmDashStyles();
+  const dt = document.getElementById('dhDate'); if (dt) { let s = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); dt.textContent = s.charAt(0).toUpperCase() + s.slice(1); }
+  const today = document.getElementById('dashToday'); if (today && !cockpitState.data) today.innerHTML = '<div class="dt-empty">Chargement de votre journée…</div>';
+  // Le cockpit (déjà calculé côté serveur) alimente Aujourd'hui · À faire · À surveiller.
+  fetchCockpit().then(d => {
+    cockpitState.data = d;
+    renderDashToday(); renderDashTodo(); renderDashAttention();
+    if (document.getElementById('dashDetail')) { renderAuroraBand(); renderAuroraCards(); }
+    loadCockpitBriefing();
+  }).catch(() => { renderDashToday(); renderDashTodo(); renderDashAttention(); });
+}
+// ── Sprint · Calm Dashboard — les 3 blocs, dérivés du cockpit réel ──
+function renderDashToday() {
+  const el = document.getElementById('dashToday'); if (!el) return;
+  const d = cockpitState.data || {}; const now = Date.now(); const t = new Date();
+  const agenda = (d.agenda || []).filter(a => { const x = new Date(a.start_at); return x.getFullYear() === t.getFullYear() && x.getMonth() === t.getMonth() && x.getDate() === t.getDate(); }).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+  if (!agenda.length) { el.innerHTML = '<div class="dt-empty">Aucun rendez-vous prévu aujourd’hui. Belle journée.</div>'; return; }
+  el.innerHTML = agenda.map(a => {
+    const start = new Date(a.start_at).getTime();
+    const st = (now >= start - 15 * 60000 && now < start + 30 * 60000) ? { t: 'En cours', c: 'ec' } : (now >= start + 30 * 60000 ? { t: 'Terminé', c: 'done' } : { t: 'À venir', c: 'up' });
+    const name = a.patient_nom || 'Nouveau patient';
+    const sub = a.patient_id ? (a.motif || 'Consultation') : 'Consultation initiale';
+    const clk = a.patient_id;
+    return `<div class="dt-row${clk ? '' : ' nolink'}"${clk ? ` role="button" tabindex="0" onclick="openPatientDetail('${a.patient_id}')" onkeydown="if(event.key==='Enter')openPatientDetail('${a.patient_id}')"` : ''}>
+      <div class="dt-time">${ckptTime(a.start_at)}</div>
+      <div class="dt-main"><div class="dt-name">${escapeHtml(name)}</div><div class="dt-sub">${escapeHtml(sub)}</div></div>
+      <span class="dt-status ${st.c}">${st.t}</span>${clk ? '<span class="dt-chev">›</span>' : ''}</div>`;
+  }).join('');
+}
+function renderDashTodo() {
+  const el = document.getElementById('dashTodo'); if (!el) return;
+  const d = cockpitState.data || {}; const items = [];
+  (d.priorites || []).slice(0, 3).forEach(p => items.push({ dot: p.severite === 'important' ? 'red' : 'amber', t: (p.signals && p.signals[0] ? p.signals[0].titre : 'Point à revoir'), s: ((p.prenom || '') + ' ' + (p.nom || '')).trim(), pid: p.patient_id }));
+  (d.ordonnances_a_renouveler || []).slice(0, 2).forEach(r => items.push({ dot: (r.jours_restants <= 0 ? 'red' : 'amber'), t: 'Vérifier / renouveler le traitement', s: ((r.prenom || '') + ' ' + (r.nom || '')).trim(), pid: r.patient_id }));
+  (d.resultats_recents || []).slice(0, 2).forEach(r => items.push({ dot: 'doc', t: 'Résultat à revoir', s: ((r.prenom || '') + ' ' + (r.nom || '')).trim(), pid: r.patient_id }));
+  if (!items.length) { el.innerHTML = '<div class="dt-ok">✓ Rien à faire dans l’immédiat.</div>'; return; }
+  const ic = { red: '🔴', amber: '🟠', doc: '📄' };
+  el.innerHTML = items.slice(0, 5).map(i => `<div class="td-row"${i.pid ? ` role="button" tabindex="0" onclick="openPatientDetail('${i.pid}')"` : ''}><span class="td-ic">${ic[i.dot] || '•'}</span><div style="min-width:0"><div class="td-t">${escapeHtml(i.t)}</div>${i.s ? `<div class="td-s">${escapeHtml(i.s)}</div>` : ''}</div></div>`).join('');
+}
+function renderDashAttention() {
+  const el = document.getElementById('dashAttention'); if (!el) return;
+  const pr = (cockpitState.data || {}).priorites || [];
+  if (!pr.length) { el.innerHTML = '<div class="at-ok"><div class="at-ok-t">✓ Rien à surveiller</div><div class="at-ok-s">Aucun patient ne requiert d’attention particulière.</div></div>'; return; }
+  const top = pr.slice(0, 2).map(p => `<div class="at-p"${p.patient_id ? ` role="button" tabindex="0" onclick="openPatientDetail('${p.patient_id}')"` : ''}><div class="at-p-n">${escapeHtml(((p.prenom || '') + ' ' + (p.nom || '')).trim())}</div><div class="at-p-s" style="color:${p.severite === 'important' ? '#B42318' : '#9A6700'}">${p.severite === 'important' ? 'Action recommandée' : 'Suivi à vérifier'}</div></div>`).join('');
+  el.innerHTML = `<div class="at-lead">${pr.length} patient${pr.length > 1 ? 's' : ''} nécessite${pr.length > 1 ? 'nt' : ''} votre attention</div>${top}<button class="at-more" onclick="switchAppView('patients')">Voir les patients →</button>`;
+}
+function ensureCalmDashStyles() {
+  if (document.getElementById('calmDashStyles')) return;
+  const st = document.createElement('style'); st.id = 'calmDashStyles';
+  st.textContent = `
+  #view-dashboard .dash-calm{max-width:860px}
+  .dh-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+  .dh-date{font-size:15px;color:var(--ink-faint);margin-top:4px;text-transform:capitalize}
+  .dh-actions{display:flex;align-items:center;gap:10px}
+  .dh-icon{width:40px;height:40px;border-radius:12px;border:1px solid var(--paper-line);background:var(--card);cursor:pointer;font-size:15px}
+  .dh-icon:hover{background:var(--paper)}
+  .dh-new{padding:10px 18px;font-size:14px}
+  .dh-search{display:flex;align-items:center;gap:11px;width:100%;height:48px;border:1px solid var(--paper-line);background:var(--card);border-radius:14px;padding:0 16px;cursor:text;color:var(--ink-faint);font-family:inherit;font-size:14.5px;margin-bottom:8px;transition:border-color .15s,box-shadow .15s}
+  .dh-search:hover{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+  .dh-search svg{width:18px;height:18px;flex:none}
+  .dh-search span{flex:1;text-align:left}
+  .dh-search kbd{font-family:inherit;font-size:11.5px;font-weight:700;color:var(--ink-faint);background:var(--paper);border:1px solid var(--paper-line);border-radius:6px;padding:2px 7px}
+  #dashToday{display:flex;flex-direction:column;margin-bottom:6px}
+  .dt-row{display:flex;align-items:center;gap:16px;padding:14px 12px;border-radius:12px;cursor:pointer;transition:background .14s}
+  .dt-row:hover{background:var(--card)}
+  .dt-row.nolink{cursor:default}
+  .dt-row.nolink:hover{background:transparent}
+  .dt-time{font-size:14px;font-weight:700;color:var(--ink);width:52px;flex:none}
+  .dt-main{flex:1;min-width:0}
+  .dt-name{font-size:15.5px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+  .dt-sub{font-size:13px;color:var(--ink-faint);margin-top:2px}
+  .dt-status{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:3px 10px;border-radius:999px;white-space:nowrap}
+  .dt-status.ec{background:var(--accent-tint);color:var(--accent-deep)}
+  .dt-status.up{background:var(--paper);color:var(--ink-faint)}
+  .dt-status.done{background:var(--green-tint);color:var(--green-deep)}
+  .dt-chev{color:var(--ink-faint);font-size:18px;flex:none}
+  .dt-empty,.dt-ok{padding:16px 12px;color:var(--ink-faint);font-size:14px}
+  .dt-ok{color:var(--green-deep);font-weight:600}
+  .dash-grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:14px 0 6px}
+  .td-row{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border-radius:12px;cursor:pointer;transition:background .14s}
+  .td-row:hover{background:var(--card)}
+  .td-ic{font-size:13px;margin-top:1px}
+  .td-t{font-size:14px;font-weight:600;color:var(--ink)}
+  .td-s{font-size:12.5px;color:var(--ink-faint);margin-top:1px}
+  .at-lead{font-size:14px;color:var(--ink-soft);margin-bottom:14px;line-height:1.5}
+  .at-p{padding:9px 12px;border-radius:12px;cursor:pointer;transition:background .14s}
+  .at-p:hover{background:var(--card)}
+  .at-p-n{font-size:14.5px;font-weight:700;color:var(--ink)}
+  .at-p-s{font-size:12.5px;font-weight:600;margin-top:1px}
+  .at-more{margin-top:12px;background:none;border:none;color:var(--accent);font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;padding:6px 0}
+  .at-ok-t{font-size:14.5px;font-weight:700;color:var(--green-deep)}
+  .at-ok-s{font-size:12.5px;color:var(--ink-soft);margin-top:3px}
+  .dash-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
+  .dash-quick button{display:flex;flex-direction:column;align-items:flex-start;gap:10px;background:var(--card);border:1px solid var(--paper-line);border-radius:16px;padding:16px 16px;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;transition:transform .15s var(--ease),box-shadow .2s}
+  .dash-quick button:hover{transform:translateY(-2px);box-shadow:0 8px 26px -14px rgba(20,33,66,.22)}
+  .dash-quick .q-ic{font-size:20px}
+  @media(max-width:760px){.dash-grid2{grid-template-columns:1fr}.dash-quick{grid-template-columns:1fr 1fr}}`;
+  document.head.appendChild(st);
 }
 // ✦ « Le prochain geste » — une seule chose au centre, dérivée des signaux réels
 // du cockpit (agenda, priorités, résultats). Jamais inventé ; fallbacks calmes.
