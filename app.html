@@ -885,6 +885,28 @@
   .ia-hub-card p{ font-size:13px; color:var(--ink-soft); line-height:1.6; margin-bottom:14px; }
   .ia-hub-location{ font-family:var(--sans); font-size:11px; font-weight:600; color:var(--accent-deep); background:var(--accent-tint); padding:4px 10px; border-radius:var(--r-full); display:inline-block; }
   .ia-hub-card.muted .ia-hub-location{ color:var(--ink-faint); background:var(--paper); }
+  /* Sprint 25 — IA Assist : action principale + actions rapides, catalogue démoté */
+  .ia-hero{ display:flex; align-items:center; gap:16px; width:100%; text-align:left; cursor:pointer;
+    background:linear-gradient(135deg, var(--accent-tint), var(--card)); border:1px solid var(--tint-border);
+    border-radius:var(--r-lg); padding:20px 22px; margin-bottom:14px; font-family:inherit;
+    transition:box-shadow .2s ease, transform .18s ease, border-color .18s ease; }
+  .ia-hero:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); border-color:var(--accent); }
+  .ia-hero-mk{ flex:none; width:46px; height:46px; border-radius:13px; display:grid; place-items:center; font-size:22px;
+    background:linear-gradient(135deg, var(--violet), var(--blue)); color:#fff; }
+  .ia-hero-tx{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .ia-hero-t{ font-size:16px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+  .ia-hero-s{ font-size:13px; color:var(--ink-soft); line-height:1.45; }
+  .ia-hero-go{ margin-left:auto; flex:none; color:var(--accent); font-size:20px; font-weight:700; }
+  .ia-quick{ display:flex; gap:9px; flex-wrap:wrap; margin-bottom:14px; }
+  .ia-quick-chip{ display:inline-flex; align-items:center; gap:8px; font-family:inherit; font-size:13px; font-weight:600;
+    padding:9px 14px; border-radius:var(--r-full); background:var(--card); border:1px solid var(--paper-line);
+    color:var(--ink); cursor:pointer; transition:border-color .15s, box-shadow .15s, color .15s; }
+  .ia-quick-chip:hover{ border-color:var(--accent); color:var(--accent-deep); box-shadow:var(--shadow-xs); }
+  .ia-quick-chip span{ font-size:15px; }
+  .ia-disc{ font-size:12px; color:var(--ink-faint); line-height:1.5; margin-bottom:30px; max-width:60ch; }
+  .ia-cat-lead{ font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:14px; }
+  #view-ia-hub .ia-hub-card{ box-shadow:none; }
+  #view-ia-hub .ia-hub-card:hover{ transform:none; box-shadow:var(--shadow-xs); }
 
   /* Paramètres */
   .settings-list{ display:flex; flex-direction:column; gap:2px; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--shadow-xs); max-width:640px; }
@@ -1263,8 +1285,28 @@
     <div id="view-ia-hub" class="app-view">
       <div class="dash-header">
         <div class="dash-greeting">Assistant IA</div>
-        <div class="dash-date">Les outils intelligents de MediAI, tous réunis ici</div>
+        <div class="dash-date" style="text-transform:none">Demandez de l'aide à MediAI — réponses établies à partir de vos données.</div>
       </div>
+
+      <button type="button" class="ia-hero" onclick="openCopiloteGlobal()">
+        <span class="ia-hero-mk">✦</span>
+        <span class="ia-hero-tx">
+          <span class="ia-hero-t">Demander à MediAI</span>
+          <span class="ia-hero-s">Votre copilote pour exploiter votre journée, un dossier, vos documents.</span>
+        </span>
+        <span class="ia-hero-go">→</span>
+      </button>
+
+      <div class="ia-quick">
+        <button type="button" class="ia-quick-chip" onclick="iaAsk('Prépare ma journée.')"><span>🗓️</span> Préparer ma journée</button>
+        <button type="button" class="ia-quick-chip" onclick="iaAsk('Quels patients sont à regarder en priorité ?')"><span>⚠️</span> Patients à regarder</button>
+        <button type="button" class="ia-quick-chip" onclick="iaAsk('Quelles ordonnances sont à renouveler ?')"><span>💊</span> Ordonnances à renouveler</button>
+        <button type="button" class="ia-quick-chip" onclick="iaAsk('Quels examens sont arrivés cette semaine ?')"><span>🔬</span> Examens arrivés</button>
+      </div>
+
+      <div class="ia-disc">Réponses établies à partir de vos données. À vérifier — l'IA assiste, elle ne pose jamais de diagnostic.</div>
+
+      <div class="ia-cat-lead">Où l'IA vous assiste déjà</div>
       <div class="ia-hub-grid">
         <div class="ia-hub-card">
           <div class="ia-hub-icon">✨</div>
@@ -6512,6 +6554,8 @@ async function openCopiloteGlobal() {
 }
 // Choisit le bon mode selon le contexte : dossier ouvert → dossier, sinon cockpit.
 function openCopiloteSmart() { if (currentDetailPatientId) openCopilote(); else openCopiloteGlobal(); }
+// IA Assist — lance le copilote global avec une demande pré-écrite (réponse déterministe depuis la journée).
+async function iaAsk(q) { await openCopiloteGlobal(); copiloteSuggest(q); }
 function copShowPanel() {
   copiloteRender();
   document.getElementById('copiloteScrim').classList.add('open');
