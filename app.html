@@ -733,7 +733,10 @@
   .app-content-inner{ padding:32px 36px 80px; max-width:1080px; margin:0 auto; }
 
   .app-view{ display:none; }
-  .app-view.visible{ display:block; }
+  /* Sprint 25 — arrivée harmonisée : même transition douce pour toutes les vues */
+  @keyframes appViewIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  .app-view.visible{ display:block; animation:appViewIn .28s var(--ease-out, cubic-bezier(.22,.61,.36,1)) both; }
+  @media (prefers-reduced-motion: reduce){ .app-view.visible{ animation:none; } }
   .app-view.patients-section{ max-width:none; margin:0; padding:0; }
   .app-view.station{ max-width:none; margin:0; padding:0; }
   .app-view.chart-section{ max-width:none; margin:32px 0 0; padding:0; }
