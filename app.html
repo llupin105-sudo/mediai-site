@@ -450,7 +450,21 @@
   .diag-card{ background:var(--accent-tint); border-radius:8px; padding:16px 18px; margin-bottom:14px; }
   .diag-main{ font-size:16px; font-weight:600; color:var(--accent-deep); margin-bottom:4px; }
   .diag-code{ font-family:var(--mono); font-size:12px; color:var(--ink-soft); }
-  .export-row{ display:flex; gap:10px; margin-top:28px; flex-wrap:wrap; max-width:900px; margin-left:auto; margin-right:auto; }
+  .export-row{ display:flex; align-items:center; gap:10px; margin-top:28px; flex-wrap:wrap; max-width:900px; margin-left:auto; margin-right:auto; }
+  /* Barre SOAP hiérarchisée : Ordonnance (primaire) · Courrier (secondaire) · ⋯ Plus · reset */
+  .soap-primary,.soap-secondary,.soap-more,.soap-reset{ height:var(--btn-h); padding:0 18px; border-radius:var(--btn-radius); font-family:var(--sans); font-size:13.5px; font-weight:600; cursor:pointer; transition:var(--btn-transition); display:inline-flex; align-items:center; justify-content:center; gap:7px; white-space:nowrap; }
+  .soap-primary{ background:var(--accent); border:1px solid var(--accent); color:#fff; }
+  .soap-primary:hover{ background:var(--accent-deep); border-color:var(--accent-deep); box-shadow:var(--shadow-sm); }
+  .soap-secondary{ background:var(--card); border:1px solid var(--paper-line); color:var(--ink); }
+  .soap-secondary:hover{ border-color:var(--accent); color:var(--accent-deep); }
+  .soap-more-wrap{ position:relative; }
+  .soap-more{ background:var(--card); border:1px solid var(--paper-line); color:var(--ink-soft); font-weight:500; }
+  .soap-more:hover{ border-color:var(--accent); color:var(--accent-deep); }
+  .soap-menu{ position:absolute; top:calc(100% + 8px); left:0; z-index:40; min-width:210px; background:var(--card); border:1px solid var(--paper-line); border-radius:12px; box-shadow:var(--shadow-lg); padding:6px; display:flex; flex-direction:column; }
+  .soap-menu button{ display:flex; align-items:center; gap:9px; width:100%; text-align:left; background:none; border:none; border-radius:8px; padding:10px 12px; font-family:var(--sans); font-size:13.5px; font-weight:500; color:var(--ink); cursor:pointer; transition:background .14s; }
+  .soap-menu button:hover{ background:var(--paper); }
+  .soap-reset{ margin-left:auto; background:none; border:1px solid transparent; color:var(--ink-faint); font-weight:500; }
+  .soap-reset:hover{ color:var(--ink); background:var(--paper); }
   .btn-export{ flex:1; min-width:160px; height:var(--btn-h); padding:0 16px; text-align:center; border:1px solid var(--paper-line); border-radius:var(--btn-radius); background:var(--card); font-size:13.5px; font-weight:500; color:var(--ink-soft); cursor:pointer; transition:var(--btn-transition); font-family:var(--sans); display:inline-flex; align-items:center; justify-content:center; gap:6px; }
   /* ── Sprint 9 — bouton CANONIQUE .btn (composant réutilisable du design system) ── */
   .btn{ height:var(--btn-h); padding:0 var(--space-4); border-radius:var(--btn-radius); border:1px solid transparent; font-family:var(--sans); font-size:13.5px; font-weight:600; cursor:pointer; transition:var(--btn-transition); display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2); white-space:nowrap; }
@@ -1267,12 +1281,17 @@
     </div>
   </div>
   <div class="export-row">
-    <button class="btn-export" onclick="openOrdonnanceModal()">💊 Générer l'ordonnance</button>
-    <button class="btn-export" onclick="openCourrierModal()">✍️ Générer un courrier</button>
-    <button class="btn-export" onclick="exportPdf()">📄 Exporter en PDF</button>
-    <button class="btn-export" onclick="openEmailModal()">✉️ Envoyer par email</button>
-    <button class="btn-export" onclick="window.print()">🖨️ Imprimer</button>
-    <button class="btn-export" onclick="resetChart()">← Nouvelle consultation</button>
+    <button class="soap-primary" onclick="openOrdonnanceModal()">💊 Générer l'ordonnance</button>
+    <button class="soap-secondary" onclick="openCourrierModal()">✍️ Générer un courrier</button>
+    <div class="soap-more-wrap">
+      <button class="soap-more" onclick="toggleSoapMore(event)" aria-haspopup="true" aria-expanded="false" title="Exporter, envoyer, imprimer">⋯ Plus</button>
+      <div class="soap-menu" id="soapMore" hidden role="menu">
+        <button role="menuitem" onclick="closeSoapMore();exportPdf()">📄 Exporter en PDF</button>
+        <button role="menuitem" onclick="closeSoapMore();openEmailModal()">✉️ Envoyer par email</button>
+        <button role="menuitem" onclick="closeSoapMore();window.print()">🖨️ Imprimer</button>
+      </div>
+    </div>
+    <button class="soap-reset" onclick="resetChart()">← Nouvelle consultation</button>
   </div>
   <div class="anon-strip"><span class="dot"></span><span id="anonStrip">Données anonymisées avant analyse</span></div>
 </section>
@@ -9771,6 +9790,19 @@ function resetChart() {
   document.getElementById('generateBtn').disabled = true;
   document.getElementById('chartSection').classList.remove('visible');
   document.querySelector('.station').scrollIntoView({ behavior: 'smooth' });
+}
+// Menu « Plus » de la barre SOAP (export/email/impression) — actions secondaires repliées.
+function toggleSoapMore(e) {
+  if (e) e.stopPropagation();
+  const m = document.getElementById('soapMore'); if (!m) return;
+  const willOpen = m.hidden;
+  m.hidden = !willOpen;
+  const b = document.querySelector('.soap-more'); if (b) b.setAttribute('aria-expanded', String(willOpen));
+  if (willOpen) setTimeout(function () { document.addEventListener('click', closeSoapMore, { once: true }); }, 0);
+}
+function closeSoapMore() {
+  const m = document.getElementById('soapMore'); if (m) m.hidden = true;
+  const b = document.querySelector('.soap-more'); if (b) b.setAttribute('aria-expanded', 'false');
 }
 
 // ── Paywall modal ─────────────────────────────────────────────
