@@ -8285,7 +8285,10 @@ function renderMarketplace() {
 async function renderDocumentCenter() {
   const el = document.getElementById('view-documents'); if (!el) return;
   ensureDocCenterStyles();
-  el.innerHTML = `<div class="dash-header"><div class="dash-greeting">Documents</div><div class="dash-date">Tous vos documents, regroupés</div></div>
+  el.innerHTML = `<div class="dc-head">
+      <div><div class="dash-greeting">Documents</div><div class="dash-date" style="text-transform:none">Tous vos documents, regroupés</div></div>
+      <button class="dc-new" onclick="openQuickCreate('document')">＋ Nouveau document</button>
+    </div>
     <div id="dcFav"></div>
     <div class="dc-tabs" id="dcTabs"></div>
     <div class="dc-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="dcSearch" placeholder="Rechercher un document — instantané" oninput="onDocSearch()"></div>
@@ -8314,7 +8317,14 @@ function renderDocList() {
     if (q && !(`${e.title} ${e.patientPrenom || ''} ${e.patientNom || ''} ${TL_TYPES[e.type] ? TL_TYPES[e.type].label : e.type}`.toLowerCase().includes(q))) return false;
     return true;
   });
-  if (!list.length) { el.innerHTML = `<div class="dc-empty">Aucun document ${docCenterState.tab === 'all' ? '' : 'de ce type '}${q ? 'pour cette recherche' : ''}.</div>`; return; }
+  if (!list.length) {
+    if (docCenterState.tab === 'all' && !q) {
+      el.innerHTML = `<div class="dc-empty-lg"><div class="dc-empty-ic">🗂️</div><div class="dc-empty-t">Aucun document pour l’instant</div><div class="dc-empty-s">Les comptes-rendus, ordonnances et résultats de vos patients apparaîtront ici.</div><button class="dc-new" onclick="openQuickCreate('document')">＋ Nouveau document</button></div>`;
+    } else {
+      el.innerHTML = `<div class="dc-empty">Aucun document ${docCenterState.tab === 'all' ? '' : 'de ce type '}${q ? 'pour cette recherche' : ''}.</div>`;
+    }
+    return;
+  }
   // Performance : pagination « Voir plus » (rendu par pages de 40).
   const PAGE = 40;
   const page = docCenterState.page || 1;
@@ -8345,10 +8355,13 @@ function ensureDocCenterStyles() {
   const st = document.createElement('style');
   st.id = 'dcStyles';
   st.textContent = `
+  .dc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:var(--space-6)}
+  .dc-new{flex:none;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;border:none;border-radius:11px;padding:10px 16px;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s,box-shadow .2s}
+  .dc-new:hover{background:var(--accent-deep);box-shadow:var(--shadow-sm)}
   .dc-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:18px 0 4px}
   .dc-tab{font-size:12.5px;font-weight:500;padding:8px 14px;border-radius:999px;border:1px solid var(--paper-line);background:var(--card);color:var(--ink-soft);cursor:pointer;transition:border-color .15s,color .15s,background .15s;display:inline-flex;align-items:center;gap:7px}
   .dc-tab:hover{border-color:#CDD8E6;color:var(--ink)}
-  .dc-tab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .dc-tab.on{background:var(--accent-tint);color:var(--accent-deep);border-color:var(--tint-border);font-weight:600}
   .dc-n{font-size:11px;opacity:.7}
   .dc-search{position:relative;margin:14px 0 4px;max-width:520px}
   .dc-search input{width:100%;height:42px;border:1px solid var(--paper-line);border-radius:12px;padding:0 14px 0 40px;font-family:var(--sans);font-size:13.5px;background:var(--paper);color:var(--ink)}
@@ -8365,6 +8378,10 @@ function ensureDocCenterStyles() {
   .dc-pin:hover{background:var(--accent-tint);color:var(--accent-deep)}
   .dc-pin.on{color:var(--amber)}
   .dc-empty{font-size:13.5px;color:var(--ink-faint);padding:24px 8px}
+  .dc-empty-lg{text-align:center;padding:56px 24px;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .dc-empty-ic{font-size:38px;opacity:.85}
+  .dc-empty-t{font-size:16px;font-weight:700;color:var(--ink)}
+  .dc-empty-s{font-size:13.5px;color:var(--ink-soft);max-width:38ch;line-height:1.5;margin-bottom:8px}
   .dc-fav{background:var(--card);border:1px solid var(--paper-line);border-radius:14px;padding:15px 18px;margin-bottom:8px}
   .dc-fav-h{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px}
   .dc-fav-row{display:flex;gap:9px;flex-wrap:wrap}
