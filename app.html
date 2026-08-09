@@ -184,8 +184,20 @@
     font-size:13.5px; color:var(--accent-deep); font-weight:500;
   }
   .patient-selector:hover{ background:var(--blue-tint-2); }
-  .patient-selector.empty{ background:var(--amber-tint); color:var(--amber); border-color:rgba(245,158,11,.28); }
+  /* Sélecteur vide = invitation calme (pas une alarme ambre) */
+  .patient-selector.empty{ background:var(--paper); color:var(--ink-soft); border-color:var(--paper-line); font-weight:500; }
+  .patient-selector.empty:hover{ background:var(--card); border-color:var(--accent); color:var(--accent-deep); }
   .patient-selector-change{ font-family:var(--mono); font-size:11px; opacity:.75; }
+
+  /* Sprint 25 — Consultation calme : en-tête, Focus discret, quota silencieux */
+  .consult-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px; }
+  .consult-head h1{ font-size:22px; font-weight:700; letter-spacing:-.02em; color:var(--ink); margin:0; }
+  .consult-head p{ font-size:13.5px; color:var(--ink-faint); margin:5px 0 0; line-height:1.45; max-width:42ch; }
+  .consult-focus{ flex:none; display:inline-flex; align-items:center; gap:6px; background:none; border:1px solid var(--paper-line); border-radius:999px; padding:7px 14px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ink-soft); cursor:pointer; transition:border-color .15s, color .15s, background .15s; }
+  .consult-focus:hover{ border-color:var(--accent); color:var(--accent-deep); background:var(--accent-tint); }
+  .consult-suggest{ display:block; margin:14px auto 0; background:none; border:none; font-family:inherit; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; padding:6px 4px; transition:color .15s; }
+  .consult-suggest:hover{ color:var(--accent-deep); }
+  .usage-strip.quiet{ margin:24px 0 0; padding:14px 0 0; border-top:1px solid var(--paper-line); border-bottom:none; opacity:.72; }
 
   /* ── Section Mes patients ─────────────────────────────────────── */
   .patients-section{ max-width:900px; margin:56px auto 0; padding:0 2rem 100px; display:none; }
@@ -1121,16 +1133,18 @@
       <section class="station" id="outil">
   <div class="station-card">
 
-    <div class="usage-strip">
-      <span id="usageLabel">3 actions IA gratuites / mois</span>
-      <div class="usage-bar" id="usageBar"></div>
+    <div class="consult-head">
+      <div>
+        <h1>Consultation</h1>
+        <p>Dictez ou collez vos notes — MediAI structure le compte-rendu.</p>
+      </div>
+      <button type="button" class="consult-focus" onclick="toggleFocusMode()" title="Consultation plein écran, sans distraction">🎯 Focus</button>
     </div>
 
-    <div class="patient-selector" id="patientSelectorBar" onclick="openPatientPicker()">
+    <div class="patient-selector empty" id="patientSelectorBar" onclick="openPatientPicker()">
       <span id="selectedPatientLabel">👤 Sélectionner un patient</span>
       <span class="patient-selector-change">changer →</span>
     </div>
-    <button onclick="toggleFocusMode()" style="width:100%; margin-bottom:16px; background:none; border:1px dashed var(--paper-line); border-radius:10px; height:40px; cursor:pointer; color:var(--ink-soft); font-size:13px; font-weight:500; transition:border-color .16s, color .16s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent-deep)'" onmouseout="this.style.borderColor='var(--paper-line)';this.style.color='var(--ink-soft)'">🎯 Mode Focus — consultation sans distraction</button>
 
     <div id="prepBriefingCard" style="display:none; background:var(--clinical-tint); border-radius:10px; padding:16px 18px; margin-bottom:20px;">
       <div style="font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--clinical); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
@@ -1165,7 +1179,7 @@
 
     <textarea class="transcript-box" id="transcriptBox" data-autosave="consultation-dictee" placeholder="Consultation du... Le patient se plaint de... À l'examen... Je prescris..."></textarea>
 
-    <button type="button" class="btn-export" style="width:100%; margin-top:10px; margin-bottom:4px;" onclick="suggestSymptomQuestions()" id="symptomQuestionsBtn">💡 Suggestions de questions à poser</button>
+    <button type="button" class="consult-suggest" onclick="suggestSymptomQuestions()" id="symptomQuestionsBtn">💡 Suggestions de questions à poser</button>
     <div id="symptomQuestionsResult" style="display:none; margin-top:8px; margin-bottom:8px; background:var(--clinical-tint); border-radius:8px; padding:14px 16px; font-size:13px; line-height:1.6;"></div>
 
     <div class="specialty-row">
@@ -1183,6 +1197,11 @@
     </div>
 
     <div class="error-msg" id="errorMsg"></div>
+
+    <div class="usage-strip quiet">
+      <span id="usageLabel">3 actions IA gratuites / mois</span>
+      <div class="usage-bar" id="usageBar"></div>
+    </div>
   </div>
 </section>
       <section class="chart-section" id="chartSection">
