@@ -603,6 +603,9 @@
   .sidebar-link .icon{ width:18px; height:18px; flex-shrink:0; display:flex; align-items:center; justify-content:center; opacity:.75; transition:opacity var(--dur-2) var(--ease); }
   .sidebar-link:hover .icon, .sidebar-link.active .icon{ opacity:1; }
   .sidebar-link .icon svg{ width:17px; height:17px; }
+  /* Compteur « Alertes » — même source que le badge de la cloche */
+  .sidebar-link .nav-count{ margin-left:auto; background:var(--accent); color:#fff; font-size:11px; font-weight:800; line-height:1; min-width:18px; height:18px; padding:0 5px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; flex:none; }
+  #appSidebar.collapsed .sidebar-link .nav-count{ position:absolute; top:4px; right:4px; margin:0; min-width:15px; height:15px; font-size:9.5px; padding:0 3px; }
 
   /* Mode réduit : icônes seules + tooltips élégants */
   #appSidebar.collapsed .sidebar-link span.label{ display:none; }
@@ -934,6 +937,12 @@
     <button class="sidebar-link" data-view="documents" data-tooltip="Documents" onclick="switchAppView('documents')">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
       <span class="label">Documents</span>
+    </button>
+
+    <button class="sidebar-link nav-alertes" data-tooltip="Alertes" onclick="toggleNotifCenter()" aria-label="Alertes">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+      <span class="label">Alertes</span>
+      <span class="nav-count" id="navAlertCount" hidden></span>
     </button>
 
     <button class="sidebar-link nav-intel" data-tooltip="Intelligence MediAI" onclick="openCopiloteGlobal()">
@@ -2609,17 +2618,24 @@ async function updateNotifBadge() {
   const bell = document.getElementById('notifBell');
   const badge = document.getElementById('notifBadge');
   if (!bell || !badge) return;
-  if (!currentUser) { bell.style.display = 'none'; return; }
+  if (!currentUser) { bell.style.display = 'none'; setNavAlertCount(0); return; }
   bell.style.display = 'flex';
   const last = getNotifLastSeen();
-  if (last === null) { setNotifLastSeen(Date.now()); badge.classList.remove('show'); return; }
+  if (last === null) { setNotifLastSeen(Date.now()); badge.classList.remove('show'); setNavAlertCount(0); return; }
   try {
     const events = await fetchAllEvents();
     const appts = await fetchUpcomingAppointments();
     const n = events.filter((e) => notifTime(e) > last).length + appts.length;
     if (n > 0) { badge.textContent = n > 9 ? '9+' : String(n); badge.classList.add('show'); }
     else badge.classList.remove('show');
-  } catch { badge.classList.remove('show'); }
+    setNavAlertCount(n);
+  } catch { badge.classList.remove('show'); setNavAlertCount(0); }
+}
+// Alertes (sidebar) — même source que le badge de la cloche, jamais de nombre inventé.
+function setNavAlertCount(n) {
+  const el = document.getElementById('navAlertCount'); if (!el) return;
+  if (n > 0) { el.textContent = n > 9 ? '9+' : String(n); el.hidden = false; }
+  else el.hidden = true;
 }
 
 function notifGroupLabel(t) {
@@ -2942,9 +2958,13 @@ function renderDashToday() {
 function renderDashTodo() {
   const el = document.getElementById('dashTodo'); if (!el) return;
   const d = cockpitState.data || {}; const items = [];
-  (d.priorites || []).slice(0, 3).forEach(p => items.push({ dot: p.severite === 'important' ? 'red' : 'amber', t: (p.signals && p.signals[0] ? p.signals[0].titre : 'Point à revoir'), s: ((p.prenom || '') + ' ' + (p.nom || '')).trim(), pid: p.patient_id }));
-  (d.ordonnances_a_renouveler || []).slice(0, 2).forEach(r => items.push({ dot: (r.jours_restants <= 0 ? 'red' : 'amber'), t: 'Vérifier / renouveler le traitement', s: ((r.prenom || '') + ' ' + (r.nom || '')).trim(), pid: r.patient_id }));
-  (d.resultats_recents || []).slice(0, 2).forEach(r => items.push({ dot: 'doc', t: 'Résultat à revoir', s: ((r.prenom || '') + ' ' + (r.nom || '')).trim(), pid: r.patient_id }));
+  // Thème d'un intitulé → sert à ne pas répéter un même patient sur un même sujet
+  const themeOf = t => { const x = (t || '').toLowerCase(); if (/trait|ordonnance|renouvel|posolog/.test(x)) return 'trait'; if (/r[ée]sultat|bilan|analyse|examen/.test(x)) return 'res'; return 'autre'; };
+  const seen = new Set(); // clé = patient_id + thème (dédoublonnage inter-sources)
+  const add = it => { const key = (it.pid || it.s || Math.random()) + '|' + it.theme; if (seen.has(key)) return; seen.add(key); items.push(it); };
+  (d.priorites || []).slice(0, 3).forEach(p => { const t = (p.signals && p.signals[0] ? p.signals[0].titre : 'Point à revoir'); add({ dot: p.severite === 'important' ? 'red' : 'amber', t, s: ((p.prenom || '') + ' ' + (p.nom || '')).trim(), pid: p.patient_id, theme: themeOf(t) }); });
+  (d.ordonnances_a_renouveler || []).slice(0, 2).forEach(r => add({ dot: (r.jours_restants <= 0 ? 'red' : 'amber'), t: 'Vérifier / renouveler le traitement', s: ((r.prenom || '') + ' ' + (r.nom || '')).trim(), pid: r.patient_id, theme: 'trait' }));
+  (d.resultats_recents || []).slice(0, 2).forEach(r => add({ dot: 'doc', t: 'Résultat à revoir', s: ((r.prenom || '') + ' ' + (r.nom || '')).trim(), pid: r.patient_id, theme: 'res' }));
   if (!items.length) { el.innerHTML = '<div class="dt-ok">✓ Rien à faire dans l’immédiat.</div>'; return; }
   const ic = { red: '🔴', amber: '🟠', doc: '📄' };
   el.innerHTML = items.slice(0, 5).map(i => `<div class="td-row"${i.pid ? ` role="button" tabindex="0" onclick="openPatientDetail('${i.pid}')"` : ''}><span class="td-ic">${ic[i.dot] || '•'}</span><div style="min-width:0"><div class="td-t">${escapeHtml(i.t)}</div>${i.s ? `<div class="td-s">${escapeHtml(i.s)}</div>` : ''}</div></div>`).join('');
