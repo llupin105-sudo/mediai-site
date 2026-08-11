@@ -859,6 +859,19 @@
   .toast.leaving{ animation:toastOut .2s ease forwards; }
   @keyframes toastOut{ to{ opacity:0; transform:translateX(16px); } }
 
+  /* ── Boot splash — jamais de page vide au démarrage ───── */
+  #bootSplash{ position:fixed; inset:0; z-index:99999; display:flex; align-items:center; justify-content:center; background:var(--paper,#F7F9FC); transition:opacity .4s ease; }
+  #bootSplash.gone{ opacity:0; pointer-events:none; }
+  .boot-inner{ display:flex; flex-direction:column; align-items:center; gap:14px; animation:bootIn .5s ease; }
+  @keyframes bootIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  .boot-logo{ width:60px; height:60px; animation:bootPulse 1.8s ease-in-out infinite; }
+  @keyframes bootPulse{ 0%,100%{ transform:scale(1); opacity:1; } 50%{ transform:scale(1.06); opacity:.86; } }
+  .boot-name{ font-family:var(--sans); font-weight:800; font-size:22px; letter-spacing:-.02em; color:var(--ink,#0A1128); }
+  .boot-bar{ width:120px; height:3px; border-radius:2px; background:rgba(20,33,66,.1); overflow:hidden; position:relative; }
+  .boot-bar::after{ content:''; position:absolute; top:0; bottom:0; width:42%; border-radius:2px; background:linear-gradient(90deg,#1F6BFF,#12C6FF); animation:bootSlide 1.1s ease-in-out infinite; }
+  @keyframes bootSlide{ 0%{ left:-42%; } 100%{ left:100%; } }
+  .boot-sub{ font-size:13px; color:var(--ink-faint,#7A8AA3); }
+  @media(prefers-reduced-motion:reduce){ .boot-logo{ animation:none; } .boot-bar::after{ animation:none; left:0; width:100%; } }
   /* ── Skeleton loading — shimmer premium (balayage de lumière) ───── */
   @keyframes skeletonShimmer{ 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }
   .skel{
@@ -978,6 +991,20 @@
 <body>
 
 <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+<div id="bootSplash">
+  <div class="boot-inner">
+    <svg class="boot-logo" viewBox="0 0 32 32" role="img" aria-label="MediAI">
+      <defs><linearGradient id="miLogoGradBoot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1F6BFF"/><stop offset="1" stop-color="#12C6FF"/></linearGradient></defs>
+      <rect x="2" y="2" width="28" height="28" rx="8.5" fill="url(#miLogoGradBoot)"/>
+      <path d="M16 8.6v14.8M8.6 16h14.8" stroke="#fff" stroke-width="3.2" stroke-linecap="round" opacity=".24"/>
+      <path d="M16 7.4l1.7 6.9 6.9 1.7-6.9 1.7-1.7 6.9-1.7-6.9-6.9-1.7 6.9-1.7z" fill="#fff"/>
+    </svg>
+    <div class="boot-name">MediAI</div>
+    <div class="boot-bar"></div>
+    <div class="boot-sub">Préparation…</div>
+  </div>
+</div>
 
 
 <aside id="appSidebar">
@@ -1862,10 +1889,10 @@ function authHeaders() {
 // ── Récupère l'état du compte au chargement de la page ────────────
 async function loadAccount() {
   const token = getToken();
-  if (!token) { renderAccountZone(); return; }
+  if (!token) { renderAccountZone(); hideBootSplash(); return; }
   try {
     const res = await fetch(API_BASE + '/api/auth/me', { headers: authHeaders() });
-    if (!res.ok) { clearToken(); renderAccountZone(); return; }
+    if (!res.ok) { clearToken(); renderAccountZone(); hideBootSplash(); return; }
     const data = await res.json();
     currentUser = data.user;
     applyDefaultSpecialite();
@@ -1873,7 +1900,18 @@ async function loadAccount() {
   renderAccountZone();
   renderUsageBar();
   updateAdminNav();
+  hideBootSplash();
 }
+// Loader initial : disparaît dès que l'état de session est résolu.
+function hideBootSplash() {
+  const s = document.getElementById('bootSplash');
+  if (!s || s.classList.contains('gone')) return;
+  s.classList.add('gone');
+  setTimeout(function () { s.style.display = 'none'; }, 450);
+}
+// Garde-fous : ne jamais rester bloqué sur le splash.
+window.addEventListener('load', function () { setTimeout(hideBootSplash, 600); });
+setTimeout(hideBootSplash, 5000);
 
 // Command Center : visible uniquement pour un admin ET si le flag est actif.
 // Consommation réelle d'un feature flag sur une fonctionnalité existante :
