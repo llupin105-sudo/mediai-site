@@ -377,6 +377,21 @@
   .waveform span:nth-child(5){ animation-delay:.4s } .waveform span:nth-child(6){ animation-delay:.3s }
   .waveform span:nth-child(7){ animation-delay:.2s } .waveform span:nth-child(8){ animation-delay:.1s }
   .waveform span:nth-child(9){ animation-delay:0s }
+  /* Contrôles de dictée : durée + pause/reprendre */
+  .rec-controls{ display:flex; align-items:center; gap:12px; margin-top:10px; }
+  .rec-dur{ font-family:var(--mono); font-size:14px; font-weight:700; color:var(--rose); letter-spacing:.02em; min-width:44px; text-align:center; }
+  .rec-pause{ display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 16px; border:1px solid var(--paper-line); border-radius:999px; background:var(--card); font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ink-soft); cursor:pointer; transition:border-color .15s, color .15s, background .15s; }
+  .rec-pause:hover{ border-color:var(--accent); color:var(--accent-deep); }
+  .rec-pause.resume{ background:var(--accent-tint); border-color:var(--tint-border); color:var(--accent-deep); }
+  /* Étapes d'analyse animées */
+  .an-steps{ text-align:left; max-width:320px; margin:0 auto; }
+  .an-head{ display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:var(--ink); margin-bottom:14px; }
+  .an-mk{ color:var(--accent); font-weight:800; }
+  .an-step{ display:flex; align-items:center; gap:11px; font-size:13.5px; color:var(--ink-faint); padding:5px 0; transition:color .25s ease; }
+  .an-step .an-check{ width:18px; height:18px; border-radius:50%; border:1.5px solid var(--paper-line); flex:none; position:relative; transition:border-color .25s, background .25s; }
+  .an-step.done{ color:var(--ink); }
+  .an-step.done .an-check{ background:var(--green, #16A34A); border-color:var(--green, #16A34A); }
+  .an-step.done .an-check::after{ content:''; position:absolute; left:5px; top:2px; width:5px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); }
   @keyframes wave{ 0%,100%{ height:6px } 50%{ height:24px } }
 
   .divider-or{ display:flex; align-items:center; gap:12px; color:var(--ink-faint); font-size:12px; font-family:var(--mono); margin:26px 0; }
@@ -1221,6 +1236,10 @@
       <div class="mic-label" id="micLabel">Appuyer pour dicter</div>
       <div class="waveform" id="waveform">
         <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="rec-controls" id="recControls" hidden>
+        <span class="rec-dur" id="recDur">0:00</span>
+        <button type="button" class="rec-pause" id="recPause" onclick="togglePauseRecording()">Pause</button>
       </div>
     </div>
 
@@ -9315,6 +9334,7 @@ async function toggleRecording() {
       label.textContent = 'Enregistrement en cours…';
       label.classList.add('active');
       wave.classList.add('active');
+      startRecTimer();
     } catch (err) {
       alert("Impossible d'accéder au microphone. Vérifiez les autorisations du navigateur, ou collez le texte directement.");
     }
@@ -9328,10 +9348,46 @@ function stopRecording() {
     mediaRecorder.stop();
   }
   recording = false;
+  stopRecTimer();
   document.getElementById('micBtn').classList.remove('recording');
   document.getElementById('waveform').classList.remove('active');
   document.getElementById('micLabel').classList.remove('active');
   document.getElementById('micLabel').textContent = 'Transcription en cours…';
+}
+
+// Durée + pause/reprendre pendant la dictée.
+let recTimer = null, recSeconds = 0, recPaused = false;
+function fmtRecDur(s) { const m = Math.floor(s / 60); const r = s % 60; return m + ':' + String(r).padStart(2, '0'); }
+function startRecTimer() {
+  recSeconds = 0; recPaused = false;
+  const ctl = document.getElementById('recControls'); if (ctl) ctl.hidden = false;
+  const pb = document.getElementById('recPause'); if (pb) { pb.textContent = 'Pause'; pb.classList.remove('resume'); }
+  const dur = document.getElementById('recDur'); if (dur) dur.textContent = '0:00';
+  clearInterval(recTimer);
+  recTimer = setInterval(function () { if (!recPaused) { recSeconds++; const d = document.getElementById('recDur'); if (d) d.textContent = fmtRecDur(recSeconds); } }, 1000);
+}
+function stopRecTimer() {
+  clearInterval(recTimer); recTimer = null; recPaused = false;
+  const ctl = document.getElementById('recControls'); if (ctl) ctl.hidden = true;
+}
+function togglePauseRecording() {
+  if (!mediaRecorder) return;
+  const pb = document.getElementById('recPause');
+  const wave = document.getElementById('waveform');
+  const label = document.getElementById('micLabel');
+  if (mediaRecorder.state === 'recording') {
+    try { mediaRecorder.pause(); } catch (e) {}
+    recPaused = true;
+    if (pb) { pb.textContent = 'Reprendre'; pb.classList.add('resume'); }
+    if (wave) wave.classList.remove('active');
+    if (label) label.textContent = 'En pause';
+  } else if (mediaRecorder.state === 'paused') {
+    try { mediaRecorder.resume(); } catch (e) {}
+    recPaused = false;
+    if (pb) { pb.textContent = 'Pause'; pb.classList.remove('resume'); }
+    if (wave) wave.classList.add('active');
+    if (label) label.textContent = 'Enregistrement en cours…';
+  }
 }
 
 async function sendAudioForTranscription(audioBlob) {
@@ -9464,6 +9520,7 @@ async function generate() {
 
   btn.disabled = true;
   loading.classList.add('visible');
+  startAnalysisSteps(loading);
   errorMsg.classList.remove('visible');
   chartSection.classList.remove('visible');
 
@@ -9502,9 +9559,33 @@ async function generate() {
     errorMsg.textContent = '⚠️ ' + (err.message || 'Impossible de contacter le serveur.');
     errorMsg.classList.add('visible');
   } finally {
+    stopAnalysisSteps(loading);
     loading.classList.remove('visible');
     btn.disabled = false;
   }
+}
+
+// Étapes d'analyse animées pendant la génération du compte-rendu.
+// Purement visuel : décrit le PROCESSUS (jamais de fait clinique inventé).
+const ANALYSIS_STEPS = ['Motifs identifiés', 'Traitements détectés', 'Antécédents relevés', 'Points à vérifier'];
+let analysisTimer = null;
+function startAnalysisSteps(loading) {
+  if (!loading) return;
+  loading.innerHTML = '<div class="an-steps" id="anSteps"><div class="an-head"><span class="an-mk">✦</span> MediAI analyse la consultation…</div>'
+    + ANALYSIS_STEPS.map((s, i) => `<div class="an-step" id="anStep${i}"><span class="an-check"></span>${s}</div>`).join('')
+    + '</div>';
+  let i = 0;
+  clearInterval(analysisTimer);
+  analysisTimer = setInterval(function () {
+    const el = document.getElementById('anStep' + i);
+    if (el) el.classList.add('done');
+    i++;
+    if (i >= ANALYSIS_STEPS.length) clearInterval(analysisTimer);
+  }, 620);
+}
+function stopAnalysisSteps(loading) {
+  clearInterval(analysisTimer); analysisTimer = null;
+  if (loading) loading.innerHTML = 'Anonymisation et structuration en cours<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>';
 }
 
 // ══ Sprint 3 — Ambient Consultation : panneau « Consultation prête » ══
