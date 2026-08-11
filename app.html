@@ -8493,6 +8493,21 @@ function renderDocTabs() {
 }
 function setDocTab(k) { docCenterState.tab = k; docCenterState.page = 1; renderDocTabs(); renderDocList(); }
 function onDocSearch() { docCenterState.q = (document.getElementById('dcSearch').value || '').toLowerCase(); docCenterState.page = 1; renderDocList(); }
+// Visuel par type de document : icône SVG (zéro emoji) + teinte pour identifier « quoi » d'un coup d'œil.
+const DOC_TYPE_VIS = {
+  consultation: { tint:'#EAF1FF', fg:'#1460FF', label:'Compte-rendu', svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>' },
+  ordonnance: { tint:'#E9F9EF', fg:'#16A34A', label:'Ordonnance', svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8.5" width="19" height="7" rx="3.5"/><line x1="12" y1="8.5" x2="12" y2="15.5"/></svg>' },
+  analyse_labo: { tint:'#F1ECFF', fg:'#7C3AED', label:'Analyse', svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L5.2 18a2 2 0 0 0 1.8 3h10a2 2 0 0 0 1.8-3L14 9.5V3"/><line x1="8" y1="15" x2="16" y2="15"/></svg>' },
+  imagerie: { tint:'#FFF3E0', fg:'#D97706', label:'Imagerie', svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="9" r="1.6"/><path d="M21 16l-5-5L5 21"/></svg>' },
+  courrier: { tint:'#FDECF3', fg:'#DB2777', label:'Courrier', svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>' },
+  vaccination: { tint:'#E6F7F5', fg:'#0D9488', label:'Vaccin', svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5a7 7 0 0 1 7 7c0 5-7 12-7 12s-7-7-7-12a7 7 0 0 1 7-7z"/><path d="M9.5 10.5l5 0"/></svg>' },
+};
+const DOC_TYPE_VIS_DEFAULT = { tint:'#EEF1F6', fg:'#5B6472', label:'Document', svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' };
+function docTypeVisual(type) {
+  const v = DOC_TYPE_VIS[type] || (type === 'analyse' ? DOC_TYPE_VIS.analyse_labo : null) || DOC_TYPE_VIS_DEFAULT;
+  const lbl = (TL_TYPES[type] && TL_TYPES[type].label) || v.label;
+  return { tint:v.tint, fg:v.fg, svg:v.svg, label:lbl };
+}
 function renderDocList() {
   const el = document.getElementById('dcList'); if (!el) return;
   const q = docCenterState.q.trim();
@@ -8515,10 +8530,17 @@ function renderDocList() {
   const shown = list.slice(0, page * PAGE);
   el.className = page === 1 ? 'mi-stagger' : ''; // animation d'entrée à la 1re page uniquement
   const rows = shown.map((e) => {
-    const meta = TL_TYPES[e.type] || { icon: '📄', label: e.type }; const fav = favoriteIds.has(e.id);
+    const meta = TL_TYPES[e.type] || { label: e.type }; const fav = favoriteIds.has(e.id);
+    const vis = docTypeVisual(e.type);
+    const pname = ((e.patientPrenom || '') + ' ' + (e.patientNom || '')).trim();
+    const init = (((e.patientPrenom || ' ')[0] || '') + ((e.patientNom || ' ')[0] || '')).toUpperCase();
+    const dt = new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
     return `<div class="dc-row" onclick="switchAppView('patients'); openPatientDetail('${e.patientId}');">
-      <span class="dc-ic">${meta.icon}</span>
-      <div class="dc-bd"><div class="dc-t">${escapeHtml(e.title)}</div><div class="dc-m">${escapeHtml(((e.patientPrenom || '') + ' ' + (e.patientNom || '')).trim())} · ${new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</div></div>
+      <span class="dc-tile" style="background:${vis.tint};color:${vis.fg}">${vis.svg}</span>
+      <div class="dc-bd">
+        <div class="dc-t">${escapeHtml(e.title)}</div>
+        <div class="dc-m"><span class="dc-av" style="background:${patientAvatarColor(pname)}">${escapeHtml(init)}</span>${escapeHtml(pname || 'Patient')} <span class="dc-dot">·</span> ${escapeHtml(dt)} <span class="dc-dot">·</span> <span class="dc-typ">${escapeHtml(vis.label || meta.label || '')}</span></div>
+      </div>
       <button class="dc-pin ${fav ? 'on' : ''}" title="${fav ? 'Retirer des favoris' : 'Épingler'}" onclick="event.stopPropagation();toggleDocFavorite('${e.id}')">${fav ? '★' : '☆'}</button>
     </div>`;
   }).join('');
@@ -8552,12 +8574,17 @@ function ensureDocCenterStyles() {
   .dc-search input:focus{outline:none;border-color:var(--accent)}
   .dc-search svg{position:absolute;left:14px;top:13px;width:16px;height:16px;color:var(--ink-faint)}
   #dcList{margin-top:10px}
-  .dc-row{display:flex;align-items:center;gap:14px;padding:12px 8px;border-top:1px solid var(--paper-line);cursor:pointer;transition:background .15s;border-radius:8px}
+  .dc-row{display:flex;align-items:center;gap:14px;padding:12px 10px;border-top:1px solid var(--paper-line);cursor:pointer;transition:background .15s;border-radius:10px}
   .dc-row:hover{background:var(--paper)}
   .dc-ic{font-size:20px;width:28px;text-align:center}
+  .dc-tile{flex:none;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center}
+  .dc-tile svg{width:20px;height:20px}
   .dc-bd{flex:1;min-width:0}
-  .dc-t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .dc-m{font-size:12px;color:var(--ink-soft)}
+  .dc-t{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dc-m{font-size:12px;color:var(--ink-soft);display:flex;align-items:center;gap:5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dc-av{flex:none;width:19px;height:19px;border-radius:50%;color:#fff;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.02em}
+  .dc-dot{color:var(--ink-faint);opacity:.6}
+  .dc-typ{color:var(--ink-faint);font-weight:600}
   .dc-pin{width:34px;height:34px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--ink-faint);font-size:16px;cursor:pointer;transition:background .15s,color .15s}
   .dc-pin:hover{background:var(--accent-tint);color:var(--accent-deep)}
   .dc-pin.on{color:var(--amber)}
