@@ -950,6 +950,7 @@
     color:var(--ink); cursor:pointer; transition:border-color .15s, box-shadow .15s, color .15s; }
   .ia-quick-chip:hover{ border-color:var(--accent); color:var(--accent-deep); box-shadow:var(--shadow-xs); }
   .ia-quick-chip span{ font-size:15px; }
+  .ia-quick-chip svg{ width:16px; height:16px; color:var(--accent); flex:none; }
   .ia-disc{ font-size:12px; color:var(--ink-faint); line-height:1.5; margin-bottom:30px; max-width:60ch; }
   .ia-cat-lead{ font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:14px; }
   #view-ia-hub .ia-hub-card{ box-shadow:none; }
@@ -1155,10 +1156,10 @@
 
         <div class="dc-section-label">Accès rapides</div>
         <div class="dash-quick">
-          <button onclick="dashboardNewConsultation()"><span class="q-ic">🎙</span>Dictée médicale</button>
-          <button onclick="switchAppView('documents')"><span class="q-ic">📄</span>Analyser un document</button>
-          <button onclick="dashboardNewConsultation()"><span class="q-ic">✦</span>Compte rendu instantané</button>
-          <button onclick="switchAppView('patients')"><span class="q-ic">📝</span>Nouvelle note</button>
+          <button onclick="dashboardNewConsultation()"><span class="q-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.8a2.6 2.6 0 0 0-2.6 2.6v7a2.6 2.6 0 0 0 5.2 0v-7A2.6 2.6 0 0 0 12 1.8z"/><path d="M18 11.4v.6a6 6 0 0 1-12 0v-.6"/><line x1="12" y1="18" x2="12" y2="22"/></svg></span>Dictée médicale</button>
+          <button onclick="switchAppView('documents')"><span class="q-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>Analyser un document</button>
+          <button onclick="dashboardNewConsultation()"><span class="q-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>Compte rendu instantané</button>
+          <button onclick="switchAppView('patients')"><span class="q-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>Nouvelle note</button>
         </div>
 
         <button class="dc-detail" onclick="dashToggleDetail(this)">Statistiques de la journée ↓</button>
@@ -1386,10 +1387,10 @@
       </button>
 
       <div class="ia-quick">
-        <button type="button" class="ia-quick-chip" onclick="iaAsk('Prépare ma journée.')"><span>🗓️</span> Préparer ma journée</button>
-        <button type="button" class="ia-quick-chip" onclick="iaAsk('Quels patients sont à regarder en priorité ?')"><span>⚠️</span> Patients à regarder</button>
-        <button type="button" class="ia-quick-chip" onclick="iaAsk('Quelles ordonnances sont à renouveler ?')"><span>💊</span> Ordonnances à renouveler</button>
-        <button type="button" class="ia-quick-chip" onclick="iaAsk('Quels examens sont arrivés cette semaine ?')"><span>🔬</span> Examens arrivés</button>
+        <button type="button" class="ia-quick-chip" onclick="iaAsk('Prépare ma journée.')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2.5" x2="8" y2="6"/><line x1="16" y1="2.5" x2="16" y2="6"/></svg> Préparer ma journée</button>
+        <button type="button" class="ia-quick-chip" onclick="iaAsk('Quels patients sont à regarder en priorité ?')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Patients à regarder</button>
+        <button type="button" class="ia-quick-chip" onclick="iaAsk('Quelles ordonnances sont à renouveler ?')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8.5" width="19" height="7" rx="3.5"/><line x1="12" y1="8.5" x2="12" y2="15.5"/></svg> Ordonnances à renouveler</button>
+        <button type="button" class="ia-quick-chip" onclick="iaAsk('Quels examens sont arrivés cette semaine ?')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L5.2 18a2 2 0 0 0 1.8 3h10a2 2 0 0 0 1.8-3L14 9.5V3"/><line x1="8" y1="15" x2="16" y2="15"/></svg> Examens arrivés</button>
       </div>
 
       <div class="ia-disc">Réponses établies à partir de vos données. À vérifier — l'IA assiste, elle ne pose jamais de diagnostic.</div>
@@ -2593,30 +2594,53 @@ function ensureCmdkStyles() {
 }
 
 // Registre de commandes — création + navigation. `keywords` = alias de recherche.
+// Jeu d'icônes SVG de la palette (aucun emoji dans l'UI fonctionnelle).
+const CIC = (function () {
+  const w = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+  return {
+    spark: w('<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>'),
+    user: w('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+    users: w('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>'),
+    pill: w('<rect x="2.5" y="8.5" width="19" height="7" rx="3.5"/><line x1="12" y1="8.5" x2="12" y2="15.5"/>'),
+    chart: w('<path d="M3 3v18h18"/><path d="M7 15l3-3 3 3 4-5"/>'),
+    image: w('<rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="9" r="1.6"/><path d="M21 16l-5-5L5 21"/>'),
+    doc: w('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
+    pen: w('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+    mail: w('<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/>'),
+    key: w('<circle cx="7.5" cy="15.5" r="4"/><path d="M10.5 12.5 20 3M16 7l3 3M14 9l2 2"/>'),
+    download: w('<path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/>'),
+    target: w('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>'),
+    home: w('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
+    mic: w('<path d="M12 1.8a2.6 2.6 0 0 0-2.6 2.6v7a2.6 2.6 0 0 0 5.2 0v-7A2.6 2.6 0 0 0 12 1.8z"/><path d="M18 11.4v.6a6 6 0 0 1-12 0v-.6"/><line x1="12" y1="18" x2="12" y2="22"/>'),
+    flask: w('<path d="M9 3h6M10 3v6.5L5.2 18a2 2 0 0 0 1.8 3h10a2 2 0 0 0 1.8-3L14 9.5V3"/><line x1="8" y1="15" x2="16" y2="15"/>'),
+    gear: w('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
+    calendar: w('<rect x="3" y="4.5" width="18" height="16" rx="2.5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2.5" x2="8" y2="6"/><line x1="16" y1="2.5" x2="16" y2="6"/>'),
+  };
+})();
 function cmdkCommands() {
   const nav = (title, view, icon, keywords) => ({ kind:'command', isNav:true, icon, title, sub:'Ouvrir', keywords, action:() => { closeCommandPalette(); switchAppView(view); } });
   return [
-    { kind:'command', icon:'✨', title:'Nouvelle consultation', sub:'Démarrer une consultation', keywords:'nouvelle consultation dicter compte rendu cr soap enregistrer', action:() => { closeCommandPalette(); dashboardNewConsultation(); } },
-    { kind:'command', icon:'👤', title:'Nouveau patient', sub:'Créer une fiche patient', keywords:'nouveau patient creer créer fiche ajouter', action:() => { closeCommandPalette(); openNewPatientModal(); } },
-    { kind:'command', icon:'💊', title:'Créer une ordonnance', sub:'Nouvelle ordonnance', keywords:'creer créer ordonnance ordo prescription medicament médicament traitement nouvelle', action:() => { closeCommandPalette(); openQuickCreate('ordonnance'); } },
-    { kind:'command', icon:'📈', title:'Ajouter une analyse', sub:'Structurer un résultat de laboratoire', keywords:'analyse labo biologie bio prise de sang resultat résultat bilan ajouter structurer', action:() => { closeCommandPalette(); openQuickCreate('analyse'); } },
-    { kind:'command', icon:'📷', title:'Ajouter une imagerie', sub:'Structurer un compte-rendu d\'imagerie', keywords:'imagerie radio irm scanner echographie échographie compte rendu structurer', action:() => { closeCommandPalette(); openQuickCreate('imagerie'); } },
-    { kind:'command', icon:'📄', title:'Ajouter un document', sub:'Ajouter un document au dossier', keywords:'document ajouter piece pièce jointe fichier événement evenement', action:() => { closeCommandPalette(); openQuickCreate('document'); } },
-    { kind:'command', icon:'✍️', title:'Note rapide', sub:'Ajouter une note au dossier', keywords:'note rapide memo mémo annotation', action:() => { closeCommandPalette(); openQuickCreate('note'); } },
-    { kind:'command', icon:'✉️', title:'Générer un courrier', sub:'Courrier de correspondance', keywords:'courrier lettre correspondance confrere confrère adressage generer générer', action:() => { closeCommandPalette(); openQuickCreate('courrier'); } },
-    { kind:'command', icon:'🔑', title:'Inviter un patient', sub:'Activer l\'accès au portail patient', keywords:'inviter patient acces accès portail activer identifiants connexion', action:() => { closeCommandPalette(); withPatient(function () { openPatientPortalModal(); }); } },
-    { kind:'command', icon:'📄', title:'Exporter en PDF', sub:'Exporter le document courant', keywords:'exporter export pdf telecharger télécharger imprimer', action:() => { closeCommandPalette(); openQuickCreate('pdf'); } },
-    { kind:'command', icon:'🎯', title:'Mode Focus', sub:'Consultation sans distraction', keywords:'focus concentration consultation sans distraction plein ecran écran zen', action:() => { closeCommandPalette(); enterFocusMode(); } },
-    nav('Tableau de bord', 'dashboard', '🏠', 'accueil home dashboard tableau bord journee journée'),
-    nav('Patients', 'patients', '👥', 'patients liste dossiers'),
-    nav('Consultations', 'consultation', '🎙️', 'consultation dicter enregistrer micro'),
-    nav('Comptes-rendus', 'doc-consultation', '📄', 'compte rendu cr comptes rendus soap'),
-    nav('Ordonnances', 'doc-ordonnance', '💊', 'ordonnance ordo prescription medicament médicament traitement'),
-    nav('Courriers', 'doc-courrier', '✉️', 'courrier lettre correspondance confrere confrère adressage'),
-    nav('Analyses', 'doc-labo', '🧪', 'analyse labo biologie bio prise de sang resultat résultat bilan'),
-    nav('Imagerie', 'doc-imagerie', '🩻', 'imagerie radio irm scanner echographie échographie'),
-    nav('Assistant IA', 'ia-hub', '✨', 'assistant ia outils intelligence'),
-    nav('Paramètres', 'parametres', '⚙️', 'parametres paramètres reglages réglages profil preferences préférences compte'),
+    { kind:'command', icon:CIC.mic, title:'Nouvelle consultation', sub:'Démarrer une consultation', keywords:'nouvelle consultation dicter compte rendu cr soap enregistrer', action:() => { closeCommandPalette(); dashboardNewConsultation(); } },
+    { kind:'command', icon:CIC.user, title:'Nouveau patient', sub:'Créer une fiche patient', keywords:'nouveau patient creer créer fiche ajouter', action:() => { closeCommandPalette(); openNewPatientModal(); } },
+    { kind:'command', icon:CIC.pill, title:'Créer une ordonnance', sub:'Nouvelle ordonnance', keywords:'creer créer ordonnance ordo prescription medicament médicament traitement nouvelle', action:() => { closeCommandPalette(); openQuickCreate('ordonnance'); } },
+    { kind:'command', icon:CIC.chart, title:'Ajouter une analyse', sub:'Structurer un résultat de laboratoire', keywords:'analyse labo biologie bio prise de sang resultat résultat bilan ajouter structurer', action:() => { closeCommandPalette(); openQuickCreate('analyse'); } },
+    { kind:'command', icon:CIC.image, title:'Ajouter une imagerie', sub:'Structurer un compte-rendu d\'imagerie', keywords:'imagerie radio irm scanner echographie échographie compte rendu structurer', action:() => { closeCommandPalette(); openQuickCreate('imagerie'); } },
+    { kind:'command', icon:CIC.doc, title:'Ajouter un document', sub:'Ajouter un document au dossier', keywords:'document ajouter piece pièce jointe fichier événement evenement', action:() => { closeCommandPalette(); openQuickCreate('document'); } },
+    { kind:'command', icon:CIC.pen, title:'Note rapide', sub:'Ajouter une note au dossier', keywords:'note rapide memo mémo annotation', action:() => { closeCommandPalette(); openQuickCreate('note'); } },
+    { kind:'command', icon:CIC.mail, title:'Générer un courrier', sub:'Courrier de correspondance', keywords:'courrier lettre correspondance confrere confrère adressage generer générer', action:() => { closeCommandPalette(); openQuickCreate('courrier'); } },
+    { kind:'command', icon:CIC.key, title:'Inviter un patient', sub:'Activer l\'accès au portail patient', keywords:'inviter patient acces accès portail activer identifiants connexion', action:() => { closeCommandPalette(); withPatient(function () { openPatientPortalModal(); }); } },
+    { kind:'command', icon:CIC.download, title:'Exporter en PDF', sub:'Exporter le document courant', keywords:'exporter export pdf telecharger télécharger imprimer', action:() => { closeCommandPalette(); openQuickCreate('pdf'); } },
+    { kind:'command', icon:CIC.target, title:'Mode Focus', sub:'Consultation sans distraction', keywords:'focus concentration consultation sans distraction plein ecran écran zen', action:() => { closeCommandPalette(); enterFocusMode(); } },
+    nav('Tableau de bord', 'dashboard', CIC.home, 'accueil home dashboard tableau bord journee journée'),
+    nav('Patients', 'patients', CIC.users, 'patients liste dossiers'),
+    nav('Consultations', 'consultation', CIC.mic, 'consultation dicter enregistrer micro'),
+    nav('Comptes-rendus', 'doc-consultation', CIC.doc, 'compte rendu cr comptes rendus soap'),
+    nav('Ordonnances', 'doc-ordonnance', CIC.pill, 'ordonnance ordo prescription medicament médicament traitement'),
+    nav('Courriers', 'doc-courrier', CIC.mail, 'courrier lettre correspondance confrere confrère adressage'),
+    nav('Analyses', 'doc-labo', CIC.flask, 'analyse labo biologie bio prise de sang resultat résultat bilan'),
+    nav('Imagerie', 'doc-imagerie', CIC.image, 'imagerie radio irm scanner echographie échographie'),
+    nav('Assistant IA', 'ia-hub', CIC.spark, 'assistant ia outils intelligence'),
+    nav('Paramètres', 'parametres', CIC.gear, 'parametres paramètres reglages réglages profil preferences préférences compte'),
   ];
 }
 function cmdkMatch(item, tokens) {
@@ -2651,7 +2675,7 @@ async function runCommandPaletteSearch() {
   const patientMatches = patientsCache
     .filter((p) => `${p.prenom} ${p.nom}`.toLowerCase().includes(query))
     .slice(0, 5)
-    .map((p) => ({ kind:'patient', icon:'👤', title:`${p.prenom} ${p.nom}`, sub:`${p.events_count || 0} événement(s)`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(p.id); } }));
+    .map((p) => ({ kind:'patient', icon:CIC.user, title:`${p.prenom} ${p.nom}`, sub:`${p.events_count || 0} événement(s)`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(p.id); } }));
 
   // Documents — depuis le cache d'événements (tous types via TL_TYPES).
   let docMatches = [];
@@ -2660,7 +2684,7 @@ async function runCommandPaletteSearch() {
     docMatches = events
       .filter((e) => e.title.toLowerCase().includes(query) || `${e.patientPrenom} ${e.patientNom}`.toLowerCase().includes(query))
       .slice(0, 6)
-      .map((e) => { const meta = TL_TYPES[e.type] || { icon: '📄', label: e.type }; return { kind:'document', icon: meta.icon, title: e.title, sub:`${meta.label} · ${e.patientPrenom} ${e.patientNom}`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(e.patientId); } }; });
+      .map((e) => { const meta = TL_TYPES[e.type] || { label: e.type }; return { kind:'document', icon: docTypeVisual(e.type).svg, title: e.title, sub:`${meta.label} · ${e.patientPrenom} ${e.patientNom}`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(e.patientId); } }; });
   } catch {}
 
   // Rendez-vous — source réelle (table appointments).
@@ -2670,7 +2694,7 @@ async function runCommandPaletteSearch() {
     rdvMatches = appts
       .filter((a) => `${a.patient_nom || ''} ${a.patient_label || ''} ${a.motif || ''}`.toLowerCase().includes(query))
       .slice(0, 5)
-      .map((a) => ({ kind:'rdv', icon:'📅', title: (a.patient_nom || a.patient_label || 'Rendez-vous'), sub:`Rendez-vous · ${apptWhen(a) || new Date(a.start_at).toLocaleDateString('fr-FR')}${a.motif ? ' · ' + a.motif : ''}`, action:() => { closeCommandPalette(); if (a.patient_id) { switchAppView('patients'); openPatientDetail(a.patient_id); } } }));
+      .map((a) => ({ kind:'rdv', icon:CIC.calendar, title: (a.patient_nom || a.patient_label || 'Rendez-vous'), sub:`Rendez-vous · ${apptWhen(a) || new Date(a.start_at).toLocaleDateString('fr-FR')}${a.motif ? ' · ' + a.motif : ''}`, action:() => { closeCommandPalette(); if (a.patient_id) { switchAppView('patients'); openPatientDetail(a.patient_id); } } }));
   } catch {}
 
   // Ne re-affiche que si la requête n'a pas changé entre-temps (asynchrone).
@@ -2678,7 +2702,7 @@ async function runCommandPaletteSearch() {
 
   // Sprint 12 Étape 3 — Smart Search : proposer une recherche clinique IA
   // dès qu'une requête est saisie (utile même sans correspondance littérale).
-  const smartItem = { kind:'smart', icon:'✨', title:`Recherche clinique : « ${raw} »`, sub:'Chercher dans tous les dossiers — diabète, hypertension, examens…', action:() => runSmartSearch(raw) };
+  const smartItem = { kind:'smart', icon:CIC.spark, title:`Recherche clinique : « ${raw} »`, sub:'Chercher dans tous les dossiers — diabète, hypertension, examens…', action:() => runSmartSearch(raw) };
 
   const groups = [{ label:'Recherche intelligente', items:[smartItem] }];
   if (commandMatches.length) groups.push({ label:'Actions', items:commandMatches });
@@ -2722,7 +2746,7 @@ async function runSmartSearch(query) {
     }
     const items = patients.slice(0, 12).map((p) => {
       const latest = p.events.slice().sort((a, b) => new Date(b.event_date) - new Date(a.event_date))[0];
-      return { kind:'patient', icon:'👤', title:`${p.prenom || ''} ${p.nom || ''}`.trim(), sub:`${p.events.length} événement${p.events.length > 1 ? 's' : ''} correspondant${p.events.length > 1 ? 's' : ''} · ex. ${(TL_TYPES[latest.type] || {}).label || latest.type}`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(p.id); } };
+      return { kind:'patient', icon:CIC.user, title:`${p.prenom || ''} ${p.nom || ''}`.trim(), sub:`${p.events.length} événement${p.events.length > 1 ? 's' : ''} correspondant${p.events.length > 1 ? 's' : ''} · ex. ${(TL_TYPES[latest.type] || {}).label || latest.type}`, action:() => { closeCommandPalette(); switchAppView('patients'); openPatientDetail(p.id); } };
     });
     cmdkCurrentItems = items;
     renderCmdkResults([{ label:`Recherche clinique · ${patients.length} dossier${patients.length > 1 ? 's' : ''}${termLabel ? ' · ' + termLabel : ''}`, items }]);
@@ -3295,7 +3319,8 @@ function ensureCalmDashStyles() {
   .dash-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
   .dash-quick button{display:flex;flex-direction:column;align-items:flex-start;gap:10px;background:var(--card);border:1px solid var(--paper-line);border-radius:16px;padding:16px 16px;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;transition:transform .15s var(--ease),box-shadow .2s}
   .dash-quick button:hover{transform:translateY(-2px);box-shadow:0 8px 26px -14px rgba(20,33,66,.22)}
-  .dash-quick .q-ic{font-size:20px}
+  .dash-quick .q-ic{color:var(--accent);display:inline-flex}
+  .dash-quick .q-ic svg{width:20px;height:20px}
   @media(max-width:760px){.dash-grid2{grid-template-columns:1fr}.dash-quick{grid-template-columns:1fr 1fr}}`;
   document.head.appendChild(st);
 }
