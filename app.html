@@ -8734,9 +8734,13 @@ function ensureMicroStyles() {
   ${stagger}
   .dc-more{display:block;width:100%;margin-top:14px;height:42px;border-radius:11px;border:1px solid var(--paper-line);background:var(--card);color:var(--ink-soft);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:border-color .16s,color .16s}
   .dc-more:hover{border-color:var(--accent);color:var(--accent-deep)}
+  /* Feedback au clic sur les lignes/cartes cliquables (div → non couvertes par button:active) */
+  body.app-mode :is(.dc-row,.pcalm,.settings-row,.cmdk-item,.dt-row,.td-row,.at-p,.rz-conv,.fav-chip){transition:background .16s var(--ease-out,ease),border-color .16s,transform .11s var(--ease-out,ease),box-shadow .18s}
+  body.app-mode :is(.dc-row,.pcalm,.settings-row,.cmdk-item,.dt-row,.td-row,.at-p,.rz-conv):active{transform:scale(.99)}
   @media(prefers-reduced-motion:reduce){
     html{scroll-behavior:auto}
     body.app-mode button:active{transform:none}
+    body.app-mode :is(.dc-row,.pcalm,.settings-row,.cmdk-item,.dt-row,.td-row,.at-p,.rz-conv):active{transform:none}
     .btn-export:hover{transform:none}
     .mi-stagger>*{animation:none}
   }`;
