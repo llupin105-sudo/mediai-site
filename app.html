@@ -287,7 +287,7 @@
   .tl-group:last-child .tl-item:last-child::before{ display:none; }
   .tl-node{
     width:32px; height:32px; border-radius:var(--r-sm); flex-shrink:0; display:flex; align-items:center; justify-content:center;
-    font-size:14px; background:var(--card); border:1px solid var(--paper-line); box-shadow:var(--shadow-xs); z-index:1;
+    font-size:16px; background:var(--card); border:1px solid var(--paper-line); box-shadow:var(--shadow-xs); z-index:1;
   }
   .tl-card-wrap{ flex:1; min-width:0; }
   .tl-card{
@@ -887,6 +887,8 @@
   .skel-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--r-lg); padding:20px; margin-bottom:12px; }
   .skel-row{ display:flex; align-items:center; gap:12px; padding:11px 0; }
   .skel-circle{ width:36px; height:36px; border-radius:50%; flex-shrink:0; }
+  /* Icônes de type (TL_TYPES) : SVG dimensionné en 1em, hérite taille+couleur du conteneur */
+  .tl-typ-ic{ width:1em; height:1em; display:inline-block; vertical-align:-.14em; flex:none; }
 
   /* ── État vide guidé (icône + titre + texte + action) ──────────── */
   @keyframes emptyIn{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
@@ -6477,7 +6479,7 @@ function renderPatientInsights(patient, events) {
   list.forEach((e) => { if (!byType[e.type]) byType[e.type] = e; });
   const docs = ['consultation', 'ordonnance', 'analyse_labo', 'imagerie', 'courrier'].map((t) => byType[t]).filter(Boolean).slice(0, 4);
   if (docs.length) blocks.push(piwInsCard('📁 Documents clés', docs.map((e) => {
-    const meta = TL_TYPES[e.type] || { icon: '📄', label: e.type };
+    const meta = TL_TYPES[e.type] || { icon: TL_TYPES.document.icon, label: e.type };
     return `<div class="piw-ins-link" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g, "&#39;")})'><span>${meta.icon}</span><span style="flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(eventPreview(e) || e.title)}</span><span style="color:var(--ink-faint);">→</span></div>`;
   }).join('')));
 
@@ -7343,18 +7345,20 @@ async function openPatientDetail(patientId) {
 // ── Timeline médicale interactive ──────────────────────────────────
 let timelineFilter = 'all';
 let timelineQuery = '';
+// Icônes SVG dimensionnées en 1em (héritent du font-size + de la couleur de chaque conteneur).
+const _ti = (p) => '<svg class="tl-typ-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
 const TL_TYPES = {
-  consultation:    { label: 'Consultation',    icon: '🩺', dot: 'sage' },
-  ordonnance:      { label: 'Ordonnance',      icon: '💊', dot: 'violet' },
-  courrier:        { label: 'Courrier',        icon: '✉️', dot: 'amber' },
-  analyse_labo:    { label: 'Analyse',         icon: '📈', dot: 'green-deep' },
-  imagerie:        { label: 'Imagerie',        icon: '📷', dot: 'pink' },
-  hospitalisation: { label: 'Hospitalisation', icon: '🏥', dot: 'rose', imp: true },
-  urgences:        { label: 'Urgences',        icon: '🚑', dot: 'rose', imp: true },
-  vaccination:     { label: 'Vaccin',          icon: '💉', dot: 'green' },
-  teleconsultation:{ label: 'Téléconsult.',    icon: '📞', dot: 'blue' },
-  document:        { label: 'Document',        icon: '📄', dot: 'gray' },
-  analyse_ia:      { label: 'Analyse IA',      icon: '🧬', dot: 'clinical' },
+  consultation:    { label: 'Consultation',    icon: _ti('<path d="M3 4h5v6a4 4 0 0 0 8 0V4h5"/><path d="M3 4v5M21 4v5"/><circle cx="18" cy="16" r="3"/><path d="M18 13v-2"/>'), dot: 'sage' },
+  ordonnance:      { label: 'Ordonnance',      icon: _ti('<rect x="2.5" y="8.5" width="19" height="7" rx="3.5"/><line x1="12" y1="8.5" x2="12" y2="15.5"/>'), dot: 'violet' },
+  courrier:        { label: 'Courrier',        icon: _ti('<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/>'), dot: 'amber' },
+  analyse_labo:    { label: 'Analyse',         icon: _ti('<path d="M9 3h6M10 3v6.5L5.2 18a2 2 0 0 0 1.8 3h10a2 2 0 0 0 1.8-3L14 9.5V3"/><line x1="8" y1="15" x2="16" y2="15"/>'), dot: 'green-deep' },
+  imagerie:        { label: 'Imagerie',        icon: _ti('<rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="9" r="1.6"/><path d="M21 16l-5-5L5 21"/>'), dot: 'pink' },
+  hospitalisation: { label: 'Hospitalisation', icon: _ti('<path d="M4 21V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v15"/><path d="M2 21h20"/><path d="M12 7v6M9 10h6"/>'), dot: 'rose', imp: true },
+  urgences:        { label: 'Urgences',        icon: _ti('<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>'), dot: 'rose', imp: true },
+  vaccination:     { label: 'Vaccin',          icon: _ti('<path d="M14 3l7 7M18 7 8.5 16.5a3 3 0 0 1-1.4.8L3 19l1.7-4.1a3 3 0 0 1 .8-1.4L15 4"/><path d="M9 11l4 4"/>'), dot: 'green' },
+  teleconsultation:{ label: 'Téléconsult.',    icon: _ti('<rect x="2.5" y="6" width="12" height="12" rx="2"/><path d="M14.5 10l6-3v10l-6-3z"/>'), dot: 'blue' },
+  document:        { label: 'Document',        icon: _ti('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'), dot: 'gray' },
+  analyse_ia:      { label: 'Analyse IA',      icon: _ti('<path d="M12 3l1.7 4.6L18 9l-4.3 1.4L12 15l-1.7-4.6L6 9l4.3-1.4z"/><path d="M18 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>'), dot: 'clinical' },
 };
 // Types ajoutables manuellement depuis « ＋ Événement » (les autres naissent d'un flux dédié).
 const MANUAL_EVENT_TYPES = {
@@ -7751,7 +7755,7 @@ function tlHoverShow(id, ev) {
   if (!e) return;
   let c = document.getElementById('tlHoverCard');
   if (!c) { c = document.createElement('div'); c.id = 'tlHoverCard'; c.className = 'tl-hovercard'; document.body.appendChild(c); }
-  const meta = TL_TYPES[e.type] || { label: e.type, icon: '📄' };
+  const meta = TL_TYPES[e.type] || { label: e.type, icon: TL_TYPES.document.icon };
   const prev = eventPreview(e);
   const dt = new Date(e.event_date);
   c.innerHTML = `<div class="tlh-head"><span class="tlh-ic">${meta.icon}</span><span class="tlh-badge">${meta.label}</span><span class="tlh-date">${dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
@@ -7860,7 +7864,7 @@ function renderTimeline(events, raisons) {
     <div class="tl-group">
       <div class="tl-group-label">${g.label}</div>
       ${g.items.map(e => {
-        const meta = TL_TYPES[e.type] || { label: e.type, icon: '📄' };
+        const meta = TL_TYPES[e.type] || { label: e.type, icon: TL_TYPES.document.icon };
         const preview = eventPreview(e);
         const raison = raisons?.get(e.id);
         const dt = new Date(e.event_date);
@@ -7964,7 +7968,7 @@ function renderKeyDocuments(events) {
   const picks = order.map((t) => byType[t]).filter(Boolean).slice(0, 4);
   if (!picks.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="kd-label">📁 Documents importants</div><div class="kd-row">` + picks.map((e) => {
-    const meta = TL_TYPES[e.type] || { icon: '📄', label: e.type };
+    const meta = TL_TYPES[e.type] || { icon: TL_TYPES.document.icon, label: e.type };
     const dt = new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
     const prev = eventPreview(e) || e.title;
     return `<div class="kd-card" data-type="${e.type}" onclick='viewTimelineEvent(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
@@ -8025,7 +8029,7 @@ function openQuickRead() {
 
 // Ouvre l'événement en aperçu modal — on ne quitte JAMAIS la frise.
 function viewTimelineEvent(event) {
-  const meta = TL_TYPES[event.type] || { label: 'Événement', icon: '📄' };
+  const meta = TL_TYPES[event.type] || { label: 'Événement', icon: TL_TYPES.document.icon };
   if (event.type === 'consultation') {
     openDetailViewerModal(`${meta.icon} Consultation`, renderConsultationDetailHtml(event));
   } else if (event.type === 'ordonnance') {
@@ -8662,7 +8666,7 @@ function renderDocFavorites() {
   const el = document.getElementById('dcFav'); if (!el) return;
   const f = docCenterState.favorites; const items = [];
   (f.patients || []).forEach((p) => { items.push(`<button class="fav-chip" onclick="switchAppView('patients'); openPatientDetail('${p.id}');"><span class="fav-av">${escapeHtml((((p.prenom || ' ')[0] || '') + ((p.nom || ' ')[0] || '')).toUpperCase())}</span>${escapeHtml(((p.prenom || '') + ' ' + (p.nom || '')).trim())}</button>`); });
-  (f.events || []).forEach((e) => { const meta = TL_TYPES[e.type] || { icon: '📄' }; items.push(`<button class="fav-chip" onclick="switchAppView('patients'); openPatientDetail('${e.patient_id}');">${meta.icon} ${escapeHtml(e.title)}</button>`); });
+  (f.events || []).forEach((e) => { const meta = TL_TYPES[e.type] || { icon: TL_TYPES.document.icon }; items.push(`<button class="fav-chip" onclick="switchAppView('patients'); openPatientDetail('${e.patient_id}');">${meta.icon} ${escapeHtml(e.title)}</button>`); });
   el.innerHTML = items.length ? `<div class="dc-fav"><div class="dc-fav-h">★ Favoris</div><div class="dc-fav-row">${items.join('')}</div></div>` : '';
 }
 function ensureDocCenterStyles() {
