@@ -1444,6 +1444,9 @@
     <!-- Sprint 18 — Smart Queue (file du jour) -->
     <div id="view-queue" class="app-view"></div>
 
+    <!-- Paramètres → Connexions (intégrations externes : Doctolib…) -->
+    <div id="view-connexions" class="app-view"></div>
+
     <!-- Sprint 13 — pages plateforme -->
     <div id="view-actions-center" class="app-view"></div>
     <div id="view-labs" class="app-view"></div>
@@ -1468,6 +1471,11 @@
             <button class="settings-row" onclick="openPreferencesModal()">
               <span class="set-ic" style="background:#F1ECFF;color:#7C3AED"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>
               <div class="set-bd"><div class="settings-row-title">Intelligence MediAI</div><div class="settings-row-sub">Ton des comptes-rendus, niveau de détail, spécialité par défaut</div></div>
+              <span class="settings-row-arrow">→</span>
+            </button>
+            <button class="settings-row" onclick="switchAppView('connexions')">
+              <span class="set-ic" style="background:#E9F9EF;color:#16A34A"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a3 3 0 0 0 3 3l3-3a3 3 0 0 0-4.24-4.24l-1 1"/><path d="M15 12a3 3 0 0 0-3-3l-3 3a3 3 0 0 0 4.24 4.24l1-1"/></svg></span>
+              <div class="set-bd"><div class="settings-row-title">Connexions</div><div class="settings-row-sub">Doctolib et vos outils de santé</div></div>
               <span class="settings-row-arrow">→</span>
             </button>
             <div class="settings-row static">
@@ -2084,7 +2092,7 @@ const APP_VIEW_IDS = {
   dashboard: 'view-dashboard', patients: 'patientsSection', consultation: 'view-consultation',
   'ia-hub': 'view-ia-hub', 'parametres': 'view-parametres', documents: 'view-documents',
   'actions-center': 'view-actions-center', labs: 'view-labs', marketplace: 'view-marketplace',
-  journal: 'view-journal', queue: 'view-queue', reseau: 'view-reseau',
+  journal: 'view-journal', queue: 'view-queue', reseau: 'view-reseau', connexions: 'view-connexions',
 };
 
 // Sprint 11 Étape 5 — les anciens sous-onglets Documents deviennent des
@@ -2393,6 +2401,7 @@ function switchAppView(viewName) {
   if (viewName === 'journal') { renderJournal(); }
   if (viewName === 'queue') { renderSmartQueue(); }
   if (viewName === 'reseau') { renderReseau(); }
+  if (viewName === 'connexions') { renderConnexions(); }
   if (viewName === 'consultation' && window.MediaiAutosave) {
     const b = document.getElementById('transcriptBox');
     if (b && MediaiAutosave.restore(b)) { b.dispatchEvent(new Event('input', { bubbles: true })); if (typeof showToast === 'function') showToast('Brouillon de consultation restauré.', 'info'); }
@@ -5040,7 +5049,7 @@ function piwCalmCard(m){
   return `<div class="pcalm" role="button" tabindex="0" onclick="openPatientDetail('${m.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openPatientDetail('${m.id}')}" aria-label="${escapeHtml((m.prenom+' '+m.nom).trim())} — ${st.label}">
     <span class="pcalm-dot" style="background:${st.dot}"></span>
     <div class="pcalm-av">${escapeHtml(init)}</div>
-    <div class="pcalm-id"><div class="pcalm-nm">${escapeHtml((m.prenom+' '+m.nom).trim())}</div><div class="pcalm-meta">${escapeHtml(meta||'Âge non renseigné')}</div><div class="pcalm-state" style="color:${st.fg}">${st.label}</div></div>
+    <div class="pcalm-id"><div class="pcalm-nm">${escapeHtml((m.prenom+' '+m.nom).trim())}</div><div class="pcalm-meta">${escapeHtml(meta||'Âge non renseigné')}${m.source === 'doctolib' ? ' <span class="dc-src">· Doctolib</span>' : ''}</div><div class="pcalm-state" style="color:${st.fg}">${st.label}</div></div>
     <div class="pcalm-col"><div class="pcalm-lb">Prochain RDV</div><div class="pcalm-val">${escapeHtml(piwCalmRdv(m))}</div></div>
     <div class="pcalm-col"><div class="pcalm-lb">Suivi</div><div class="pcalm-val">${escapeHtml(piwCalmSince(m))}</div></div>
     <div class="pcalm-act"><div class="pcalm-act-t">${escapeHtml(act.t)}</div><div class="pcalm-act-s">${escapeHtml(act.s)}</div></div>
@@ -8653,7 +8662,7 @@ function renderDocList() {
       <span class="dc-tile" style="background:${vis.tint};color:${vis.fg}">${vis.svg}</span>
       <div class="dc-bd">
         <div class="dc-t">${escapeHtml(e.title)}</div>
-        <div class="dc-m"><span class="dc-av" style="background:${patientAvatarColor(pname)}">${escapeHtml(init)}</span>${escapeHtml(pname || 'Patient')} <span class="dc-dot">·</span> ${escapeHtml(dt)} <span class="dc-dot">·</span> <span class="dc-typ">${escapeHtml(vis.label || meta.label || '')}</span></div>
+        <div class="dc-m"><span class="dc-av" style="background:${patientAvatarColor(pname)}">${escapeHtml(init)}</span>${escapeHtml(pname || 'Patient')} <span class="dc-dot">·</span> ${escapeHtml(dt)} <span class="dc-dot">·</span> <span class="dc-typ">${escapeHtml(vis.label || meta.label || '')}</span>${e.source === 'doctolib' ? ' <span class="dc-dot">·</span> <span class="dc-src">Doctolib</span>' : ''}</div>
       </div>
       <button class="dc-pin ${fav ? 'on' : ''}" title="${fav ? 'Retirer des favoris' : 'Épingler'}" onclick="event.stopPropagation();toggleDocFavorite('${e.id}')">${fav ? '★' : '☆'}</button>
     </div>`;
@@ -8699,6 +8708,7 @@ function ensureDocCenterStyles() {
   .dc-av{flex:none;width:19px;height:19px;border-radius:50%;color:#fff;font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.02em}
   .dc-dot{color:var(--ink-faint);opacity:.6}
   .dc-typ{color:var(--ink-faint);font-weight:600}
+  .dc-src{color:#0596DE;font-weight:600}
   .dc-pin{width:34px;height:34px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--ink-faint);font-size:16px;cursor:pointer;transition:background .15s,color .15s}
   .dc-pin:hover{background:var(--accent-tint);color:var(--accent-deep)}
   .dc-pin.on{color:var(--amber)}
@@ -9312,6 +9322,242 @@ async function apiFetch(url, opts) {
   try { const res = await fetch(url, opts); markOnline(); return res; }
   catch (e) { markOffline(); throw e; }
 }
+
+// ══════════════════════════════════════════════════════════════════
+// Paramètres → CONNEXIONS — intégrations externes (Doctolib).
+// UI épurée façon Apple : le médecin connecte un service, il ne configure
+// pas une API. Toute la logique (auth, secrets, sync) vit côté backend
+// (integrations/doctolib) ; ici on ne fait qu'appeler les endpoints.
+// ══════════════════════════════════════════════════════════════════
+const DLX_BASE = API_BASE + '/api/integrations/doctolib';
+let dlxState = { status: null, busy: false, manage: false };
+
+async function dlxApi(path, method, body) {
+  const res = await apiFetch(DLX_BASE + path, {
+    method: method || 'GET',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Erreur Doctolib');
+  return data;
+}
+
+function ensureConnexionsStyles() {
+  if (document.getElementById('dlxStyles')) return;
+  const st = document.createElement('style'); st.id = 'dlxStyles';
+  st.textContent = `
+  #view-connexions .dlx-wrap{max-width:640px}
+  .dlx-card{background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:22px 24px;box-shadow:var(--shadow-xs);margin-top:16px}
+  .dlx-head{display:flex;align-items:center;gap:14px;margin-bottom:4px}
+  .dlx-logo{width:46px;height:46px;border-radius:13px;flex:none;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0596DE,#00B6F1);color:#fff;font-weight:800;font-size:15px;letter-spacing:-.02em}
+  .dlx-name{font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+  .dlx-scope{font-size:12.5px;color:var(--ink-faint);margin-top:2px}
+  .dlx-status{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;margin-left:auto}
+  .dlx-status .d{width:9px;height:9px;border-radius:50%}
+  .dlx-status.on{color:var(--green-deep,#16A34A)} .dlx-status.on .d{background:var(--green,#16A34A);box-shadow:0 0 0 3px rgba(22,163,74,.16)}
+  .dlx-status.off{color:var(--ink-faint)} .dlx-status.off .d{background:var(--ink-faint)}
+  .dlx-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+  .dlx-metric{background:var(--paper);border:1px solid var(--paper-line);border-radius:12px;padding:12px 14px}
+  .dlx-metric b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+  .dlx-metric span{font-size:12px;color:var(--ink-soft)}
+  .dlx-sync{font-size:12.5px;color:var(--ink-soft);margin-bottom:14px}
+  .dlx-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .dlx-btn{height:42px;padding:0 18px;border-radius:12px;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid var(--paper-line);background:var(--card);color:var(--ink);transition:border-color .15s,background .15s,color .15s,transform .1s}
+  .dlx-btn:hover{border-color:var(--accent);color:var(--accent-deep)}
+  .dlx-btn:active{transform:scale(.98)}
+  .dlx-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .dlx-btn.pri:hover{background:var(--accent-deep);color:#fff}
+  .dlx-btn.danger{color:var(--rose)} .dlx-btn.danger:hover{border-color:var(--rose);background:var(--rose-tint)}
+  .dlx-btn[disabled]{opacity:.55;cursor:default;transform:none}
+  .dlx-note{font-size:12px;color:var(--ink-faint);line-height:1.5;margin-top:14px}
+  .dlx-manage{margin-top:14px;border-top:1px solid var(--paper-line);padding-top:14px}
+  .dlx-diag{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;font-size:12.5px}
+  .dlx-diag div{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--paper-line)}
+  .dlx-diag b{font-weight:600;color:var(--ink)}
+  .dlx-diag .ok{color:var(--green-deep,#16A34A);font-weight:700}
+  /* Overlay de flow (connexion / déconnexion) */
+  .dlx-ov{position:fixed;inset:0;z-index:250;display:flex;align-items:center;justify-content:center;background:rgba(8,17,33,.42);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;transition:opacity .2s}
+  .dlx-ov.on{opacity:1}
+  .dlx-sheet{background:var(--card);border:1px solid var(--paper-line);border-radius:20px;box-shadow:var(--shadow-lg);width:400px;max-width:92vw;padding:26px 26px 22px;transform:translateY(8px) scale(.98);transition:transform .22s var(--ease-out,ease)}
+  .dlx-ov.on .dlx-sheet{transform:none}
+  .dlx-sheet h3{font-size:18px;font-weight:700;letter-spacing:-.01em;color:var(--ink);margin:14px 0 6px}
+  .dlx-sheet p{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:16px}
+  .dlx-steps{display:flex;flex-direction:column;gap:11px;margin:8px 0 18px}
+  .dlx-step{display:flex;align-items:center;gap:11px;font-size:13.5px;color:var(--ink-faint);transition:color .25s}
+  .dlx-step .c{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--paper-line);flex:none;position:relative;transition:border-color .25s,background .25s}
+  .dlx-step.act{color:var(--ink)} .dlx-step.act .c{border-color:var(--accent)}
+  .dlx-step.done{color:var(--ink)} .dlx-step.done .c{background:var(--green,#16A34A);border-color:var(--green,#16A34A)}
+  .dlx-step.done .c::after{content:'';position:absolute;left:6px;top:3px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .dlx-sheet-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+  @media(max-width:560px){.dlx-metrics{grid-template-columns:1fr 1fr}.dlx-diag{grid-template-columns:1fr}}`;
+  document.head.appendChild(st);
+}
+
+async function renderConnexions() {
+  ensureConnexionsStyles();
+  const el = document.getElementById('view-connexions'); if (!el) return;
+  el.innerHTML = `<div class="dlx-wrap">
+    <div class="dash-header"><div class="dash-greeting">Connexions</div><div class="dash-date" style="text-transform:none">Connectez MediAI à vos outils de santé.</div></div>
+    <div id="dlxCard">${skeletonRows ? skeletonRows(2) : '<div class="dlx-card">Chargement…</div>'}</div>
+  </div>`;
+  try {
+    dlxState.status = await dlxApi('/status');
+  } catch (e) { dlxState.status = { connected: false, status: 'disconnected', counts: { patients: 0, appointments: 0, documents: 0 }, mode: 'mock' }; }
+  dlxRenderCard();
+}
+
+function dlxRelTime(iso) {
+  if (!iso) return null;
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return 'il y a ' + s + ' seconde' + (s > 1 ? 's' : '');
+  const m = Math.floor(s / 60); if (m < 60) return 'il y a ' + m + ' minute' + (m > 1 ? 's' : '');
+  const h = Math.floor(m / 60); if (h < 24) return 'il y a ' + h + ' heure' + (h > 1 ? 's' : '');
+  return 'le ' + new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+function dlxRenderCard() {
+  const el = document.getElementById('dlxCard'); if (!el) return;
+  const st = dlxState.status || {};
+  const c = st.counts || { patients: 0, appointments: 0, documents: 0 };
+  const connected = !!st.connected;
+  const isAdmin = !!(currentUser && currentUser.isAdmin);
+  const scope = 'Agenda · Patients · Rendez-vous · Documents';
+  el.innerHTML = `<div class="dlx-card">
+    <div class="dlx-head">
+      <span class="dlx-logo">DL</span>
+      <div><div class="dlx-name">Doctolib</div><div class="dlx-scope">${scope}</div></div>
+      <span class="dlx-status ${connected ? 'on' : 'off'}"><span class="d"></span>${connected ? 'Connecté' : 'Non connecté'}</span>
+    </div>
+    ${connected ? `
+      <div class="dlx-sync">Dernière synchronisation · ${escapeHtml(dlxRelTime(st.lastSyncedAt) || '—')}</div>
+      <div class="dlx-metrics">
+        <div class="dlx-metric"><b>${c.patients}</b><span>Patients</span></div>
+        <div class="dlx-metric"><b>${c.appointments}</b><span>Rendez-vous</span></div>
+        <div class="dlx-metric"><b>${c.documents}</b><span>Documents</span></div>
+      </div>
+      <div class="dlx-actions">
+        <button class="dlx-btn pri" id="dlxSyncBtn" onclick="dlxSync()">Synchroniser maintenant</button>
+        <button class="dlx-btn" onclick="dlxToggleManage()">Gérer la connexion</button>
+        <button class="dlx-btn danger" onclick="dlxDisconnect()">Déconnecter</button>
+      </div>
+      ${dlxState.manage ? dlxManageHtml(st, isAdmin) : ''}
+    ` : `
+      <div class="dlx-metrics">
+        <div class="dlx-metric"><b>—</b><span>Patients</span></div>
+        <div class="dlx-metric"><b>—</b><span>Rendez-vous</span></div>
+        <div class="dlx-metric"><b>—</b><span>Documents</span></div>
+      </div>
+      <div class="dlx-actions"><button class="dlx-btn pri" onclick="dlxConnect()">Connecter Doctolib</button></div>
+      <div class="dlx-note">${st.mode === 'real' ? 'Connecteur officiel configuré.' : 'Environnement de démonstration (mock). Le connecteur réel nécessite une intégration officielle avec Doctolib.'}</div>
+    `}
+  </div>`;
+}
+
+function dlxManageHtml(st, isAdmin) {
+  return `<div class="dlx-manage">
+    <div class="dlx-diag" style="margin-bottom:10px">
+      <div><span>Mode</span><b>${st.mode === 'real' ? 'Officiel' : 'Démonstration (mock)'}</b></div>
+      <div><span>Statut</span><b>${escapeHtml(st.status || '—')}</b></div>
+    </div>
+    <div class="dlx-note">Les secrets d’intégration restent chiffrés côté serveur. La déconnexion les révoque.</div>
+    ${isAdmin ? `<div style="margin-top:12px"><button class="dlx-btn" onclick="dlxDiagnostic()">Diagnostic (admin)</button><div id="dlxDiag"></div></div>` : ''}
+  </div>`;
+}
+
+async function dlxDiagnostic() {
+  const box = document.getElementById('dlxDiag'); if (box) box.innerHTML = '<div class="dlx-note">Diagnostic…</div>';
+  try {
+    const d = await dlxApi('/diagnostic');
+    const line = (k, v) => `<div><span>${k}</span><b class="${String(v).toUpperCase() === 'OK' ? 'ok' : ''}">${escapeHtml(String(v))}</b></div>`;
+    if (box) box.innerHTML = `<div class="dlx-diag" style="margin-top:12px">
+      ${line('Connexion', d.connection)}${line('Authentification', d.authentication)}
+      ${line('Dernière synchro', d.lastSync)}${line('Webhook', d.webhook)}
+      ${line('Base de données', d.database)}${line('Latence', (d.latencyMs != null ? d.latencyMs + ' ms' : '—'))}
+      ${line('Dernière erreur', d.lastError || 'None')}${line('Mode', d.mode)}
+    </div>`;
+  } catch (e) { if (box) box.innerHTML = '<div class="dlx-note">Diagnostic indisponible.</div>'; }
+}
+
+function dlxToggleManage() { dlxState.manage = !dlxState.manage; dlxRenderCard(); }
+
+// ── Flow de connexion (sheet à étapes) ───────────────────────────────
+const DLX_STEPS = ['Connexion', 'Autorisation', 'Vérification', 'Synchronisation initiale', 'Terminé'];
+function dlxOverlay(html) {
+  const ov = document.createElement('div'); ov.className = 'dlx-ov';
+  ov.innerHTML = `<div class="dlx-sheet">${html}</div>`;
+  document.body.appendChild(ov); void ov.offsetWidth; ov.classList.add('on');
+  return ov;
+}
+function dlxStepsHtml(activeIdx) {
+  return `<div class="dlx-steps">${DLX_STEPS.map((s, i) =>
+    `<div class="dlx-step ${i < activeIdx ? 'done' : i === activeIdx ? 'act' : ''}" id="dlxStep${i}"><span class="c"></span>${s}</div>`).join('')}</div>`;
+}
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function dlxConnect() {
+  const ov = dlxOverlay(`<div class="dlx-head"><span class="dlx-logo">DL</span><div><div class="dlx-name">Connexion à Doctolib</div><div class="dlx-scope">Démonstration sécurisée</div></div></div>
+    ${dlxStepsHtml(0)}<div id="dlxFlowMsg" class="dlx-note"></div>`);
+  const setStep = (i) => { const box = ov.querySelector('.dlx-steps'); if (box) box.outerHTML = dlxStepsHtml(i); };
+  try {
+    setStep(0); await wait(500);
+    setStep(1); await wait(500);
+    setStep(2); await dlxApi('/mock/connect', 'POST'); // connexion réelle (mock) côté serveur
+    setStep(3);
+    const r = await dlxApi('/mock/sync', 'POST', { kind: 'full' }); // synchro initiale
+    dlxState.status = r.status;
+    const t = r.sync && r.sync.totals ? r.sync.totals : null;
+    setStep(4);
+    const msg = ov.querySelector('#dlxFlowMsg');
+    if (msg && t) msg.innerHTML = `Importé : <b>${t.created}</b> éléments (${dlxState.status.counts.patients} patients, ${dlxState.status.counts.appointments} rendez-vous, ${dlxState.status.counts.documents} documents).`;
+    const sheet = ov.querySelector('.dlx-sheet');
+    if (sheet) sheet.innerHTML += `<div class="dlx-sheet-actions"><button class="dlx-btn pri" onclick="this.closest('.dlx-ov').remove();renderConnexions()">Terminé</button></div>`;
+  } catch (e) {
+    const sheet = ov.querySelector('.dlx-sheet');
+    if (sheet) sheet.innerHTML = `<h3>Connexion impossible</h3><p>${escapeHtml(e.message || 'Réessayez dans un instant.')}</p>
+      <div class="dlx-sheet-actions"><button class="dlx-btn" onclick="this.closest('.dlx-ov').remove()">Fermer</button><button class="dlx-btn pri" onclick="this.closest('.dlx-ov').remove();dlxConnect()">Réessayer</button></div>`;
+  }
+}
+
+async function dlxSync() {
+  if (dlxState.busy) return; dlxState.busy = true;
+  const btn = document.getElementById('dlxSyncBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Synchronisation…'; }
+  try {
+    const r = await dlxApi('/mock/sync', 'POST', { kind: 'incremental' });
+    dlxState.status = r.status;
+    const t = r.sync && r.sync.totals ? r.sync.totals : { created: 0, updated: 0 };
+    const parts = [];
+    if (t.created) parts.push('+' + t.created + ' créé' + (t.created > 1 ? 's' : ''));
+    if (t.updated) parts.push(t.updated + ' mis à jour');
+    const label = parts.length ? parts.join(' · ') : 'Déjà à jour';
+    if (typeof showToast === 'function') showToast('Synchronisé · ' + label, 'success');
+  } catch (e) {
+    if (typeof showToast === 'function') showToast(e.message || 'Synchronisation impossible.', 'error');
+  } finally {
+    dlxState.busy = false; dlxRenderCard();
+  }
+}
+
+function dlxDisconnect() {
+  const ov = dlxOverlay(`<h3>Déconnecter Doctolib ?</h3>
+    <p>MediAI ne recevra plus les nouvelles données. Les données déjà importées restent dans MediAI selon vos règles de conservation.</p>
+    <div class="dlx-sheet-actions">
+      <button class="dlx-btn" onclick="this.closest('.dlx-ov').remove()">Annuler</button>
+      <button class="dlx-btn danger" id="dlxDiscBtn" onclick="dlxDoDisconnect(this)">Déconnecter</button>
+    </div>`);
+  return ov;
+}
+async function dlxDoDisconnect(btn) {
+  btn.disabled = true; btn.textContent = 'Déconnexion…';
+  try {
+    dlxState.status = await dlxApi('/mock/disconnect', 'POST');
+    dlxState.manage = false;
+    if (typeof showToast === 'function') showToast('Doctolib déconnecté. Secrets révoqués.', 'info');
+  } catch (e) { if (typeof showToast === 'function') showToast(e.message || 'Erreur.', 'error'); }
+  finally { const ov = btn.closest('.dlx-ov'); if (ov) ov.remove(); dlxRenderCard(); }
+}
+
 let _connOffline = false, _connTimer = null;
 function ensureConnBanner() {
   if (document.getElementById('connBanner')) return;
