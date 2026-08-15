@@ -1186,6 +1186,7 @@
     <div id="patientHeaderNew"></div>
     <div class="piw-layout">
     <div class="piw-main">
+    <div id="patientBrief"></div>
     <div id="patientToday"></div>
     <div id="patientAI"></div>
     <div id="patientHealth"></div>
@@ -6403,6 +6404,43 @@ function piwInsCard(title, body) {
 // du réel par computePatientSignals), pas sur un gros résumé IA.
 // ══════════════════════════════════════════════════════════════════
 function pt2ScrollTimeline(){ const t=document.getElementById('recordTimelineWrap'); if(t) t.scrollIntoView({behavior:'smooth',block:'start'}); }
+// MediAI Brain — Brief de consultation « 20 secondes » (Consultation Intelligence).
+// Faits OBSERVÉS (déterministes, serveur /brief) présentés en tête du dossier ;
+// l'interprétation IA (questions à poser) reste explicitement à part.
+let _briefCollapsed = false;
+async function renderPatientBrief(patientId) {
+  const el = document.getElementById('patientBrief'); if (!el) return;
+  ensureTodayStyles();
+  el.innerHTML = `<div class="pb-card"><div class="pb-load">Brief MediAI…</div></div>`;
+  let b;
+  try {
+    const res = await apiFetch(API_BASE + '/api/patients/' + patientId + '/brief', { headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok || !data.brief) { el.innerHTML = ''; return; }
+    b = data.brief;
+  } catch (e) { el.innerHTML = ''; return; }
+  const fmt = (iso) => iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  const sec = (label, inner) => inner ? `<div class="pb-sec"><div class="pb-sec-l">${label}</div><div class="pb-sec-b">${inner}</div></div>` : '';
+  const chips = (arr) => arr && arr.length ? arr.map((x) => `<span class="pb-chip">${escapeHtml(x)}</span>`).join('') : '';
+  const rows = [];
+  if (b.motif) rows.push(sec('Motif', `<span class="pb-strong">${escapeHtml(b.motif)}</span>`));
+  if (b.derniereConsultation) rows.push(sec('Dernière consultation', `${escapeHtml(b.derniereConsultation.resume || '—')} <span class="pb-dim">· ${fmt(b.derniereConsultation.date)}</span>`));
+  if (b.antecedents && b.antecedents.length) rows.push(sec('Antécédents pertinents', chips(b.antecedents)));
+  if (b.traitements && b.traitements.length) rows.push(sec('Traitements en cours', b.traitements.map((t) => `<div class="pb-li">${escapeHtml(t.medicament)}${t.posologie ? ` <span class="pb-dim">· ${escapeHtml(t.posologie)}</span>` : ''}</div>`).join('')));
+  if (b.derniersExamens && b.derniersExamens.length) rows.push(sec('Derniers examens', b.derniersExamens.map((e) => `<div class="pb-li">${escapeHtml(e.title || e.label)} <span class="pb-dim">· ${fmt(e.date)}</span></div>`).join('')));
+  if (b.pointsASurveiller && b.pointsASurveiller.length) rows.push(sec('Points à surveiller', b.pointsASurveiller.map((p) => `<div class="pb-watch pb-sev-${p.severite}">${escapeHtml(p.titre)}${p.detail ? ` <span class="pb-dim">· ${escapeHtml(p.detail)}</span>` : ''}</div>`).join('')));
+  if (!rows.length && !b.motif) { el.innerHTML = ''; return; } // dossier trop pauvre : pas de brief
+  el.innerHTML = `<div class="pb-card${_briefCollapsed ? ' pb-collapsed' : ''}">
+    <div class="pb-head" onclick="_briefCollapsed=!_briefCollapsed;renderPatientBrief('${patientId}')">
+      <span class="pb-mk">✦</span>
+      <div class="pb-h-tx"><div class="pb-h-t">Brief MediAI</div><div class="pb-h-s">20 secondes · faits observés du dossier</div></div>
+      <span class="pb-toggle">${_briefCollapsed ? 'Afficher' : 'Masquer'}</span>
+    </div>
+    ${_briefCollapsed ? '' : `<div class="pb-body">${rows.join('')}
+      <div class="pb-ai"><span class="pb-ai-mk">✦</span> Questions à poser & interprétation <button class="pb-ai-btn" onclick="event.stopPropagation();if(typeof openCopilote==='function')openCopilote()">Demander à MediAI</button></div>
+    </div>`}
+  </div>`;
+}
 // MediAI Brain (miroir client de brain.changesSinceLastConsult) — déterministe.
 // Référence = consultation précédente ; liste les événements survenus depuis.
 function pt2ChangesSince(list){
@@ -6459,6 +6497,28 @@ function ensureTodayStyles(){
   .piw-rail{position:static!important;margin-top:0!important}
   #dossierAsstEntry{display:none!important}
   #patientToday{margin-bottom:22px}
+  #patientBrief{margin-bottom:14px}
+  .pb-card{background:linear-gradient(180deg,var(--card),var(--accent-tint));border:1px solid var(--tint-border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-xs)}
+  .pb-load{padding:16px 18px;font-size:13px;color:var(--ink-faint)}
+  .pb-head{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer}
+  .pb-mk{width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;font-size:16px;font-weight:800;background:linear-gradient(135deg,var(--violet),var(--blue));color:#fff}
+  .pb-h-t{font-size:14.5px;font-weight:700;color:var(--ink)}
+  .pb-h-s{font-size:12px;color:var(--ink-faint);margin-top:1px}
+  .pb-toggle{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--accent-deep)}
+  .pb-body{padding:0 18px 16px}
+  .pb-sec{display:grid;grid-template-columns:150px 1fr;gap:12px;padding:9px 0;border-top:1px solid var(--paper-line)}
+  .pb-sec-l{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-faint);padding-top:2px}
+  .pb-sec-b{font-size:13.5px;color:var(--ink);line-height:1.5;min-width:0}
+  .pb-strong{font-weight:700}
+  .pb-dim{color:var(--ink-faint)}
+  .pb-chip{display:inline-block;font-size:12.5px;font-weight:600;background:var(--card);border:1px solid var(--paper-line);border-radius:999px;padding:3px 10px;margin:0 5px 5px 0}
+  .pb-li{padding:1px 0}
+  .pb-watch{padding:3px 0}
+  .pb-sev-important{color:#B42318;font-weight:600} .pb-sev-attention{color:#9A6700;font-weight:600}
+  .pb-ai{display:flex;align-items:center;gap:9px;margin-top:12px;padding-top:11px;border-top:1px solid var(--paper-line);font-size:12.5px;color:var(--violet-deep)}
+  .pb-ai-mk{font-weight:800}
+  .pb-ai-btn{margin-left:auto;background:var(--violet);color:#fff;border:none;border-radius:9px;padding:6px 13px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+  @media(max-width:560px){.pb-sec{grid-template-columns:1fr;gap:3px}}
   .pt2-chg{margin-top:14px;background:var(--accent-tint);border:1px solid var(--tint-border);border-radius:12px;padding:12px 14px}
   .pt2-chg-h{font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--accent-deep);margin-bottom:8px}
   .pt2-chg-row{display:flex;flex-wrap:wrap;gap:7px}
@@ -7341,6 +7401,7 @@ async function openPatientDetail(patientId) {
     currentPatientInfo = data.patient || null;
     currentPatientSnapshot = null;
     renderPatientHeader(data.patient, currentPatientEvents); // Sprint 10 : header premium + actions groupées
+    renderPatientBrief(patientId); // MediAI Brain : brief « 20 s » en tête (déterministe, serveur)
     renderPatientToday(data.patient, currentPatientEvents); // Patient Space 2.0 · Phase A : bloc « Aujourd'hui » en tête
     renderPatientStickyBanner(data.patient, currentPatientEvents); // Sprint 18 : bandeau fixe (Dossier 2.0)
     renderPatientAI(data.patient, currentPatientEvents, null); // Sprint 10b : 3 blocs IA (rendu instantané déterministe, enrichi au snapshot)
