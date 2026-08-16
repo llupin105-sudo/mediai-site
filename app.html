@@ -10133,7 +10133,18 @@ function ensureConsultStyles() {
     + '.cr-task{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--ink);line-height:1.5;padding:3px 0}'
     + '.cr-task .cb{width:15px;height:15px;border:1.5px solid var(--tint-border);border-radius:4px;flex-shrink:0;margin-top:2px}'
     + '.cr-const{display:flex;flex-wrap:wrap;gap:6px}'
-    + '.cr-const span{background:var(--paper);border:1px solid var(--paper-line);border-radius:999px;padding:3px 11px;font-size:12.5px;color:var(--ink-soft)}';
+    + '.cr-const span{background:var(--paper);border:1px solid var(--paper-line);border-radius:999px;padding:3px 11px;font-size:12.5px;color:var(--ink-soft)}'
+    + '.cr-trust{font-size:12px;color:var(--ink-faint);margin:2px 0 12px;display:flex;align-items:center;gap:7px}'
+    + '.cr-trust::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green,#16A34A);flex:none}'
+    + '.cr-prop{display:flex;gap:10px;align-items:center;font-size:13.5px;color:var(--ink);line-height:1.4;padding:6px 0}'
+    + '.cr-prop .cb{width:15px;height:15px;border:1.5px solid var(--tint-border);border-radius:4px;flex:none}'
+    + '.cr-prop-t{flex:1;min-width:0}'
+    + '.cr-prop-btn{flex:none;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 13px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .15s,transform .1s}'
+    + '.cr-prop-btn:hover{background:var(--accent-deep)} .cr-prop-btn:active{transform:scale(.96)} .cr-prop-btn:disabled{opacity:.6}'
+    + '.cr-prop-ok{flex:none;font-size:12.5px;font-weight:700;color:var(--green-deep,#16A34A)}'
+    + '.cr-prop.done .cr-prop-t{color:var(--ink-faint);text-decoration:line-through}'
+    + '.cr-prop.done .cb{background:var(--green,#16A34A);border-color:var(--green,#16A34A)}'
+    + '.cr-src{font-size:11.5px;color:var(--ink-faint);margin-top:9px;padding-top:8px;border-top:1px dashed var(--paper-line)}';
   document.head.appendChild(st);
 }
 
@@ -10161,21 +10172,52 @@ function renderConsultReadyPanel(cr) {
     </button>`);
   }
 
-  // Suites à donner : la « to-do » de la consultation, dérivée du plan.
-  const tasks = [];
-  if (plan.suivi && plan.suivi !== '—') tasks.push(`Suivi : ${plan.suivi}`);
-  if (arret.prescrit) tasks.push(`Arrêt de travail — ${arret.duree_jours || '?'} jour(s)${arret.motif ? ' (' + arret.motif + ')' : ''}`);
-  orientations.forEach((o) => tasks.push(`Orientation : ${o}`));
+  // Action Intelligence — SUITES À DONNER = propositions VALIDABLES (persistées + tracées).
+  // MediAI propose ; le médecin valide. Rien n'est fait automatiquement.
+  const props = [];
+  if (plan.suivi && plan.suivi !== '—') {
+    const d = (typeof parseDelayToDays === 'function') ? parseDelayToDays(plan.suivi) : null;
+    props.push({ kind: 'followup', title: 'Suivi : ' + plan.suivi, dueInDays: d });
+  }
+  if (arret.prescrit) props.push({ kind: 'arret', title: `Arrêt de travail — ${arret.duree_jours || '?'} jour(s)${arret.motif ? ' (' + arret.motif + ')' : ''}`, dueInDays: 0 });
+  orientations.forEach((o) => props.push({ kind: 'examen', title: 'Orientation : ' + o, dueInDays: null }));
+  (plan.examens_demandes || []).filter(Boolean).forEach((ex) => props.push({ kind: 'examen', title: 'Examen : ' + ex, dueInDays: null }));
 
   const constEntries = Object.entries(constantes).filter(([, v]) => v && v !== 'null');
+  const cid = (typeof lastEventId !== 'undefined' && lastEventId) ? lastEventId : '';
 
   el.innerHTML = `
     <div class="cr-ready">
       <div class="cr-ready-head">✓ Consultation prête — le compte-rendu a été ajouté au dossier</div>
+      <div class="cr-trust">MediAI propose · vous validez · rien n'est envoyé ou enregistré automatiquement.</div>
       ${actions.length ? `<div class="cr-actions">${actions.join('')}</div>` : ''}
-      ${tasks.length ? `<div class="cr-block"><div class="cr-block-h">📌 Suites à donner</div>${tasks.map((t) => `<div class="cr-task"><span class="cb"></span><span>${escapeHtml(t)}</span></div>`).join('')}</div>` : ''}
-      ${constEntries.length ? `<div class="cr-block"><div class="cr-block-h">📊 Constantes relevées</div><div class="cr-const">${constEntries.map(([k, v]) => `<span>${escapeHtml(k)} : ${escapeHtml(String(v))}</span>`).join('')}</div></div>` : ''}
+      ${props.length ? `<div class="cr-block"><div class="cr-block-h">Suites à donner</div>${props.map((p, i) => `
+        <div class="cr-prop" id="crProp${i}">
+          <span class="cb"></span>
+          <span class="cr-prop-t">${escapeHtml(p.title)}</span>
+          <button class="cr-prop-btn" onclick="crValidateFollowup(this, '${escapeHtml(cid)}', '${p.kind}', ${JSON.stringify(p.title).replace(/'/g, "\\'").replace(/"/g, '&quot;')}, ${p.dueInDays == null ? 'null' : p.dueInDays})">Valider</button>
+        </div>`).join('')}<div class="cr-src">Source : cette consultation · à vérifier</div></div>` : ''}
+      ${constEntries.length ? `<div class="cr-block"><div class="cr-block-h">Constantes relevées</div><div class="cr-const">${constEntries.map(([k, v]) => `<span>${escapeHtml(k)} : ${escapeHtml(String(v))}</span>`).join('')}</div></div>` : ''}
     </div>`;
+}
+// Validation d'une proposition de suivi → tâche persistée et traçable (backend).
+async function crValidateFollowup(btn, consultationId, kind, title, dueInDays) {
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const pid = (typeof currentDetailPatientId !== 'undefined' && currentDetailPatientId) || (typeof selectedPatient !== 'undefined' && selectedPatient && selectedPatient.id);
+    if (!pid) throw new Error('Aucun patient sélectionné');
+    const res = await apiFetch(API_BASE + '/api/patients/' + pid + '/follow-up-tasks', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ consultationId, kind, title, dueInDays }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    const row = btn.closest('.cr-prop'); if (row) { row.classList.add('done'); btn.outerHTML = '<span class="cr-prop-ok">✓ Ajouté aux tâches</span>'; }
+    if (typeof showToast === 'function') showToast(data.created ? 'Suivi ajouté à vos tâches.' : 'Ce suivi était déjà planifié.', 'success');
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Valider';
+    if (typeof showToast === 'function') showToast(e.message || 'Impossible d’enregistrer.', 'error');
+  }
 }
 
 function renderChart(cr, meta) {
